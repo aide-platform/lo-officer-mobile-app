@@ -1,29 +1,25 @@
-// =============================================================
-// Liaison Officer Screen with Bottom Nav
-// =============================================================
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/design/app_colors.dart';
 import '../../../../core/design/contrast.dart';
+import '../../../../core/notifications/mock_email_notifier.dart';
 import '../../data/enum/taskStatus.dart';
-import '../../data/enum/taskType.dart';
 import '../../data/models/LoTask.dart';
+import '../../data/models/lo_assignment.dart';
 import '../widgets/statusSlider.dart';
-import '../../bloc/lo_bloc.dart';
+import 'lo_notifications_screen.dart';
 
-// ═══════════════════════════════════════════════════════════════
-// ASSIGNED TASKS PAGE
-// ═══════════════════════════════════════════════════════════════
-
+/// LO.9.3 Tasks tab — prefers [LoTaskAssignment], falls back to derived [LOTask]s.
 class AssignedTasksPage extends StatefulWidget {
-  final List<LOTask> tasks;
-  final VoidCallback onUpdate;
+  final String loEmail;
+  final List<LOTask> fallbackTasks;
+  final VoidCallback? onUpdate;
 
   const AssignedTasksPage({
     super.key,
-    required this.tasks,
-    required this.onUpdate,
+    required this.loEmail,
+    this.fallbackTasks = const [],
+    this.onUpdate,
   });
 
   @override
@@ -31,86 +27,228 @@ class AssignedTasksPage extends StatefulWidget {
 }
 
 class _AssignedTasksPageState extends State<AssignedTasksPage> {
-  // ── Filter ────────────────────────────────────────────────
-  TaskStatus? _filterStatus; // null = All
-  String? _filterVip; // null = All VIPs
+  List<LoTaskAssignment> _assignments = [];
+  bool _loading = true;
+  String? _filterStatus;
+  String? _filterDelegate;
 
-  // ── Derived lists ─────────────────────────────────────────
-  List<LOTask> get _filtered => widget.tasks.where((t) {
-        if (_filterStatus != null && t.status != _filterStatus) return false;
-        if (_filterVip != null && t.vipName != _filterVip) return false;
-        return true;
-      }).toList();
-
-  List<String> get _vipNames {
-    final names = widget.tasks.map((t) => t.vipName).toSet().toList()..sort();
-    return names;
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  Map<String, List<LOTask>> get _groupedByVip {
-    final grouped = <String, List<LOTask>>{};
-    for (final t in _filtered) {
-      grouped.putIfAbsent(t.vipName, () => []).add(t);
+  @override
+  void didUpdateWidget(covariant AssignedTasksPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.loEmail != widget.loEmail) _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      await LoTaskAssignment.ensureDemoSeed(widget.loEmail);
+      final tasks = await LoTaskAssignment.forLo(widget.loEmail);
+      if (!mounted) return;
+      setState(() {
+        _assignments = tasks;
+        _loading = false;
+      });
+    } catch (e, st) {
+      debugPrint('AssignedTasksPage._load failed: $e\n$st');
+      if (!mounted) return;
+      setState(() {
+        _assignments = _memoryDemoTasks(widget.loEmail);
+        _loading = false;
+      });
     }
-    return grouped;
   }
 
-  // ── Stats ─────────────────────────────────────────────────
-  int get _total => widget.tasks.length;
-  int get _pending =>
-      widget.tasks.where((t) => t.status == TaskStatus.pending).length;
-  int get _inProgress =>
-      widget.tasks.where((t) => t.status == TaskStatus.inProgress).length;
-  int get _done =>
-      widget.tasks.where((t) => t.status == TaskStatus.completed).length;
+  static List<LoTaskAssignment> _memoryDemoTasks(String loEmail) {
+    final now = DateTime.now();
+    return [
+      LoTaskAssignment(
+        taskTitle: 'Airport Pickup',
+        delegateName: 'Dr. Michael Thompson',
+        assignedLoEmail: loEmail,
+        taskSource: 'Protocol',
+        description: 'Receive delegate at T2 arrivals and escort to hotel.',
+        scheduledDate: now.add(const Duration(hours: 2)),
+        location: 'Kempegowda International Airport — T2',
+        status: 'Pending',
+      ),
+      LoTaskAssignment(
+        taskTitle: 'Hotel Check-in Assist',
+        delegateName: 'Dr. Michael Thompson',
+        assignedLoEmail: loEmail,
+        taskSource: 'Accommodation',
+        description: 'Coordinate presidential suite check-in and room briefing.',
+        scheduledDate: now.add(const Duration(hours: 4)),
+        location: 'The Leela Palace',
+        status: 'Pending',
+      ),
+      LoTaskAssignment(
+        taskTitle: 'Welcome Dinner Escort',
+        delegateName: 'Sharan',
+        assignedLoEmail: loEmail,
+        taskSource: 'Protocol',
+        description: 'Escort delegate to Welcome Dinner and confirm seating.',
+        scheduledDate: now.add(const Duration(hours: 6)),
+        location: 'Taj West End — Banquet Hall',
+        status: 'In Progress',
+      ),
+      LoTaskAssignment(
+        taskTitle: 'Inaugural Function Support',
+        delegateName: 'Dr. Michael Thompson',
+        assignedLoEmail: loEmail,
+        taskSource: 'Events',
+        description: 'Protocol support during Inaugural Function.',
+        scheduledDate: now.add(const Duration(days: 1, hours: 2)),
+        location: 'Main Convention Centre',
+        status: 'Pending',
+      ),
+    ];
+  }
 
-  // ═══════════════════════════════════════════════════════════
-  // BUILD
-  // ═══════════════════════════════════════════════════════════
+  bool get _useAssignments => _assignments.isNotEmpty;
+
+  List<LoTaskAssignment> get _filteredAssignments {
+    return _assignments.where((t) {
+      if (_filterStatus != null && t.status != _filterStatus) return false;
+      if (_filterDelegate != null && t.delegateName != _filterDelegate) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Map<String, List<LoTaskAssignment>> get _grouped {
+    final map = <String, List<LoTaskAssignment>>{};
+    for (final t in _filteredAssignments) {
+      map.putIfAbsent(t.delegateName, () => []).add(t);
+    }
+    return map;
+  }
+
+  List<String> get _delegateNames =>
+      _assignments.map((t) => t.delegateName).toSet().toList()..sort();
+
+  int get _total => _assignments.length;
+  int get _pending =>
+      _assignments.where((t) => t.status == 'Pending').length;
+  int get _inProgress =>
+      _assignments.where((t) => t.status == 'In Progress').length;
+  int get _done =>
+      _assignments.where((t) => t.status == 'Completed').length;
+
+  TaskStatus _toEnum(String status) {
+    switch (status) {
+      case 'In Progress':
+        return TaskStatus.inProgress;
+      case 'Completed':
+        return TaskStatus.completed;
+      default:
+        return TaskStatus.pending;
+    }
+  }
+
+  String _fromEnum(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.inProgress:
+        return 'In Progress';
+      case TaskStatus.completed:
+        return 'Completed';
+      case TaskStatus.pending:
+        return 'Pending';
+    }
+  }
+
+  Future<void> _updateStatus(LoTaskAssignment task, TaskStatus status) async {
+    final label = _fromEnum(status);
+    try {
+      await LoTaskAssignment.updateStatus(
+        delegateName: task.delegateName,
+        assignedLoEmail: task.assignedLoEmail,
+        taskTitle: task.taskTitle,
+        status: label,
+      );
+    } catch (e) {
+      debugPrint('Task status persist failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _assignments = _assignments
+            .map((t) => t.taskTitle == task.taskTitle &&
+                    t.delegateName == task.delegateName
+                ? t.copyWith(status: label)
+                : t)
+            .toList();
+      });
+    }
+
+    LoNotificationStore.instance.add(
+      LoNotification(
+        id: 'task_${DateTime.now().millisecondsSinceEpoch}',
+        title: 'Task status updated',
+        body:
+            '${task.taskTitle} for ${task.delegateName} is now $label. Visible to LO Committee Nodal Officer.',
+        type: LoNotifType.task,
+        timestamp: DateTime.now(),
+      ),
+    );
+
+    try {
+      await MockEmailNotifier.send(
+        to: 'nodal.officer@lo-committee.example',
+        subject: 'Task status — ${task.taskTitle}',
+        body:
+            'LO updated task "${task.taskTitle}" for ${task.delegateName} to $label.',
+      );
+    } catch (_) {}
+
+    widget.onUpdate?.call();
+    try {
+      await _load();
+    } catch (_) {}
+  }
+
+  String _fmtSchedule(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final grouped = _groupedByVip;
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!_useAssignments) {
+      return _FallbackDerivedTasks(tasks: widget.fallbackTasks);
+    }
+
+    final grouped = _grouped;
 
     return Column(
       children: [
-        // ── Progress header ──────────────────────────
         _buildHeader(cs),
-
-        // ── Status filter chips ──────────────────────
         _buildStatusFilter(cs),
-
-        // ── VIP filter ────────────────────────────────
-        if (_vipNames.length > 1) _buildVipFilter(cs),
-
-        // ── Task list ─────────────────────────────────
+        if (_delegateNames.length > 1) _buildDelegateFilter(cs),
         Expanded(
           child: grouped.isEmpty
-              ? _buildEmptyState()
+              ? _empty()
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                   itemCount: grouped.length,
                   itemBuilder: (_, i) {
-                    final vipName = grouped.keys.toList()[i];
-                    final tasks = grouped[vipName]!;
-                    return _VipTaskGroup(
-                      vipName: vipName,
+                    final name = grouped.keys.toList()[i];
+                    final tasks = grouped[name]!;
+                    return _DelegateTaskGroup(
+                      delegateName: name,
                       tasks: tasks,
-                      onStatusChanged: (task, status) {
-                        context.read<LoBloc>().add(LoTaskStatusChanged(
-                              task.vipName,
-                              task.taskIndex,
-                              status,
-                            ));
-                      },
-                      onSwipeComplete: (task) {
-                        context.read<LoBloc>().add(LoTaskStatusChanged(
-                              task.vipName,
-                              task.taskIndex,
-                              TaskStatus.completed,
-                            ));
-                      },
+                      formatSchedule: _fmtSchedule,
+                      toEnum: _toEnum,
+                      onStatusChanged: _updateStatus,
                     );
                   },
                 ),
@@ -119,518 +257,283 @@ class _AssignedTasksPageState extends State<AssignedTasksPage> {
     );
   }
 
-  // ── Header strip ──────────────────────────────────────────
-
   Widget _buildHeader(ColorScheme cs) {
+    final s = context.semantic;
     return Container(
-        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Contrast.cardSurface(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Contrast.cardBorder(context)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _StatBubble(
-                  label: 'Total', value: _total, color: cs.primary),
-            ),
-            Expanded(
-              child: _StatBubble(
-                  label: 'Pending',
-                  value: _pending,
-                  color: AppColors.warning),
-            ),
-            Expanded(
-              child: _StatBubble(
-                  label: 'In Progress',
-                  value: _inProgress,
-                  color: AppColors.primary),
-            ),
-            Expanded(
-              child: _StatBubble(
-                  label: 'Done', value: _done, color: AppColors.success),
-            ),
-          ],
-        ),
-      );
-  }
-
-  // ── Status filter chips ───────────────────────────────────
-
-  Widget _buildStatusFilter(ColorScheme cs) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-        child: Row(children: [
-          _FilterChip(
-            label: 'All',
-            selected: _filterStatus == null,
-            color: cs.primary,
-            onTap: () => setState(() => _filterStatus = null),
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: 'Pending',
-            selected: _filterStatus == TaskStatus.pending,
-            color: AppColors.warning,
-            onTap: () => setState(() => _filterStatus =
-                _filterStatus == TaskStatus.pending
-                    ? null
-                    : TaskStatus.pending),
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: 'In Progress',
-            selected: _filterStatus == TaskStatus.inProgress,
-            color: AppColors.primary,
-            onTap: () => setState(() => _filterStatus =
-                _filterStatus == TaskStatus.inProgress
-                    ? null
-                    : TaskStatus.inProgress),
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: 'Completed',
-            selected: _filterStatus == TaskStatus.completed,
-            color: AppColors.success,
-            onTap: () => setState(() => _filterStatus =
-                _filterStatus == TaskStatus.completed
-                    ? null
-                    : TaskStatus.completed),
-          ),
-        ]),
-      );
-
-  // ── VIP filter ────────────────────────────────────────────
-
-  Widget _buildVipFilter(ColorScheme cs) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-        child: Row(children: [
-          _FilterChip(
-            label: 'All VIPs',
-            selected: _filterVip == null,
-            color: cs.secondary,
-            icon: Icons.people,
-            onTap: () => setState(() => _filterVip = null),
-          ),
-          ..._vipNames.map((name) {
-            final short = name.split(' ').first;
-            return Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: _FilterChip(
-                label: short,
-                selected: _filterVip == name,
-                color: cs.secondary,
-                icon: Icons.person,
-                onTap: () => setState(
-                    () => _filterVip = _filterVip == name ? null : name),
-              ),
-            );
-          }),
-        ]),
-      );
-
-  // ── Empty state ───────────────────────────────────────────
-
-  Widget _buildEmptyState() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.task_alt, size: 56, color: context.semantic.border),
-            const SizedBox(height: 12),
-            Text(
-              _filterStatus != null || _filterVip != null
-                  ? 'No tasks match this filter'
-                  : 'No tasks assigned yet',
-              style: TextStyle(color: context.semantic.textMuted, fontSize: 14),
-            ),
-            if (_filterStatus != null || _filterVip != null) ...[
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () => setState(() {
-                  _filterStatus = null;
-                  _filterVip = null;
-                }),
-                child: const Text('Clear filters'),
-              ),
-            ],
-          ],
-        ),
-      );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// VIP TASK GROUP
-// ═══════════════════════════════════════════════════════════════
-
-class _VipTaskGroup extends StatelessWidget {
-  final String vipName;
-  final List<LOTask> tasks;
-  final void Function(LOTask, TaskStatus) onStatusChanged;
-  final void Function(LOTask) onSwipeComplete;
-
-  const _VipTaskGroup({
-    required this.vipName,
-    required this.tasks,
-    required this.onStatusChanged,
-    required this.onSwipeComplete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final done = tasks.where((t) => t.status == TaskStatus.completed).length;
-    final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── VIP group header ───────────────────────
-        Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 8),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: cs.primary.withValues(alpha: 0.15),
-              child: Text(
-                vipName[0].toUpperCase(),
-                style: TextStyle(
-                    color: cs.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(vipName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 2),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 4,
-                      backgroundColor: context.semantic.border,
-                      color: progress == 1 ? AppColors.success : cs.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              '$done/${tasks.length}',
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: progress == 1 ? AppColors.success : cs.primary),
-            ),
-          ]),
-        ),
-
-        // ── Tasks ──────────────────────────────────
-        ...tasks.map((task) => _TaskCard(
-              task: task,
-              onStatusChanged: (s) => onStatusChanged(task, s),
-              onSwipeComplete: () => onSwipeComplete(task),
-            )),
-      ],
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// TASK CARD
-// ═══════════════════════════════════════════════════════════════
-
-class _TaskCard extends StatelessWidget {
-  final LOTask task;
-  final ValueChanged<TaskStatus> onStatusChanged;
-  final VoidCallback onSwipeComplete;
-
-  const _TaskCard({
-    required this.task,
-    required this.onStatusChanged,
-    required this.onSwipeComplete,
-  });
-
-  // ── Task type metadata ────────────────────────────────────
-
-  IconData get _typeIcon => switch (task.type) {
-        TaskType.pickup => Icons.flight_land,
-        TaskType.drop => Icons.flight_takeoff,
-        TaskType.hotelCheckin => Icons.hotel,
-        TaskType.venueTransfer => Icons.directions_bus,
-        TaskType.protocol => Icons.military_tech,
-      };
-
-  String get _typeLabel => switch (task.type) {
-        TaskType.pickup => 'Pickup',
-        TaskType.drop => 'Drop',
-        TaskType.hotelCheckin => 'Hotel',
-        TaskType.venueTransfer => 'Transfer',
-        TaskType.protocol => 'Protocol',
-      };
-
-  Color get _typeColor => switch (task.type) {
-        TaskType.pickup => AppColors.primary,
-        TaskType.drop => AppColors.roleNO,
-        TaskType.hotelCheckin => AppColors.roleDelegate,
-        TaskType.venueTransfer => AppColors.roleLO,
-        TaskType.protocol => AppColors.roleContractor,
-      };
-
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final done = task.status == TaskStatus.completed;
-
-    return Dismissible(
-      key: Key('task_${task.vipName}_${task.description}'),
-      direction: done ? DismissDirection.none : DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.success),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, color: AppColors.success),
-            const SizedBox(height: 4),
-            Text('Complete',
-                style: TextStyle(
-                    color: AppColors.success,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold)),
-          ],
-        ),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: s.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: s.border),
       ),
-      onDismissed: (_) => onSwipeComplete(),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-          ),
-        ),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header row ───────────────────────
-              Row(children: [
-                // Type badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _typeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(_typeIcon, size: 12, color: _typeColor),
-                    const SizedBox(width: 4),
-                    Text(_typeLabel,
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: _typeColor,
-                            fontWeight: FontWeight.bold)),
-                  ]),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    task.description,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      decoration: done ? TextDecoration.lineThrough : null,
-                      color: done
-                          ? theme.colorScheme.onSurfaceVariant
-                          : null,
-                    ),
-                  ),
-                ),
-                // Quick-complete tick
-                if (!done)
-                  InkWell(
-                    onTap: onSwipeComplete,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.check_circle_outline,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    ),
-                  )
-                else
-                  Icon(Icons.check_circle,
-                      size: 20, color: AppColors.success),
-              ]),
-
-              const SizedBox(height: 4),
-
-              // Created at
-              Text(
-                _fmtDate(task.createdAt),
-                style: TextStyle(
-                    fontSize: 10,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
-              ),
-
-              // ── Status slider ─────────────────────
-              StatusSlider(
-                status: task.status,
-                onChanged: onStatusChanged,
-              ),
-
-              if (!done)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(children: [
-                    Icon(Icons.swipe_left, size: 12, color: context.semantic.border),
-                    const SizedBox(width: 4),
-                    Text('Swipe to complete',
-                        style: TextStyle(
-                            fontSize: 9,
-                            color: theme.colorScheme.onSurfaceVariant)),
-                  ]),
-                ),
-            ],
-          ),
-        ),
+      child: Row(
+        children: [
+          _Stat(label: 'Total', value: '$_total', color: cs.primary),
+          _Stat(label: 'Pending', value: '$_pending', color: AppColors.warning),
+          _Stat(
+              label: 'Active', value: '$_inProgress', color: AppColors.primary),
+          _Stat(label: 'Done', value: '$_done', color: AppColors.success),
+        ],
+      ),
     );
   }
 
-  String _fmtDate(DateTime dt) {
-    final d = dt.day.toString().padLeft(2, '0');
-    final mo = dt.month.toString().padLeft(2, '0');
-    final h = dt.hour.toString().padLeft(2, '0');
-    final mi = dt.minute.toString().padLeft(2, '0');
-    return '$d/$mo/${dt.year} · $h:$mi';
+  Widget _buildStatusFilter(ColorScheme cs) {
+    final options = <String?>[null, 'Pending', 'In Progress', 'Completed'];
+    return SizedBox(
+      height: 42,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: options.map((o) {
+          final selected = _filterStatus == o;
+          final label = o ?? 'All';
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FilterChip(
+              selected: selected,
+              label: Text(label),
+              onSelected: (_) => setState(() => _filterStatus = o),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDelegateFilter(ColorScheme cs) {
+    return SizedBox(
+      height: 42,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FilterChip(
+              selected: _filterDelegate == null,
+              label: const Text('All delegates'),
+              onSelected: (_) => setState(() => _filterDelegate = null),
+            ),
+          ),
+          ..._delegateNames.map(
+            (n) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FilterChip(
+                selected: _filterDelegate == n,
+                label: Text(n),
+                onSelected: (_) => setState(() => _filterDelegate = n),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _empty() {
+    final s = context.semantic;
+    return Center(
+      child: Text(
+        'No tasks match this filter.',
+        style: TextStyle(color: s.textMuted),
+      ),
+    );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SHARED SMALL WIDGETS
-// ═══════════════════════════════════════════════════════════════
-
-class _StatBubble extends StatelessWidget {
-  final String label;
-  final int value;
-  final Color color;
-  const _StatBubble({
+class _Stat extends StatelessWidget {
+  const _Stat({
     required this.label,
     required this.value,
     required this.color,
   });
 
+  final String label;
+  final String value;
+  final Color color;
+
   @override
-  Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: color.withValues(alpha: 0.35)),
-            ),
-            child: Text(
-              '$value',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
-          const SizedBox(height: 4),
           Text(
             label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+              fontSize: 11,
               color: Contrast.mutedLabel(context),
             ),
           ),
         ],
-      );
+      ),
+    );
+  }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-  final IconData? icon;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-    this.icon,
+class _DelegateTaskGroup extends StatelessWidget {
+  const _DelegateTaskGroup({
+    required this.delegateName,
+    required this.tasks,
+    required this.formatSchedule,
+    required this.toEnum,
+    required this.onStatusChanged,
   });
+
+  final String delegateName;
+  final List<LoTaskAssignment> tasks;
+  final String Function(DateTime) formatSchedule;
+  final TaskStatus Function(String) toEnum;
+  final Future<void> Function(LoTaskAssignment, TaskStatus) onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.16)
-                : Contrast.cardSurface(context),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: selected
-                    ? color.withValues(alpha: 0.55)
-                    : Contrast.cardBorder(context),
-                width: selected ? 1.5 : 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon!,
-                  size: 12,
-                  color: selected
-                      ? color
-                      : Contrast.mutedLabel(context),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: selected
-                          ? color
-                          : Contrast.mutedLabel(context),)),
-            ],
+    final s = context.semantic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+          child: Text(
+            delegateName,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: s.textPrimary,
+            ),
           ),
         ),
+        ...tasks.map((task) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: s.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: s.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.taskTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: s.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  task.description,
+                  style: TextStyle(fontSize: 13, color: s.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _MetaChip(
+                      icon: Icons.person_outline,
+                      label: task.delegateName,
+                    ),
+                    _MetaChip(
+                      icon: Icons.schedule,
+                      label: formatSchedule(task.scheduledDate),
+                    ),
+                    if (task.location.isNotEmpty)
+                      _MetaChip(
+                        icon: Icons.place_outlined,
+                        label: task.location,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                StatusSlider(
+                  status: toEnum(task.status),
+                  onChanged: (status) => onStatusChanged(task, status),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.semantic;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: s.inputFill,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: s.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: s.accent),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: s.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Minimal fallback when no persisted assignments exist.
+class _FallbackDerivedTasks extends StatelessWidget {
+  const _FallbackDerivedTasks({required this.tasks});
+
+  final List<LOTask> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.semantic;
+    if (tasks.isEmpty) {
+      return Center(
+        child: Text(
+          'No tasks assigned yet.',
+          style: TextStyle(color: s.textMuted),
+        ),
       );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: tasks.length,
+      itemBuilder: (_, i) {
+        final t = tasks[i];
+        return ListTile(
+          title: Text(t.description),
+          subtitle: Text('${t.vipName} · ${t.status.name}'),
+        );
+      },
+    );
   }
 }

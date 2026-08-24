@@ -9,6 +9,7 @@ import '../../../../../core/design/contrast.dart';
 import '../../data/models/engagement.dart';
 import '../../data/models/guestActivity.dart';
 import '../../data/models/vip.dart';
+import '../screens/lo_delegate_detail_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // VIP CARD
@@ -18,12 +19,16 @@ class VIPCard extends StatefulWidget {
   final VIP vip;
   final ValueChanged<VIP> onUpdate;
   final ValueChanged<bool>? onToggle;
+  final VoidCallback? onOpenDetail;
+  final List<VIP> allVips;
 
   const VIPCard({
     super.key,
     required this.vip,
     required this.onUpdate,
     this.onToggle,
+    this.onOpenDetail,
+    this.allVips = const [],
   });
 
   @override
@@ -107,7 +112,7 @@ class _VIPCardState extends State<VIPCard> with SingleTickerProviderStateMixin {
                       Row(children: [
                         Flexible(
                           child: Text(
-                            vip.name,
+                            vip.displayName,
                             style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold, fontSize: 15),
                           ),
@@ -143,9 +148,14 @@ class _VIPCardState extends State<VIPCard> with SingleTickerProviderStateMixin {
                           ),
                       ]),
                       const SizedBox(height: 2),
-                      Text(vip.designation,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
+                      Text(
+                        [
+                          if (vip.organisation.isNotEmpty) vip.organisation,
+                          vip.designation,
+                        ].where((e) => e.trim().isNotEmpty).join(' · '),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)),
+                      ),
                       const SizedBox(height: 4),
                       // Mini progress bar
                       Row(children: [
@@ -177,10 +187,34 @@ class _VIPCardState extends State<VIPCard> with SingleTickerProviderStateMixin {
                   ),
                 ),
 
-                // Transport status chip
+                // Transport status chip + dossier
                 Column(mainAxisSize: MainAxisSize.min, children: [
                   _StatusPill(vip.transport.status),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
+                  IconButton(
+                    tooltip: 'View assignment details',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    icon: Icon(Icons.folder_shared_outlined,
+                        size: 20, color: cs.primary),
+                    onPressed: () {
+                      if (widget.onOpenDetail != null) {
+                        widget.onOpenDetail!();
+                        return;
+                      }
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => LoDelegateDetailScreen(
+                            vip: vip,
+                            allVips: widget.allVips.isEmpty
+                                ? [vip]
+                                : widget.allVips,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 250),

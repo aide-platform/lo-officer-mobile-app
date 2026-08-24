@@ -93,14 +93,7 @@ class LoBloc extends Bloc<LoEvent, LoBlocState> {
   // ✅ Persistence Methods
   Future<List<VIP>?> _readCachedVipList() async {
     try {
-      final db = await AppSqliteDb.db;
-      final result = await db.query(
-        'settings',
-        where: 'key = ?',
-        whereArgs: ['lo_vip_list'],
-      );
-      if (result.isEmpty) return null;
-      final vipsJson = result[0]['value'] as String?;
+      final vipsJson = await AppSqliteDb.getSetting('lo_vip_list');
       if (vipsJson == null || vipsJson.isEmpty) return null;
       final decoded = jsonDecode(vipsJson);
       if (decoded is! List) return null;

@@ -18,6 +18,24 @@ class AuthLoginRequested extends AuthEvent {
   });
 }
 
+class AuthOtpRequested extends AuthEvent {
+  final String email;
+
+  AuthOtpRequested({
+    required this.email,
+  });
+}
+
+class AuthOtpVerified extends AuthEvent {
+  final String email;
+  final String otp;
+
+  AuthOtpVerified({
+    required this.email,
+    required this.otp,
+  });
+}
+
 class AuthLogoutRequested extends AuthEvent {}
 
 class AuthSessionRestored extends AuthEvent {

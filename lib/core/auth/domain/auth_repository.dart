@@ -14,8 +14,7 @@ class AuthCredentialsResult {
     this.accessToken,
     this.refreshToken,
     this.expiresAt,
-  })  : success = true,
-        errorMessage = null;
+  }) : success = true, errorMessage = null;
 
   const AuthCredentialsResult.failure(this.errorMessage)
       : success = false,
@@ -26,9 +25,34 @@ class AuthCredentialsResult {
         expiresAt = null;
 }
 
+class AuthOtpResult {
+  final bool success;
+  final String? email;
+  final String? message;
+
+  const AuthOtpResult.success({
+    required this.email,
+    this.message = 'OTP sent successfully.',
+  }) : success = true;
+
+  const AuthOtpResult.failure(String message)
+      : success = false,
+        email = null,
+        message = message;
+}
+
 abstract class AuthRepository {
   Future<AuthCredentialsResult> validateCredentials({
     required String email,
     required String password,
+  });
+
+  Future<AuthOtpResult> sendOtp({
+    required String email,
+  });
+
+  Future<AuthOtpResult> verifyOtp({
+    required String email,
+    required String otp,
   });
 }

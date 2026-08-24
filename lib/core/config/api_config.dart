@@ -25,5 +25,7 @@ class ApiConfig {
   static const Duration receiveTimeout = Duration(seconds: 20);
 
   static const String loginPath = '/api/auth/signin';
+  static const String sendOtpPath = '/api/auth/send-otp';
+  static const String verifyOtpPath = '/api/auth/verify-otp';
   static const String loVipsPath = '/api/lo/vips';
 }

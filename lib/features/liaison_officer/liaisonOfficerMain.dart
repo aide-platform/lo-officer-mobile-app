@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/design/app_colors.dart';
 import '../../core/design/contrast.dart';
+import '../../core/notifications/mock_email_notifier.dart';
 import '../../core/session/auth_logout.dart';
 import '../../core/themes/presentation/bloc/theme_cubit.dart';
 import '../../core/widgets/gradient_app_bar.dart';
@@ -20,77 +21,12 @@ import 'data/enum/taskStatus.dart';
 import 'data/enum/taskType.dart';
 import 'data/models/LoTask.dart';
 import 'data/models/guestActivity.dart';
-import 'data/models/hotel.dart';
-import 'data/models/transport.dart';
+import 'data/models/lo_assignment.dart';
 import 'data/models/vip.dart';
+import 'data/services/upcoming_task_reminder_service.dart';
 import 'presentation/screens/profile_view.dart';
-
-/*List<GuestActivity> buildActivityLog(VIP vip) {
-  final List<GuestActivity> log = [];
-
-  log.add(GuestActivity('Guest Created', DateTime.now()));
-
-  if (vip.hotel.name.isNotEmpty) {
-    log.add(
-      GuestActivity(
-        'Hotel Assigned: ${vip.hotel.name} (${vip.hotel.roomNumber})',
-        DateTime.now(),
-      ),
-    );
-  }
-
-  if (vip.transport.status.toLowerCase() == 'completed') {
-    log.add(
-      GuestActivity(
-        'Transport Completed (${vip.transport.carType})',
-        DateTime.now(),
-      ),
-    );
-  }
-  // Arrival Tracking
-  if (vip.transport.arrivalTime != null) {
-    log.add(
-      GuestActivity(
-        'Expected Arrival at ${vip.transport.arrivalLocation}',
-        vip.transport.arrivalTime!,
-      ),
-    );
-  }
-
-  // Food Preference Check
-  if (vip.foodPreferences != null) {
-    log.add(
-      GuestActivity(
-        'Catering Notified: ${vip.foodPreferences}',
-        DateTime.now(),
-      ),
-    );
-  }
-
-  for (final e in vip.engagements) {
-    log.add(
-      GuestActivity('Engagement: ${e.eventName} (${e.rsvpStatus})', e.dateTime),
-    );
-  }
-
-  return log;
-}*/
-
-// =============================================================
-// Dummy Data
-// =============================================================
-
-// =============================================================
-
-
-
-// ── Providers ─────────────────────────────────────────────────
-// ignore_for_file: depend_on_referenced_packages, use_build_context_synchronously
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo_delegate_updates_screen.dart';
 import 'package:flutter/services.dart';
-
-
-
-// ── New screens ──────────────────────────────────────────────
 
 // ═══════════════════════════════════════════════════════════════
 // URL HELPERS
@@ -207,6 +143,9 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
   final double _barHeight = 80.0;
   final ScrollController _scrollController = ScrollController();
 
+  /// Assigned delegate names for this LO (null = not loaded yet).
+  Set<String>? _assignedNames;
+
   // ── Filtered VIP list ─────────────────────────────────────
   List<VIP> getFilteredVIPs(List<VIP> vips, String query, String filter) {
     final q = query.toLowerCase();
@@ -214,6 +153,7 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
       final matchSearch = q.isEmpty ||
           v.name.toLowerCase().contains(q) ||
           v.designation.toLowerCase().contains(q) ||
+          v.organisation.toLowerCase().contains(q) ||
           v.contact.contains(q);
       final matchFilter = filter == 'All' ||
           (filter == 'Foreign') == v.isForeign;
@@ -337,11 +277,68 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
   @override
   void initState() {
     super.initState();
-    // LoBloc is created with LoLoadRequested in SplashGate / LoginScreen.
+    _bootstrapAssignments();
+    UpcomingTaskReminderService.start(widget.email);
+  }
+
+  Future<void> _bootstrapAssignments() async {
+    try {
+      await LoDelegateAssignment.ensureDemoSeed(widget.email);
+      await LoTaskAssignment.ensureDemoSeed(widget.email);
+      final assignments = await LoDelegateAssignment.getAll();
+      final mine = assignments
+          .where((a) =>
+              a.assignedLoEmail.trim().toLowerCase() ==
+              widget.email.trim().toLowerCase())
+          .map((a) => a.delegateName)
+          .toSet();
+
+      if (mine.isNotEmpty) {
+        final already = LoNotificationStore.instance.all.any(
+          (n) => n.id == 'assignment_seed_${widget.email}',
+        );
+        if (!already) {
+          LoNotificationStore.instance.add(
+            LoNotification(
+              id: 'assignment_seed_${widget.email}',
+              title: 'New delegate assignments',
+              body:
+                  'You have been assigned ${mine.length} delegate(s). Review profiles and travel details.',
+              type: LoNotifType.task,
+              timestamp: DateTime.now(),
+            ),
+          );
+          await MockEmailNotifier.send(
+            to: widget.email,
+            subject: 'New LO delegate assignments',
+            body:
+                'You have been assigned: ${mine.join(', ')}. Open the LO portal to view details.',
+          );
+        }
+      }
+
+      if (!mounted) return;
+      setState(() => _assignedNames = mine);
+    } catch (e) {
+      debugPrint('LO bootstrap assignments failed: $e');
+      if (!mounted) return;
+      setState(() => _assignedNames = {
+            'Sharan',
+            'Dr. Michael Thompson',
+          });
+    }
+  }
+
+  List<VIP> _assignedVips(List<VIP> all) {
+    final names = _assignedNames;
+    if (names == null || names.isEmpty) return all;
+    final filtered = all.where((v) => names.contains(v.name)).toList();
+    return filtered.isEmpty ? all : filtered;
   }
 
   @override
   void dispose() {
+    UpcomingTaskReminderService.stop();
     _scrollController.dispose();
     super.dispose();
   }
@@ -354,7 +351,7 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<LoBloc, LoBlocState>(
       builder: (context, state) {
-        final vipList = state.vipList;
+        final vipList = _assignedVips(state.vipList);
         final onDuty = state.onDuty;
         final searchQuery = state.searchQuery;
         final filterCategory = state.filterCategory;
@@ -368,7 +365,11 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
           _buildVipsTab(vipList, filtered, searchQuery, filterCategory),
 
           // ── 1: Tasks ─────────────────────────────────────────
-          AssignedTasksPage(tasks: tasks, onUpdate: () {}),
+          AssignedTasksPage(
+            loEmail: widget.email,
+            fallbackTasks: tasks,
+            onUpdate: () => setState(() {}),
+          ),
 
           // ── 2: Daily Summary (replaces MIS Stats) ────────────
           LoDailySummaryScreen(
@@ -606,7 +607,7 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
               // ── Core navigation ─────────────────────────
               _DrawerNavItem(
                 icon:     Icons.people,
-                label:    'VIPs',
+                label:    'Delegates',
                 selected: _selectedIndex == 0,
                 onTap:    () => _selectTab(0),
               ),
@@ -684,6 +685,21 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
                 onTap:    () {
                   Navigator.pop(context);
                   _openVenueNav();
+                },
+              ),
+
+              _DrawerNavItem(
+                icon:     Icons.flight_takeoff_outlined,
+                label:    'Travel Updates',
+                selected: false,
+                onTap:    () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LoDelegateUpdatesScreen(vips: vipList),
+                    ),
+                  );
                 },
               ),
 
@@ -812,7 +828,7 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
         child: TextField(
           onChanged: (v) => context.read<LoBloc>().add(LoSearchQueryChanged(v)),
           decoration: InputDecoration(
-            hintText:   'Search VIPs…',
+            hintText:   'Search delegates…',
             prefixIcon: const Icon(Icons.search, size: 18),
             suffixIcon: searchQuery.isNotEmpty
                 ? IconButton(
@@ -930,6 +946,7 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
                 child: Column(children: [
                   VIPCard(
                     vip:      vip,
+                    allVips:  vipList,
                     onUpdate: _onVipChanged,
                     onToggle: (isOpen) =>
                         _onVIPToggle(vip, isOpen),
@@ -1127,7 +1144,7 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const accent = AppColors.roleLO;
     final items = [
-      (Icons.people,         Icons.people_outline,     'VIPs'),
+      (Icons.people,         Icons.people_outline,     'Delegates'),
       (Icons.task_alt,       Icons.task,               'Tasks'),
       (Icons.bar_chart,      Icons.bar_chart_outlined,  'Summary'),
       (Icons.person,         Icons.person_outline,      'Profile'),

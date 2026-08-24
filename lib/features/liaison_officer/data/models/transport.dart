@@ -1,6 +1,6 @@
-
 class Transport {
   String carType;
+  String vehicleNumber;
   String driverName;
   String driverContact;
   String status;
@@ -11,6 +11,7 @@ class Transport {
 
   Transport({
     required this.carType,
+    this.vehicleNumber = '',
     required this.driverName,
     required this.driverContact,
     required this.status,
@@ -20,19 +21,24 @@ class Transport {
     this.arrivalLocation,
   });
 
+  String get vehicleType => carType;
+
   Map<String, dynamic> toMap() => {
-    'carType': carType,
-    'driverName': driverName,
-    'driverContact': driverContact,
-    'status': status,
-    'flightNumber': flightNumber,
-    'arrivalTime': arrivalTime?.toIso8601String(), // ✅ FIXED
-    'arrivalTerminal': arrivalTerminal,
-    'arrivalLocation': arrivalLocation,
-  };
+        'carType': carType,
+        'vehicleNumber': vehicleNumber,
+        'driverName': driverName,
+        'driverContact': driverContact,
+        'status': status,
+        'flightNumber': flightNumber,
+        'arrivalTime': arrivalTime?.toIso8601String(),
+        'arrivalTerminal': arrivalTerminal,
+        'arrivalLocation': arrivalLocation,
+      };
+
   factory Transport.empty() {
-    return  Transport(
+    return Transport(
       carType: '',
+      vehicleNumber: '',
       driverName: '',
       driverContact: '',
       status: 'Pending',
@@ -42,16 +48,18 @@ class Transport {
       arrivalLocation: 'Pending',
     );
   }
+
   factory Transport.fromMap(Map<String, dynamic> map) => Transport(
-    carType: map['carType'] ?? '',
-    driverName: map['driverName'] ?? '',
-    driverContact: map['driverContact'] ?? '',
-    status: map['status'] ?? 'Pending',
-    flightNumber: map['flightNumber'],
-    arrivalTime: map['arrivalTime'] != null
-        ? DateTime.parse(map['arrivalTime'])
-        : null, // ✅ FIXED
-    arrivalTerminal: map['arrivalTerminal'],
-    arrivalLocation: map['arrivalLocation'],
-  );
+        carType: map['carType']?.toString() ?? map['vehicleType']?.toString() ?? '',
+        vehicleNumber: map['vehicleNumber']?.toString() ?? '',
+        driverName: map['driverName']?.toString() ?? '',
+        driverContact: map['driverContact']?.toString() ?? '',
+        status: map['status']?.toString() ?? 'Pending',
+        flightNumber: map['flightNumber']?.toString(),
+        arrivalTime: map['arrivalTime'] != null
+            ? DateTime.tryParse(map['arrivalTime'].toString())
+            : null,
+        arrivalTerminal: map['arrivalTerminal']?.toString(),
+        arrivalLocation: map['arrivalLocation']?.toString(),
+      );
 }

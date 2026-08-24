@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _captchaController = TextEditingController();
+  final _otpController = TextEditingController();
 
   late String _generatedCaptcha;
   late DateTime _captchaGeneratedAt;
@@ -41,6 +42,7 @@ class _LoginScreenState extends State<LoginScreen>
   Timer? _captchaTimer;
   Timer? _lockoutTicker;
   late FocusNode _captchaFocusNode;
+  bool _otpSent = false;
 
   late AnimationController _bgDrift;
   late AnimationController _enter;
@@ -80,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _captchaController.dispose();
+    _otpController.dispose();
     _captchaTimer?.cancel();
     _lockoutTicker?.cancel();
     _captchaFocusNode.dispose();
@@ -187,6 +190,25 @@ class _LoginScreenState extends State<LoginScreen>
         );
   }
 
+  Future<void> _sendOtp() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    context.read<AuthBloc>().add(
+      AuthOtpRequested(email: _emailController.text.trim()),
+    );
+  }
+
+  Future<void> _verifyOtpAndLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    context.read<AuthBloc>().add(
+      AuthOtpVerified(
+        email: _emailController.text.trim(),
+        otp: _otpController.text.trim(),
+      ),
+    );
+  }
+
   void _navigateToLo(AuthBlocState authState) {
     if (!mounted) return;
     final email = authState.email ?? '';
@@ -209,7 +231,10 @@ class _LoginScreenState extends State<LoginScreen>
 
     return BlocListener<AuthBloc, AuthBlocState>(
       listener: (ctx, authState) {
-        if (authState.status == AuthStatus.authenticated) {
+        if (authState.status == AuthStatus.otpSent) {
+          setState(() => _otpSent = true);
+          _showSnack(authState.errorMessage ?? 'OTP sent successfully.');
+        } else if (authState.status == AuthStatus.authenticated) {
           _navigateToLo(authState);
         } else if (authState.status == AuthStatus.failure) {
           _showSnack(authState.errorMessage ?? 'Login failed');
@@ -317,169 +342,50 @@ class _LoginScreenState extends State<LoginScreen>
                                                     : null,
                                           ),
                                           const SizedBox(height: 12),
-                                          CustomTextField(
-                                            controller: _passwordController,
-                                            labelText: 'Password',
-                                            textColor: isDark
-                                                ? AppTheme.textPrimary
-                                                : AppTheme.lightTextPrimary,
-                                            hintColor: isDark
-                                                ? AppTheme.textMuted
-                                                : AppTheme.lightTextMuted,
-                                            borderColor: isDark
-                                                ? AppTheme.borderStrokeColor
-                                                : AppTheme.lightBorder,
-                                            backgroundColor: isDark
-                                                ? AppTheme.cardBgColor
-                                                : AppTheme.lightInputBg,
-                                            prefixIcon: const Icon(
-                                                Icons.lock_outline),
-                                            isPassword: true,
-                                            validator: (v) =>
-                                                v == null || v.isEmpty
-                                                    ? 'Password required'
-                                                    : null,
+                                          AnimatedSwitcher(
+                                            duration: const Duration(
+                                                milliseconds: 200),
+                                            child: _otpSent
+                                                ? SizedBox(
+                                                    key: const ValueKey(
+                                                        'otp-field'),
+                                                    child: CustomTextField(
+                                                      controller: _otpController,
+                                                      labelText: 'OTP',
+                                                      textColor: isDark
+                                                          ? AppTheme.textPrimary
+                                                          : AppTheme.lightTextPrimary,
+                                                      hintColor: isDark
+                                                          ? AppTheme.textMuted
+                                                          : AppTheme.lightTextMuted,
+                                                      borderColor: isDark
+                                                          ? AppTheme.borderStrokeColor
+                                                          : AppTheme.lightBorder,
+                                                      backgroundColor: isDark
+                                                          ? AppTheme.cardBgColor
+                                                          : AppTheme.lightInputBg,
+                                                      prefixIcon: const Icon(
+                                                          Icons.verified_user_outlined),
+                                                      keyboardType:
+                                                          TextInputType.number,
+                                                      maxLength: 6,
+                                                      validator: (v) =>
+                                                          v == null || v.isEmpty
+                                                              ? 'OTP required'
+                                                              : null,
+                                                    ),
+                                                  )
+                                                : const SizedBox.shrink(
+                                                    key: ValueKey('otp-empty')),
                                           ),
-                                          const SizedBox(height: 12),
-                                          Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              color: isDark
-                                                  ? AppTheme.cardBgColor
-                                                  : AppTheme.lightInputBg,
-                                              border: Border.all(
-                                                color: isDark
-                                                    ? AppTheme.borderStrokeColor
-                                                    : AppTheme.lightBorder,
-                                              ),
-                                            ),
-                                            child: LayoutBuilder(
-                                              builder: (context, constraints) {
-                                                const rowH = 32.0;
-                                                final captchaW =
-                                                    (constraints.maxWidth * 0.32)
-                                                        .clamp(72.0, 96.0);
-                                                return SizedBox(
-                                                  height: rowH,
-                                                  child: Row(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .stretch,
-                                                    children: [
-                                                      ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(6),
-                                                        child: SizedBox(
-                                                          width: captchaW,
-                                                          height: rowH,
-                                                          child: CustomPaint(
-                                                            painter:
-                                                                CaptchaPainter(
-                                                              _generatedCaptcha,
-                                                              difficulty:
-                                                                  _difficultyFactor,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      SizedBox(
-                                                        width: 36,
-                                                        height: 36,
-                                                        child: IconButton(
-                                                          padding:
-                                                              EdgeInsets.zero,
-                                                          visualDensity:
-                                                              VisualDensity
-                                                                  .compact,
-                                                          onPressed:
-                                                              _refreshCaptcha,
-                                                          icon: Icon(
-                                                            Icons.refresh,
-                                                            size: 16,
-                                                            color: isDark
-                                                                ? AppTheme
-                                                                    .activeAccent
-                                                                : AppTheme
-                                                                    .purpleAccent,
-                                                          ),
-                                                          tooltip:
-                                                              'Refresh captcha',
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: CustomTextField(
-                                                          controller:
-                                                              _captchaController,
-                                                          focusNode:
-                                                              _captchaFocusNode,
-                                                          hint: 'Captcha',
-                                                          maxLength: 5,
-                                                          isDense: true,
-                                                          contentPadding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 6,
-                                                          ),
-                                                          textColor: isDark
-                                                              ? AppTheme
-                                                                  .textPrimary
-                                                              : AppTheme
-                                                                  .lightTextPrimary,
-                                                          hintColor: isDark
-                                                              ? AppTheme
-                                                                  .textMuted
-                                                              : AppTheme
-                                                                  .lightTextMuted,
-                                                          borderColor: isDark
-                                                              ? AppTheme
-                                                                  .borderStrokeColor
-                                                              : AppTheme
-                                                                  .lightBorder,
-                                                          backgroundColor:
-                                                              Colors
-                                                                  .transparent,
-                                                          prefixIcon: Icon(
-                                                            Icons
-                                                                .security_outlined,
-                                                            size: 16,
-                                                            color: isDark
-                                                                ? AppTheme
-                                                                    .textSecondary
-                                                                : AppTheme
-                                                                    .lightTextSecondary,
-                                                          ),
-                                                          validator: (v) =>
-                                                              v == null ||
-                                                                      v.isEmpty
-                                                                  ? 'Required'
-                                                                  : null,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                          if (_isLocked) ...[
-                                            const SizedBox(height: 10),
-                                            Text(
-                                              'Locked for $_lockRemainingSeconds seconds',
-                                              style: const TextStyle(
-                                                color: AppColors.danger,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
                                           const SizedBox(height: 20),
                                           BlocBuilder<AuthBloc, AuthBlocState>(
                                             builder: (ctx, authState) {
                                               final loading =
                                                   authState.isLoading;
+                                              final buttonLabel = _otpSent
+                                                  ? 'Verify & Sign In'
+                                                  : 'Send OTP';
                                               return SizedBox(
                                                 height: 52,
                                                 width: double.infinity,
@@ -505,10 +411,11 @@ class _LoginScreenState extends State<LoginScreen>
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               14),
-                                                      onTap: loading ||
-                                                              _isLocked
+                                                      onTap: loading || _isLocked
                                                           ? null
-                                                          : _login,
+                                                          : (_otpSent
+                                                              ? _verifyOtpAndLogin
+                                                              : _sendOtp),
                                                       child: Center(
                                                         child: loading
                                                             ? const SizedBox(
@@ -522,10 +429,10 @@ class _LoginScreenState extends State<LoginScreen>
                                                                       .white,
                                                                 ),
                                                               )
-                                                            : const Text(
-                                                                'Sign In',
+                                                            : Text(
+                                                                buttonLabel,
                                                                 style:
-                                                                    TextStyle(
+                                                                    const TextStyle(
                                                                   fontSize: 16,
                                                                   fontWeight:
                                                                       FontWeight
@@ -542,9 +449,20 @@ class _LoginScreenState extends State<LoginScreen>
                                             },
                                           ),
                                           const SizedBox(height: 12),
+                                          if (_otpSent)
+                                            TextButton(
+                                              onPressed: () {
+                                                setState(() => _otpSent = false);
+                                                _otpController.clear();
+                                                _sendOtp();
+                                              },
+                                              child: const Text('Resend OTP'),
+                                            ),
                                           if (kDebugMode)
                                             Text(
-                                              'liaison@test.com / liaison123',
+                                              'Demo LO: liaison@test.com / liaison123\n'
+                                              'Demo OTP: 123456',
+                                              textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: (isDark

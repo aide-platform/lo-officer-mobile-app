@@ -82,6 +82,72 @@ class DioAuthRepository implements AuthRepository {
     }
   }
 
+  @override
+  Future<AuthOtpResult> sendOtp({required String email}) async {
+    try {
+      final response = await _dio.post(
+        ApiConfig.sendOtpPath,
+        data: {'email': email.trim()},
+      );
+
+      final data = response.data;
+      if (data is Map && data['success'] == true) {
+        return AuthOtpResult.success(
+          email: email.trim().toLowerCase(),
+          message: data['message']?.toString() ?? 'OTP sent successfully.',
+        );
+      }
+
+      return AuthOtpResult.failure(
+        data is Map ? data['message']?.toString() ?? 'Unable to send OTP.' : 'Unable to send OTP.',
+      );
+    } on DioException catch (e) {
+      final api = e.error;
+      if (api is ApiException) {
+        return AuthOtpResult.failure(api.message);
+      }
+      return _fallback.sendOtp(email: email);
+    } catch (e) {
+      return _fallback.sendOtp(email: email);
+    }
+  }
+
+  @override
+  Future<AuthOtpResult> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConfig.verifyOtpPath,
+        data: {
+          'email': email.trim(),
+          'otp': otp.trim(),
+        },
+      );
+
+      final data = response.data;
+      if (data is Map && data['success'] == true) {
+        return AuthOtpResult.success(
+          email: email.trim().toLowerCase(),
+          message: data['message']?.toString() ?? 'OTP verified successfully.',
+        );
+      }
+
+      return AuthOtpResult.failure(
+        data is Map ? data['message']?.toString() ?? 'Invalid OTP.' : 'Invalid OTP.',
+      );
+    } on DioException catch (e) {
+      final api = e.error;
+      if (api is ApiException) {
+        return AuthOtpResult.failure(api.message);
+      }
+      return _fallback.verifyOtp(email: email, otp: otp);
+    } catch (e) {
+      return _fallback.verifyOtp(email: email, otp: otp);
+    }
+  }
+
   Future<AuthCredentialsResult> _failOrFallback({
     required String email,
     required String password,
