@@ -1,114 +1,95 @@
 import 'package:dio/dio.dart';
-import 'package:liaison_officer/core/auth/data/repositories/mock_auth_repository.dart';
 import 'package:liaison_officer/core/auth/domain/auth_repository.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
+import 'package:liaison_officer/core/network/aide_response.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
 import 'package:liaison_officer/core/network/dio_provider.dart';
+import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 
-/// Dio-backed auth. Mock fallback only when [ApiConfig.useMockApi] is true.
 class DioAuthRepository implements AuthRepository {
-  DioAuthRepository({Dio? dio, AuthRepository? fallback})
-      : _dio = dio ?? createDio(),
-        _fallback = fallback ?? MockAuthRepository();
+  DioAuthRepository({Dio? dio}) : _dio = dio ?? createDio();
 
   final Dio _dio;
-  final AuthRepository _fallback;
 
   @override
-  Future<AuthCredentialsResult> validateCredentials({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> checkEmail({required String email}) async {
+    await _dio.post(
+      ApiConfig.checkEmailPath,
+      data: {'email': email.trim()},
+    );
+  }
+
+  @override
+  Future<CaptchaResult> fetchCaptcha() async {
     try {
-      final response = await _dio.post(
-        ApiConfig.loginPath,
-        data: {
-          'email': email.trim(),
-          'password': password,
-        },
+      final res = await _dio.get(ApiConfig.captchaPath);
+      final aide = AideResponse.unwrap(
+        res.data,
+        parseData: (raw) => CaptchaChallenge.fromJson(AideResponse.asMap(raw)),
       );
-
-      final data = response.data;
-      if (data is! Map) {
-        return _failOrFallback(
-          email: email,
-          password: password,
-          message: 'Unexpected login response.',
-        );
+      final data = aide.data;
+      if (data == null || data.captchaId.isEmpty) {
+        return const CaptchaResult.failure('Unable to load CAPTCHA.');
       }
-
-      final success = data['success'] == true;
-      if (!success || response.statusCode == 401) {
-        return AuthCredentialsResult.failure(
-          data['message']?.toString() ?? 'Invalid email or password.',
-        );
-      }
-
-      final payload = data['data'];
-      if (payload is Map) {
-        final expiresRaw = payload['expiresAt']?.toString();
-        final accessToken = payload['accessToken']?.toString();
-        if (accessToken == null || accessToken.isEmpty) {
-          return AuthCredentialsResult.failure('Login response missing token.');
-        }
-        return AuthCredentialsResult.success(
-          email: payload['email']?.toString() ?? email,
-          role: payload['role']?.toString() ?? MockAuthRepository.loRole,
-          accessToken: accessToken,
-          refreshToken: payload['refreshToken']?.toString(),
-          expiresAt: expiresRaw != null
-              ? DateTime.tryParse(expiresRaw)
-              : DateTime.now().add(const Duration(days: 30)),
-        );
-      }
-
-      return AuthCredentialsResult.failure('Login response missing payload.');
+      return CaptchaResult.success(
+        captchaId: data.captchaId,
+        imageBase64: data.imageBase64,
+      );
     } on DioException catch (e) {
       final api = e.error;
-      if (api is ApiException && api.statusCode == 401) {
-        return AuthCredentialsResult.failure(api.message);
-      }
-      return _failOrFallback(
-        email: email,
-        password: password,
-        message: api is ApiException ? api.message : 'Network error.',
-      );
-    } catch (e) {
-      return _failOrFallback(
-        email: email,
-        password: password,
-        message: e.toString(),
+      return CaptchaResult.failure(
+        api is ApiException ? api.message : 'Unable to load CAPTCHA.',
       );
     }
   }
 
   @override
-  Future<AuthOtpResult> sendOtp({required String email}) async {
+  Future<AuthOtpResult> requestOtp({
+    required String email,
+    required String captchaId,
+    required String captchaAnswer,
+  }) async {
     try {
-      final response = await _dio.post(
-        ApiConfig.sendOtpPath,
-        data: {'email': email.trim()},
+      final res = await _dio.post(
+        ApiConfig.requestOtpPath,
+        data: {
+          'email': email.trim(),
+          'captchaId': captchaId,
+          'captchaAnswer': captchaAnswer.trim(),
+        },
       );
-
-      final data = response.data;
-      if (data is Map && data['success'] == true) {
-        return AuthOtpResult.success(
-          email: email.trim().toLowerCase(),
-          message: data['message']?.toString() ?? 'OTP sent successfully.',
-        );
-      }
-
-      return AuthOtpResult.failure(
-        data is Map ? data['message']?.toString() ?? 'Unable to send OTP.' : 'Unable to send OTP.',
+      final aide = AideResponse.unwrap(res.data);
+      return AuthOtpResult.success(
+        email: email.trim().toLowerCase(),
+        message: aide.message ?? 'OTP sent successfully.',
       );
     } on DioException catch (e) {
       final api = e.error;
-      if (api is ApiException) {
-        return AuthOtpResult.failure(api.message);
-      }
-      return _fallback.sendOtp(email: email);
+      return AuthOtpResult.failure(
+        api is ApiException ? api.message : 'Unable to send OTP.',
+      );
     } catch (e) {
-      return _fallback.sendOtp(email: email);
+      return AuthOtpResult.failure(e.toString());
+    }
+  }
+
+  @override
+  Future<AuthOtpResult> resendOtp({required String email}) async {
+    try {
+      final res = await _dio.post(
+        ApiConfig.resendOtpPath,
+        data: {'email': email.trim()},
+      );
+      final aide = AideResponse.unwrap(res.data);
+      return AuthOtpResult.success(
+        email: email.trim().toLowerCase(),
+        message: aide.message ?? 'OTP resent successfully.',
+      );
+    } on DioException catch (e) {
+      final api = e.error;
+      return AuthOtpResult.failure(
+        api is ApiException ? api.message : 'Unable to resend OTP.',
+      );
     }
   }
 
@@ -118,44 +99,44 @@ class DioAuthRepository implements AuthRepository {
     required String otp,
   }) async {
     try {
-      final response = await _dio.post(
+      final res = await _dio.post(
         ApiConfig.verifyOtpPath,
         data: {
           'email': email.trim(),
           'otp': otp.trim(),
         },
       );
-
-      final data = response.data;
-      if (data is Map && data['success'] == true) {
-        return AuthOtpResult.success(
-          email: email.trim().toLowerCase(),
-          message: data['message']?.toString() ?? 'OTP verified successfully.',
-        );
+      final aide = AideResponse.unwrap(
+        res.data,
+        parseData: (raw) => JwtSession.fromJson(AideResponse.asMap(raw)),
+      );
+      final jwt = aide.data;
+      if (jwt == null || jwt.accessToken.isEmpty) {
+        return const AuthOtpResult.failure('Login response missing token.');
       }
-
-      return AuthOtpResult.failure(
-        data is Map ? data['message']?.toString() ?? 'Invalid OTP.' : 'Invalid OTP.',
+      return AuthOtpResult.success(
+        email: jwt.email.isNotEmpty ? jwt.email : email.trim().toLowerCase(),
+        message: aide.message ?? 'OTP verified successfully.',
+        role: jwt.role,
+        accessToken: jwt.accessToken,
+        expiresAt: jwt.expiresAt,
+        userId: jwt.userId,
       );
     } on DioException catch (e) {
       final api = e.error;
-      if (api is ApiException) {
-        return AuthOtpResult.failure(api.message);
-      }
-      return _fallback.verifyOtp(email: email, otp: otp);
-    } catch (e) {
-      return _fallback.verifyOtp(email: email, otp: otp);
+      return AuthOtpResult.failure(
+        api is ApiException ? api.message : 'Invalid OTP.',
+      );
     }
   }
 
-  Future<AuthCredentialsResult> _failOrFallback({
+  @override
+  Future<AuthCredentialsResult> validateCredentials({
     required String email,
     required String password,
-    required String message,
-  }) {
-    if (ApiConfig.useMockApi) {
-      return _fallback.validateCredentials(email: email, password: password);
-    }
-    return Future.value(AuthCredentialsResult.failure(message));
+  }) async {
+    return const AuthCredentialsResult.failure(
+      'Password login is not supported. Use Email OTP.',
+    );
   }
 }

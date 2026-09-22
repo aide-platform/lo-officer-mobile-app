@@ -20,7 +20,7 @@ class DioLoRepository implements LoRepository {
   Future<List<VIP>> fetchVips({String? email}) async {
     try {
       final response = await _dio.get(
-        ApiConfig.loVipsPath,
+        ApiConfig.myLoDelegatesPath,
         queryParameters: {
           if (email != null && email.isNotEmpty) 'email': email,
         },

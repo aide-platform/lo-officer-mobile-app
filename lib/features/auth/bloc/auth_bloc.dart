@@ -1,8 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 
-import '../../../core/auth/data/repositories/mock_auth_repository.dart';
 import '../../../core/auth/domain/auth_repository.dart';
 
 part 'auth_event.dart';
@@ -12,17 +12,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
   AuthBloc({
     AuthRepository? repository,
     AuthSession? restoredSession,
-  })  : _repository = repository ?? MockAuthRepository(),
+  })  : _repository = repository ?? AppDependencies.instance.authRepository,
         super(_initialState(restoredSession)) {
-    on<AuthLoginRequested>(_onLoginRequested);
+    on<AuthCaptchaRequested>(_onCaptchaRequested);
     on<AuthOtpRequested>(_onOtpRequested);
+    on<AuthOtpResendRequested>(_onOtpResend);
     on<AuthOtpVerified>(_onOtpVerified);
     on<AuthLogoutRequested>(_onLogoutRequested);
     on<AuthSessionRestored>(_onSessionRestored);
+    on<AuthLoginRequested>(_onLoginRequested);
   }
 
   final AuthRepository _repository;
-  static const int _captchaExpirySeconds = 120;
 
   static AuthBlocState _initialState(AuthSession? session) {
     if (session == null || !session.isValid) {
@@ -38,72 +39,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     );
   }
 
-  Future<void> _onLoginRequested(
-    AuthLoginRequested event,
+  Future<void> _onCaptchaRequested(
+    AuthCaptchaRequested event,
     Emitter<AuthBlocState> emit,
   ) async {
-    if (DateTime.now().difference(event.captchaGeneratedAt).inSeconds >
-        _captchaExpirySeconds) {
-      emit(state.copyWith(
-        status: AuthStatus.failure,
-        errorMessage: 'Captcha expired. Please refresh.',
-      ));
-      return;
-    }
-
-    if (event.captcha.trim().toUpperCase() != event.generatedCaptcha) {
-      emit(state.copyWith(
-        status: AuthStatus.failure,
-        errorMessage: 'Invalid captcha.',
-      ));
-      return;
-    }
-
-    final email = event.email.trim();
-    final password = event.password;
-
-    if (email.isEmpty || password.isEmpty) {
-      emit(state.copyWith(
-        status: AuthStatus.failure,
-        errorMessage: 'Email and password are required.',
-      ));
-      return;
-    }
-
     emit(state.copyWith(status: AuthStatus.loading, clearError: true));
-
-    final result = await _repository.validateCredentials(
-      email: email,
-      password: password,
-    );
-
+    final result = await _repository.fetchCaptcha();
     if (!result.success) {
       emit(state.copyWith(
         status: AuthStatus.failure,
-        errorMessage: result.errorMessage ?? 'Login failed.',
+        errorMessage: result.message ?? 'Unable to load CAPTCHA.',
       ));
       return;
     }
-
-    final expiresAt =
-        result.expiresAt ?? DateTime.now().add(const Duration(days: 30));
-
-    final session = AuthSession(
-      email: result.email!,
-      role: result.role ?? 'Liaison Officer',
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      expiresAt: expiresAt,
-    );
-    await SessionStore.save(session);
-
     emit(state.copyWith(
-      status: AuthStatus.authenticated,
-      email: session.email,
-      role: session.role,
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
-      expiresAt: session.expiresAt,
+      status: AuthStatus.captchaReady,
+      captchaId: result.captchaId,
+      captchaImageBase64: result.imageBase64,
       clearError: true,
     ));
   }
@@ -120,6 +72,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
       ));
       return;
     }
+    if (event.captchaId.isEmpty || event.captchaAnswer.trim().isEmpty) {
+      emit(state.copyWith(
+        status: AuthStatus.failure,
+        errorMessage: 'Please complete the CAPTCHA.',
+      ));
+      return;
+    }
 
     emit(state.copyWith(
       status: AuthStatus.loading,
@@ -127,13 +86,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
       clearError: true,
     ));
 
-    final result = await _repository.sendOtp(email: email);
+    await _repository.checkEmail(email: email);
+    final result = await _repository.requestOtp(
+      email: email,
+      captchaId: event.captchaId,
+      captchaAnswer: event.captchaAnswer,
+    );
+
     if (!result.success) {
       emit(state.copyWith(
         status: AuthStatus.failure,
         email: email,
         errorMessage: result.message ?? 'Unable to send OTP.',
       ));
+      add(AuthCaptchaRequested());
       return;
     }
 
@@ -141,6 +107,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
       status: AuthStatus.otpSent,
       email: result.email ?? email,
       errorMessage: result.message ?? 'OTP sent successfully.',
+    ));
+  }
+
+  Future<void> _onOtpResend(
+    AuthOtpResendRequested event,
+    Emitter<AuthBlocState> emit,
+  ) async {
+    emit(state.copyWith(status: AuthStatus.loading, clearError: true));
+    final result = await _repository.resendOtp(email: event.email);
+    emit(state.copyWith(
+      status: result.success ? AuthStatus.otpSent : AuthStatus.failure,
+      email: event.email,
+      errorMessage: result.message,
     ));
   }
 
@@ -166,7 +145,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     ));
 
     final otpResult = await _repository.verifyOtp(email: email, otp: otp);
-    if (!otpResult.success) {
+    if (!otpResult.success ||
+        otpResult.accessToken == null ||
+        otpResult.accessToken!.isEmpty) {
       emit(state.copyWith(
         status: AuthStatus.failure,
         email: email,
@@ -176,14 +157,51 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     }
 
     final session = AuthSession(
-      email: email,
-      role: MockAuthRepository.loRole,
-      accessToken: 'otp_access_token_${DateTime.now().millisecondsSinceEpoch}',
-      refreshToken: 'otp_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
-      expiresAt: DateTime.now().add(const Duration(days: 30)),
+      email: otpResult.email ?? email,
+      role: otpResult.role ?? 'Liaison Officer',
+      accessToken: otpResult.accessToken,
+      expiresAt: otpResult.expiresAt ??
+          DateTime.now().add(const Duration(hours: 8)),
     );
     await SessionStore.save(session);
 
+    emit(state.copyWith(
+      status: AuthStatus.authenticated,
+      email: session.email,
+      role: session.role,
+      accessToken: session.accessToken,
+      expiresAt: session.expiresAt,
+      userId: otpResult.userId,
+      clearError: true,
+      clearCaptcha: true,
+    ));
+  }
+
+  Future<void> _onLoginRequested(
+    AuthLoginRequested event,
+    Emitter<AuthBlocState> emit,
+  ) async {
+    emit(state.copyWith(status: AuthStatus.loading, clearError: true));
+    final result = await _repository.validateCredentials(
+      email: event.email,
+      password: event.password,
+    );
+    if (!result.success) {
+      emit(state.copyWith(
+        status: AuthStatus.failure,
+        errorMessage: result.errorMessage ?? 'Login failed.',
+      ));
+      return;
+    }
+    final session = AuthSession(
+      email: result.email!,
+      role: result.role ?? 'Liaison Officer',
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresAt:
+          result.expiresAt ?? DateTime.now().add(const Duration(days: 30)),
+    );
+    await SessionStore.save(session);
     emit(state.copyWith(
       status: AuthStatus.authenticated,
       email: session.email,

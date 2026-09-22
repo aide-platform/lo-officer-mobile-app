@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/routing/role_home_router.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 import 'package:liaison_officer/features/auth/login_screen.dart';
-import 'package:liaison_officer/features/liaison_officer/bloc/lo_bloc.dart';
-import 'package:liaison_officer/features/liaison_officer/liaisonOfficerMain.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppDependencies.create();
   final themeCubit = await ThemeCubit.create();
   final session = await SessionStore.load();
   SystemChrome.setSystemUIOverlayStyle(
@@ -69,7 +70,6 @@ class LiaisonOfficerApp extends StatelessWidget {
   }
 }
 
-/// Brief branded splash, then login or LO shell based on restored session.
 class SplashGate extends StatefulWidget {
   const SplashGate({super.key, this.initialSession});
 
@@ -149,10 +149,7 @@ class _SplashGateState extends State<SplashGate> {
 
     final session = widget.initialSession;
     if (session != null && session.isValid) {
-      return BlocProvider(
-        create: (_) => LoBloc()..add(LoLoadRequested(session.email)),
-        child: LiaisonOfficerScreen(email: session.email),
-      );
+      return RoleHomeRouter(email: session.email, role: session.role);
     }
 
     return const LoginScreen();

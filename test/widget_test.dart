@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liaison_officer/core/auth/data/repositories/mock_auth_repository.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
+import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/session/app_role.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
+import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/connecting_flight.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/engagement.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/event_nomination.dart';
@@ -132,24 +136,18 @@ void main() {
     });
   });
 
-  group('AuthBloc captcha expiry', () {
-    test('accepts captcha within 120 seconds', () async {
+  group('AuthBloc OTP login', () {
+    test('verifies demo OTP and authenticates', () async {
       SharedPreferences.setMockInitialValues({});
-      final bloc = AuthBloc();
-      final generatedAt =
-          DateTime.now().subtract(const Duration(seconds: 90));
-      bloc.add(AuthLoginRequested(
-        email: 'liaison@test.com',
-        password: 'liaison123',
-        captcha: 'ABC12',
-        generatedCaptcha: 'ABC12',
-        captchaGeneratedAt: generatedAt,
-      ));
+      AppDependencies.resetForTest();
+      final bloc = AuthBloc(repository: MockAuthRepository());
+      bloc.add(AuthOtpVerified(email: 'liaison@test.com', otp: '123456'));
       await expectLater(
         bloc.stream,
         emitsThrough(
           predicate<AuthBlocState>(
-            (s) => s.status == AuthStatus.authenticated,
+            (s) => s.status == AuthStatus.authenticated &&
+                s.role == MockAuthRepository.loRole,
           ),
         ),
       );
@@ -159,14 +157,39 @@ void main() {
 
   testWidgets('App loads login screen when no session', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
+    AppDependencies.resetForTest();
     final themeCubit = await ThemeCubit.create();
     await tester.pumpWidget(
       LiaisonOfficerApp(themeCubit: themeCubit, initialSession: null),
     );
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Liaison Officer'), findsWidgets);
-    await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('Sign in to continue'), findsOneWidget);
+    // SplashGate delays ~700ms then shows LoginScreen.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.textContaining('Committee Automation'), findsOneWidget);
+    expect(find.textContaining('Email'), findsWidgets);
+  });
+
+  group('CAP models', () {
+    test('MyLoAssignmentDto parses family', () {
+      final dto = MyLoAssignmentDto.fromJson({
+        'assignmentId': 'a1',
+        'fullName': 'VIP',
+        'family': [
+          {'fullName': 'Spouse', 'relation': 'Spouse'},
+        ],
+      });
+      expect(dto.family, hasLength(1));
+      expect(dto.family.first.relation, 'Spouse');
+    });
+
+    test('resolveAppRole maps CAP roles', () {
+      expect(resolveAppRole('Liaison Officer'), AppRole.liaisonOfficer);
+      expect(resolveAppRole('Organisation Representative'),
+          AppRole.organisationRepresentative);
+      expect(resolveAppRole('LO Committee Nodal Officer'), AppRole.nodalOfficer);
+      expect(resolveAppRole('ADMIN'), AppRole.nodalOfficer);
+    });
   });
 
   testWidgets('semantic colors adapt to theme brightness', (tester) async {
