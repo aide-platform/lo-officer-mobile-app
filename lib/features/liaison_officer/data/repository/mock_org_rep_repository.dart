@@ -25,6 +25,21 @@ class MockOrgRepRepository implements OrgRepRepository {
       currentPassId: 'pass-org-1',
       currentPassNumber: 'B-1001',
     ),
+    const LiaisonOfficerDto(
+      id: 'lo-org-rejected',
+      personId: 'p-rej',
+      firstName: 'Anita',
+      lastName: 'Shah',
+      fullName: 'Anita Shah',
+      salutationName: 'Ms',
+      officialEmail: 'anita@bel.co.in',
+      officialContact: '+919800000001',
+      designation: 'Manager',
+      profileStatus: 'REJECTED',
+      profileComplete: false,
+      orgName: 'BEL',
+      orgTypeName: 'DPSU',
+    ),
   ];
 
   final List<OrgSubNodalOfficerDto> _subNodals = [
@@ -66,6 +81,31 @@ class MockOrgRepRepository implements OrgRepRepository {
       officialEmail: body['primaryEmail']?.toString(),
       officialContact: body['primaryMobile']?.toString(),
       salutationName: body['salutation']?.toString(),
+      profileStatus: 'PENDING',
+      profileComplete: false,
+      orgName: 'BEL',
+    );
+    _los.add(lo);
+    return lo;
+  }
+
+  @override
+  Future<LiaisonOfficerDto> reNominateLo(
+    String rejectedLoId,
+    Map<String, dynamic> body,
+  ) async {
+    _los.removeWhere((e) => e.id == rejectedLoId);
+    final lo = LiaisonOfficerDto(
+      id: 'lo-renom-${_los.length + 1}',
+      firstName: body['firstName']?.toString(),
+      lastName: body['lastName']?.toString(),
+      fullName:
+          '${body['firstName'] ?? ''} ${body['lastName'] ?? ''}'.trim(),
+      officialEmail: body['primaryEmail']?.toString(),
+      officialContact: body['primaryMobile']?.toString(),
+      salutationName: body['salutation']?.toString(),
+      rank: body['rank']?.toString(),
+      designation: body['designation']?.toString(),
       profileStatus: 'PENDING',
       profileComplete: false,
       orgName: 'BEL',

@@ -10,6 +10,7 @@ class OrgRepBloc extends Bloc<OrgRepEvent, OrgRepState> {
   OrgRepBloc({required this.repository}) : super(const OrgRepState()) {
     on<OrgRepLoadRequested>(_onLoad);
     on<OrgRepNominateRequested>(_onNominate);
+    on<OrgRepReNominateRequested>(_onReNominate);
     on<OrgRepReminderRequested>(_onReminder);
     on<OrgRepBulkReminderRequested>(_onBulkReminder);
     on<OrgRepImportTemplateRequested>(_onImportTemplate);
@@ -67,6 +68,44 @@ class OrgRepBloc extends Bloc<OrgRepEvent, OrgRepState> {
         status: OrgRepStatus.ready,
         los: [...state.los, lo],
         infoMessage: 'LO nominated. Profile completion email sent.',
+        clearError: true,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: OrgRepStatus.failure,
+        errorMessage: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _onReNominate(
+    OrgRepReNominateRequested event,
+    Emitter<OrgRepState> emit,
+  ) async {
+    try {
+      final lo = await repository.reNominateLo(
+        event.rejectedLoId,
+        event.body,
+      );
+      final email = event.body['primaryEmail']?.toString().trim();
+      if (email != null && email.isNotEmpty) {
+        await MockEmailNotifier.send(
+          to: email,
+          subject: 'Complete your Liaison Officer profile',
+          body:
+              'You have been re-nominated as a Liaison Officer. '
+              'Please sign in and complete your profile.',
+        );
+      }
+      final los = state.los
+          .where((e) => e.id != event.rejectedLoId)
+          .toList()
+        ..add(lo);
+      emit(state.copyWith(
+        status: OrgRepStatus.ready,
+        los: los,
+        selectedLoDetail: lo,
+        infoMessage: 'LO re-nominated. Profile completion email sent.',
         clearError: true,
       ));
     } catch (e) {

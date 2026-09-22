@@ -9,6 +9,15 @@ class OrgRepNominateRequested extends OrgRepEvent {
   final Map<String, dynamic> body;
 }
 
+class OrgRepReNominateRequested extends OrgRepEvent {
+  OrgRepReNominateRequested({
+    required this.rejectedLoId,
+    required this.body,
+  });
+  final String rejectedLoId;
+  final Map<String, dynamic> body;
+}
+
 class OrgRepReminderRequested extends OrgRepEvent {
   OrgRepReminderRequested(this.loId);
   final String loId;

@@ -17,6 +17,12 @@ abstract class LoPortalRepository {
     required Map<String, dynamic> body,
   });
 
+  /// CAP `PUT …/assignments/{id}/arrival-flight` (actual arrival for LO.9).
+  Future<MyLoAssignmentDto> updateArrivalFlight({
+    required String assignmentId,
+    required Map<String, dynamic> body,
+  });
+
   Future<void> uploadPhoto(Uint8List bytes, String filename);
   Future<void> uploadSignature(Uint8List bytes, String filename);
   Future<void> uploadOrgBadgeFront(Uint8List bytes, String filename);

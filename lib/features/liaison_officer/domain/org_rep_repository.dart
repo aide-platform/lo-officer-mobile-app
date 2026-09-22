@@ -5,6 +5,13 @@ abstract class OrgRepRepository {
   Future<List<LiaisonOfficerDto>> listLos();
   Future<LiaisonOfficerDto?> getLo(String loId);
   Future<LiaisonOfficerDto> nominateLo(Map<String, dynamic> body);
+
+  /// Soft-deletes a rejected LO and creates a fresh nomination.
+  Future<LiaisonOfficerDto> reNominateLo(
+    String rejectedLoId,
+    Map<String, dynamic> body,
+  );
+
   Future<void> sendReminder(String loId);
   Future<void> sendPendingReminders();
   Future<List<int>> downloadImportTemplate();

@@ -57,7 +57,10 @@ class MockLoPortalRepository implements LoPortalRepository {
   ];
 
   final List<LoExperienceDto> _experiences = [];
-  List<String> _languages = ['English', 'Hindi'];
+  final List<({String id, String languageName})> _languageRows = [
+    (id: 'lang-row-1', languageName: 'English'),
+    (id: 'lang-row-2', languageName: 'Hindi'),
+  ];
   final Map<String, List<ConnectingFlightDraft>> _arrivalConnecting = {};
   final Map<String, List<ConnectingFlightDraft>> _departureConnecting = {};
 
@@ -200,6 +203,45 @@ class MockLoPortalRepository implements LoPortalRepository {
   }
 
   @override
+  Future<MyLoAssignmentDto> updateArrivalFlight({
+    required String assignmentId,
+    required Map<String, dynamic> body,
+  }) async {
+    final idx = _delegates.indexWhere((d) => d.assignmentId == assignmentId);
+    final cur = _delegates[idx];
+    final updated = MyLoAssignmentDto(
+      assignmentId: cur.assignmentId,
+      personId: cur.personId,
+      attendeeId: cur.attendeeId,
+      delegateType: cur.delegateType,
+      fullName: cur.fullName,
+      salutation: cur.salutation,
+      designation: cur.designation,
+      organisation: cur.organisation,
+      ministry: cur.ministry,
+      gender: cur.gender,
+      protocolEquiv: cur.protocolEquiv,
+      email: cur.email,
+      mobileNumber: cur.mobileNumber,
+      family: cur.family,
+      arrivalFlight: body['arrivalFlight']?.toString() ?? cur.arrivalFlight,
+      arrivalTerminal:
+          body['arrivalTerminal']?.toString() ?? cur.arrivalTerminal,
+      arrivalDate: body['arrivalDate']?.toString() ?? cur.arrivalDate,
+      arrivalTime: body['arrivalTime']?.toString() ?? cur.arrivalTime,
+      departureFlight: cur.departureFlight,
+      departureTerminal: cur.departureTerminal,
+      departureDate: cur.departureDate,
+      departureTime: cur.departureTime,
+      passportNumber: cur.passportNumber,
+      passportExpiry: cur.passportExpiry,
+      decorations: cur.decorations,
+    );
+    _delegates[idx] = updated;
+    return updated;
+  }
+
+  @override
   Future<void> uploadPhoto(Uint8List bytes, String filename) async {}
 
   @override
@@ -240,11 +282,27 @@ class MockLoPortalRepository implements LoPortalRepository {
   }
 
   @override
-  Future<List<String>> listLanguages() async => List.of(_languages);
+  Future<List<String>> listLanguages() async =>
+      _languageRows.map((e) => e.languageName).toList();
+
+  /// Test helper: row ids currently stored for languages.
+  List<String> get languageRowIds =>
+      _languageRows.map((e) => e.id).toList(growable: false);
 
   @override
   Future<void> setLanguages(List<String> languages) async {
-    _languages = List.of(languages);
+    final desired = languages
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    _languageRows.removeWhere((e) => !desired.contains(e.languageName));
+    final existing = _languageRows.map((e) => e.languageName).toSet();
+    var next = _languageRows.length + 1;
+    for (final lang in desired) {
+      if (existing.contains(lang)) continue;
+      _languageRows.add((id: 'lang-row-$next', languageName: lang));
+      next++;
+    }
   }
 
   @override

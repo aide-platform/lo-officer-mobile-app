@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liaison_officer/core/session/app_role.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/data/pdf/do_letter_pdf_builder.dart';
+import 'package:liaison_officer/features/liaison_officer/data/repository/mock_lo_portal_repository.dart';
 import 'package:liaison_officer/features/liaison_officer/data/repository/mock_nodal_lo_repository.dart';
+import 'package:liaison_officer/features/liaison_officer/data/repository/mock_org_rep_repository.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/nodal_lo_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -187,6 +189,68 @@ void main() {
           .toList();
       expect(arrival.single.flightNumber, 'AI1');
       expect(departure.single.flightNumber, 'AI9');
+    });
+  });
+
+  group('language replace-set', () {
+    test('removes dropped languages and keeps stable rows for kept ones',
+        () async {
+      final repo = MockLoPortalRepository();
+      final englishId = repo.languageRowIds.first;
+      expect(await repo.listLanguages(), ['English', 'Hindi']);
+
+      await repo.setLanguages(['English', 'Kannada']);
+      final after = await repo.listLanguages();
+      expect(after, containsAll(['English', 'Kannada']));
+      expect(after, isNot(contains('Hindi')));
+      expect(after.length, 2);
+      // English row id preserved across replace-set.
+      expect(repo.languageRowIds, contains(englishId));
+      expect(repo.languageRowIds.length, 2);
+    });
+  });
+
+  group('arrival-flight update', () {
+    test('updateArrivalFlight patches arrival fields only', () async {
+      final repo = MockLoPortalRepository();
+      final updated = await repo.updateArrivalFlight(
+        assignmentId: 'asn-1',
+        body: {
+          'arrivalFlight': 'AI 999',
+          'arrivalTerminal': 'T1',
+          'arrivalDate': '2026-02-11',
+          'arrivalTime': '09:00',
+        },
+      );
+      expect(updated.arrivalFlight, 'AI 999');
+      expect(updated.arrivalTerminal, 'T1');
+      expect(updated.departureFlight, 'AI 803');
+    });
+  });
+
+  group('org rep re-nominate', () {
+    test('soft-deletes rejected LO and adds pending replacement', () async {
+      final repo = MockOrgRepRepository();
+      final before = await repo.listLos();
+      expect(
+        before.any((e) => e.id == 'lo-org-rejected'),
+        isTrue,
+      );
+
+      final fresh = await repo.reNominateLo('lo-org-rejected', {
+        'salutation': 'Ms',
+        'firstName': 'Anita',
+        'lastName': 'Shah',
+        'primaryEmail': 'anita2@bel.co.in',
+        'primaryMobile': '+919800000002',
+        'designation': 'Manager',
+      });
+
+      final after = await repo.listLos();
+      expect(after.any((e) => e.id == 'lo-org-rejected'), isFalse);
+      expect(fresh.profileStatus, 'PENDING');
+      expect(fresh.officialEmail, 'anita2@bel.co.in');
+      expect(after.any((e) => e.id == fresh.id), isTrue);
     });
   });
 }

@@ -191,15 +191,28 @@ class _LosTab extends StatelessWidget {
                               'Status: ${lo.profileStatus ?? '—'}',
                             ),
                             isThreeLine: true,
-                            trailing: IconButton(
-                              tooltip: 'Send reminder',
-                              onPressed: lo.id == null
-                                  ? null
-                                  : () => context.read<OrgRepBloc>().add(
-                                        OrgRepReminderRequested(lo.id!),
-                                      ),
-                              icon: const Icon(
-                                  Icons.notifications_active_outlined),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isRejected(lo.profileStatus) &&
+                                    lo.id != null)
+                                  IconButton(
+                                    tooltip: 'Re-nominate',
+                                    onPressed: () =>
+                                        _reNominate(context, lo),
+                                    icon: const Icon(Icons.refresh),
+                                  ),
+                                IconButton(
+                                  tooltip: 'Send reminder',
+                                  onPressed: lo.id == null
+                                      ? null
+                                      : () => context.read<OrgRepBloc>().add(
+                                            OrgRepReminderRequested(lo.id!),
+                                          ),
+                                  icon: const Icon(
+                                      Icons.notifications_active_outlined),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -265,6 +278,17 @@ class _LosTab extends StatelessWidget {
                             ),
                         icon: const Icon(Icons.badge_outlined),
                         label: const Text('Download badge'),
+                      ),
+                    ],
+                    if (_isRejected(d.profileStatus) && d.id != null) ...[
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _reNominate(context, d);
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Re-nominate'),
                       ),
                     ],
                     const SizedBox(height: 8),
@@ -390,6 +414,126 @@ class _LosTab extends StatelessWidget {
     email.dispose();
     countryCode.dispose();
     mobile.dispose();
+  }
+
+  Future<void> _reNominate(
+    BuildContext context,
+    LiaisonOfficerDto rejected,
+  ) async {
+    if (rejected.id == null) return;
+    const salutations = ['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'];
+    var salutation = rejected.salutationName ?? 'Mr';
+    if (!salutations.contains(salutation)) salutation = 'Mr';
+    final first = TextEditingController(text: rejected.firstName ?? '');
+    final last = TextEditingController(text: rejected.lastName ?? '');
+    final email =
+        TextEditingController(text: rejected.officialEmail ?? '');
+    final mobile =
+        TextEditingController(text: rejected.officialContact ?? '');
+    final designation =
+        TextEditingController(text: rejected.designation ?? '');
+    final rank = TextEditingController(text: rejected.rank ?? '');
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Re-nominate LO'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: salutation,
+                  decoration:
+                      const InputDecoration(labelText: 'Salutation'),
+                  items: salutations
+                      .map(
+                        (s) => DropdownMenuItem(value: s, child: Text(s)),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setLocal(() => salutation = v);
+                  },
+                ),
+                TextField(
+                  controller: first,
+                  decoration:
+                      const InputDecoration(labelText: 'First name'),
+                ),
+                TextField(
+                  controller: last,
+                  decoration:
+                      const InputDecoration(labelText: 'Last name'),
+                ),
+                TextField(
+                  controller: email,
+                  decoration:
+                      const InputDecoration(labelText: 'Primary email'),
+                ),
+                TextField(
+                  controller: mobile,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Primary mobile',
+                  ),
+                ),
+                TextField(
+                  controller: rank,
+                  decoration: const InputDecoration(labelText: 'Rank'),
+                ),
+                TextField(
+                  controller: designation,
+                  decoration:
+                      const InputDecoration(labelText: 'Designation'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Re-nominate'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true && context.mounted) {
+      context.read<OrgRepBloc>().add(
+            OrgRepReNominateRequested(
+              rejectedLoId: rejected.id!,
+              body: {
+                'salutation': salutation,
+                'firstName': first.text.trim(),
+                'lastName': last.text.trim(),
+                'primaryEmail': email.text.trim(),
+                'primaryMobile': mobile.text.trim(),
+                if (rank.text.trim().isNotEmpty) 'rank': rank.text.trim(),
+                if (designation.text.trim().isNotEmpty)
+                  'designation': designation.text.trim(),
+              },
+            ),
+          );
+    }
+
+    first.dispose();
+    last.dispose();
+    email.dispose();
+    mobile.dispose();
+    designation.dispose();
+    rank.dispose();
+  }
+
+  static bool _isRejected(String? status) {
+    final s = status?.trim().toUpperCase() ?? '';
+    return s == 'REJECTED' || s.contains('REJECT');
   }
 }
 

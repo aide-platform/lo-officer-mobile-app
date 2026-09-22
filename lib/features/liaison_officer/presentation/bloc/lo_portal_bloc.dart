@@ -168,7 +168,12 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     Emitter<LoPortalState> emit,
   ) async {
     try {
-      final updated = await repository.updateTravel(
+      var updated = await repository.updateTravel(
+        assignmentId: event.assignmentId,
+        body: event.body,
+      );
+      // Also hit CAP arrival-flight endpoint for actual arrival (LO.9).
+      updated = await repository.updateArrivalFlight(
         assignmentId: event.assignmentId,
         body: event.body,
       );

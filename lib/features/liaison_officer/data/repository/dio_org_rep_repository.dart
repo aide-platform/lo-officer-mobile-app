@@ -56,6 +56,25 @@ class DioOrgRepRepository implements OrgRepRepository {
   }
 
   @override
+  Future<LiaisonOfficerDto> reNominateLo(
+    String rejectedLoId,
+    Map<String, dynamic> body,
+  ) async {
+    final res = await _dio.post(
+      ApiConfig.myOrganisationLoReNominatePath(rejectedLoId),
+      data: body,
+    );
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) =>
+          LiaisonOfficerDto.fromJson(AideResponse.asMap(raw)),
+    );
+    final data = aide.data;
+    if (data == null) throw ApiException('Empty re-nominate response.');
+    return data;
+  }
+
+  @override
   Future<void> sendReminder(String loId) async {
     await _dio.post(ApiConfig.myOrganisationLoReminderPath(loId));
   }

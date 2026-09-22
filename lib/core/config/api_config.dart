@@ -67,6 +67,8 @@ class ApiConfig {
       '/app/my-organisation/me/los/bulk-import';
   static String myOrganisationLoReminderPath(String loId) =>
       '/app/my-organisation/me/los/$loId/reminder';
+  static String myOrganisationLoReNominatePath(String rejectedLoId) =>
+      '/app/my-organisation/me/los/$rejectedLoId/re-nominate';
   static const String myOrganisationPendingRemindersPath =
       '/app/my-organisation/me/reminders/pending';
   static const String orgSubNodalOfficersPath = '/app/org-sub-nodal-officers';

@@ -94,9 +94,12 @@ class DioLoPortalRepository implements LoPortalRepository {
     required String assignmentId,
     required Map<String, dynamic> body,
   }) async {
+    final travelBody = Map<String, dynamic>.from(body)
+      ..remove('arrivalConnectingFlights')
+      ..remove('departureConnectingFlights');
     final res = await _dio.put(
       ApiConfig.myLoTravelPath(assignmentId),
-      data: body,
+      data: travelBody,
     );
     final aide = AideResponse.unwrap(
       res.data,
@@ -105,6 +108,32 @@ class DioLoPortalRepository implements LoPortalRepository {
     );
     final data = aide.data;
     if (data == null) throw ApiException('Empty travel response.');
+    return data;
+  }
+
+  @override
+  Future<MyLoAssignmentDto> updateArrivalFlight({
+    required String assignmentId,
+    required Map<String, dynamic> body,
+  }) async {
+    final arrivalBody = <String, dynamic>{
+      if (body['arrivalFlight'] != null) 'arrivalFlight': body['arrivalFlight'],
+      if (body['arrivalTerminal'] != null)
+        'arrivalTerminal': body['arrivalTerminal'],
+      if (body['arrivalDate'] != null) 'arrivalDate': body['arrivalDate'],
+      if (body['arrivalTime'] != null) 'arrivalTime': body['arrivalTime'],
+    };
+    final res = await _dio.put(
+      ApiConfig.myLoArrivalFlightPath(assignmentId),
+      data: arrivalBody,
+    );
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) =>
+          MyLoAssignmentDto.fromJson(AideResponse.asMap(raw)),
+    );
+    final data = aide.data;
+    if (data == null) throw ApiException('Empty arrival-flight response.');
     return data;
   }
 
@@ -180,9 +209,43 @@ class DioLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<void> setLanguages(List<String> languages) async {
-    // Replace set: post each language (CAP may accumulate; best-effort).
-    for (final lang in languages) {
-      await _dio.post(ApiConfig.myLoLanguagesPath, data: {'languageName': lang});
+    final desired = languages
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+
+    final res = await _dio.get(ApiConfig.myLoLanguagesPath);
+    final aide = AideResponse.unwrap(res.data);
+    final existingRows = <Map<String, String>>[];
+    final raw = aide.data;
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is! Map) continue;
+        final id = e['id']?.toString();
+        final name = e['languageName']?.toString() ??
+            e['name']?.toString() ??
+            e['language']?.toString() ??
+            '';
+        if (id == null || id.isEmpty || name.isEmpty) continue;
+        existingRows.add({'id': id, 'name': name});
+      }
+    }
+
+    final existingNames =
+        existingRows.map((e) => e['name']!).toSet();
+
+    for (final row in existingRows) {
+      if (!desired.contains(row['name'])) {
+        await _dio.delete(ApiConfig.myLoLanguagePath(row['id']!));
+      }
+    }
+
+    for (final lang in desired) {
+      if (existingNames.contains(lang)) continue;
+      await _dio.post(
+        ApiConfig.myLoLanguagesPath,
+        data: {'languageName': lang},
+      );
     }
   }
 
