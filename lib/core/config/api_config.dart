@@ -46,9 +46,17 @@ class ApiConfig {
   static String myLoNominationsPath(String assignmentId) =>
       '/app/my-lo/me/assignments/$assignmentId/nominations';
   static const String myLoExperiencesPath = '/app/my-lo/me/experiences';
+  static String myLoExperiencePath(String id) =>
+      '/app/my-lo/me/experiences/$id';
   static const String myLoLanguagesPath = '/app/my-lo/me/languages';
+  static String myLoLanguagePath(String rowId) =>
+      '/app/my-lo/me/languages/$rowId';
   static const String myLoPhotoPath = '/app/my-lo/me/photo';
   static const String myLoSignaturePath = '/app/my-lo/me/signature';
+  static const String myLoOrgBadgeFrontPath = '/app/my-lo/me/org-badge-front';
+  static const String myLoOrgBadgeBackPath = '/app/my-lo/me/org-badge-back';
+  static const String myLoAadhaarFrontPath = '/app/my-lo/me/aadhaar-front';
+  static const String myLoAadhaarBackPath = '/app/my-lo/me/aadhaar-back';
 
   // ── Org representative ───────────────────────────────────────
   static const String myOrganisationPath = '/app/my-organisation/me';
@@ -61,6 +69,9 @@ class ApiConfig {
       '/app/my-organisation/me/los/$loId/reminder';
   static const String myOrganisationPendingRemindersPath =
       '/app/my-organisation/me/reminders/pending';
+  static const String orgSubNodalOfficersPath = '/app/org-sub-nodal-officers';
+  static const String orgSubNodalOfficersMinePath =
+      '/app/org-sub-nodal-officers/mine';
 
   // ── Nodal / committee LO module ──────────────────────────────
   static const String loOrgTypesPath = '/app/lo-org-types';
@@ -69,11 +80,28 @@ class ApiConfig {
   static const String loAssignmentsPath = '/app/lo-assignments';
   static const String loAssignmentDelegatesPath =
       '/app/lo-assignments/delegates';
+  static String loAssignmentDelegateProfilePath(
+    String attendeeType,
+    String attendeeId,
+  ) =>
+      '/app/lo-assignments/delegates/$attendeeType/$attendeeId/profile';
   static const String loTasksPath = '/app/lo-tasks';
   static const String loActivitiesPath = '/app/lo-activities';
   static const String emailTemplatesPath = '/app/email-templates';
   static const String doLetterTemplatesPath = '/app/do-letter-templates';
+  static String doLetterTemplateFilePath(String id) =>
+      '/app/do-letter-templates/$id/file';
   static const String bvQuotaMinePath = '/app/committee/bv-quota/mine';
   static const String bvQuotaAssignBadgePath =
       '/app/committee/bv-quota/assign-badge';
+  static String bvQuotaBadgeDownloadPath(String passId) =>
+      '/app/committee/bv-quota/badge/$passId/download';
+
+  /// Speculative LO-org DO letter paths (not in public OpenAPI — graceful 404).
+  static String loOrgDoLetterPreviewPath(String orgId) =>
+      '/app/lo-organisations/$orgId/do-letter/preview';
+  static String loOrgDoLetterSignedPath(String orgId) =>
+      '/app/lo-organisations/$orgId/do-letter/signed';
+  static String loOrgSendNominationPath(String orgId) =>
+      '/app/lo-organisations/$orgId/send-nomination';
 }

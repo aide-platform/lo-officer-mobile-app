@@ -2,6 +2,7 @@
 
 class LiaisonOfficerDto {
   final String? id;
+  final String? personId;
   final String? orgId;
   final String? orgName;
   final String? orgTypeName;
@@ -26,11 +27,16 @@ class LiaisonOfficerDto {
   final String? aadhaarNumber;
   final bool? hasPrevLoExp;
   final int? yearsOfExperience;
+  final String? currentPassId;
   final String? currentPassNumber;
   final String? currentBadgeCatName;
+  final String? currentBadgeCatId;
+  final List<String> languages;
+  final String? availabilityStatus;
 
   const LiaisonOfficerDto({
     this.id,
+    this.personId,
     this.orgId,
     this.orgName,
     this.orgTypeName,
@@ -55,13 +61,19 @@ class LiaisonOfficerDto {
     this.aadhaarNumber,
     this.hasPrevLoExp,
     this.yearsOfExperience,
+    this.currentPassId,
     this.currentPassNumber,
     this.currentBadgeCatName,
+    this.currentBadgeCatId,
+    this.languages = const [],
+    this.availabilityStatus,
   });
 
   factory LiaisonOfficerDto.fromJson(Map<String, dynamic> json) {
+    final langs = json['languages'] ?? json['languagesKnown'];
     return LiaisonOfficerDto(
       id: json['id']?.toString(),
+      personId: json['personId']?.toString(),
       orgId: json['orgId']?.toString(),
       orgName: json['orgName']?.toString(),
       orgTypeName: json['orgTypeName']?.toString(),
@@ -89,8 +101,15 @@ class LiaisonOfficerDto {
       aadhaarNumber: json['aadhaarNumber']?.toString(),
       hasPrevLoExp: json['hasPrevLoExp'] as bool?,
       yearsOfExperience: (json['yearsOfExperience'] as num?)?.toInt(),
+      currentPassId: json['currentPassId']?.toString(),
       currentPassNumber: json['currentPassNumber']?.toString(),
       currentBadgeCatName: json['currentBadgeCatName']?.toString(),
+      currentBadgeCatId: json['currentBadgeCatId']?.toString(),
+      languages: langs is List
+          ? langs.map((e) => e.toString()).toList()
+          : const [],
+      availabilityStatus: json['availabilityStatus']?.toString() ??
+          json['availability']?.toString(),
     );
   }
 
@@ -142,9 +161,11 @@ class MyLoAssignmentDto {
   final String? fullName;
   final String? designation;
   final String? organisation;
+  final String? ministry;
   final String? countryName;
   final String? protocolEquiv;
   final String? vipCategory;
+  final String? gender;
   final String? email;
   final String? mobileNumber;
   final String? arrivalFlight;
@@ -155,6 +176,10 @@ class MyLoAssignmentDto {
   final String? departureTerminal;
   final String? departureDate;
   final String? departureTime;
+  final String? passportNumber;
+  final String? passportExpiry;
+  final String? passportNationality;
+  final List<String> decorations;
   final List<MyLoFamilyDto> family;
 
   const MyLoAssignmentDto({
@@ -166,9 +191,11 @@ class MyLoAssignmentDto {
     this.fullName,
     this.designation,
     this.organisation,
+    this.ministry,
     this.countryName,
     this.protocolEquiv,
     this.vipCategory,
+    this.gender,
     this.email,
     this.mobileNumber,
     this.arrivalFlight,
@@ -179,11 +206,19 @@ class MyLoAssignmentDto {
     this.departureTerminal,
     this.departureDate,
     this.departureTime,
+    this.passportNumber,
+    this.passportExpiry,
+    this.passportNationality,
+    this.decorations = const [],
     this.family = const [],
   });
 
   factory MyLoAssignmentDto.fromJson(Map<String, dynamic> json) {
     final familyRaw = json['family'];
+    final decorationsRaw = json['decorations'] ?? json['awards'];
+    final profile = json['profile'];
+    final profileMap =
+        profile is Map ? Map<String, dynamic>.from(profile) : null;
     return MyLoAssignmentDto(
       assignmentId: json['assignmentId']?.toString(),
       delegateType: json['delegateType']?.toString(),
@@ -193,9 +228,14 @@ class MyLoAssignmentDto {
       fullName: json['fullName']?.toString(),
       designation: json['designation']?.toString(),
       organisation: json['organisation']?.toString(),
+      ministry: json['ministry']?.toString() ??
+          profileMap?['ministry']?.toString(),
       countryName: json['countryName']?.toString(),
       protocolEquiv: json['protocolEquiv']?.toString(),
       vipCategory: json['vipCategory']?.toString(),
+      gender: json['gender']?.toString() ??
+          json['genderName']?.toString() ??
+          profileMap?['gender']?.toString(),
       email: json['email']?.toString(),
       mobileNumber: json['mobileNumber']?.toString(),
       arrivalFlight: json['arrivalFlight']?.toString(),
@@ -206,6 +246,15 @@ class MyLoAssignmentDto {
       departureTerminal: json['departureTerminal']?.toString(),
       departureDate: json['departureDate']?.toString(),
       departureTime: json['departureTime']?.toString(),
+      passportNumber: json['passportNumber']?.toString() ??
+          profileMap?['passportNumber']?.toString(),
+      passportExpiry: json['passportExpiry']?.toString() ??
+          profileMap?['passportExpiry']?.toString(),
+      passportNationality: json['passportNationality']?.toString() ??
+          profileMap?['nationality']?.toString(),
+      decorations: decorationsRaw is List
+          ? decorationsRaw.map((e) => e.toString()).toList()
+          : const [],
       family: familyRaw is List
           ? familyRaw
               .whereType<Map>()
@@ -313,6 +362,8 @@ class LoOrganisationDto {
   final bool? isActive;
   final int? loCount;
   final int? loSubmittedCount;
+  final int? loggedInCount;
+  final int? profilesCompletedCount;
 
   const LoOrganisationDto({
     this.id,
@@ -330,6 +381,8 @@ class LoOrganisationDto {
     this.isActive,
     this.loCount,
     this.loSubmittedCount,
+    this.loggedInCount,
+    this.profilesCompletedCount,
   });
 
   factory LoOrganisationDto.fromJson(Map<String, dynamic> json) =>
@@ -349,6 +402,11 @@ class LoOrganisationDto {
         isActive: json['isActive'] as bool?,
         loCount: (json['loCount'] as num?)?.toInt(),
         loSubmittedCount: (json['loSubmittedCount'] as num?)?.toInt(),
+        loggedInCount: (json['loggedInCount'] as num?)?.toInt() ??
+            (json['loLoggedInCount'] as num?)?.toInt(),
+        profilesCompletedCount:
+            (json['profilesCompletedCount'] as num?)?.toInt() ??
+                (json['loProfileCompletedCount'] as num?)?.toInt(),
       );
 
   Map<String, dynamic> toCreateJson() => {
@@ -494,4 +552,147 @@ class JwtSession {
     final ms = expiresInMs ?? const Duration(hours: 8).inMilliseconds;
     return DateTime.now().add(Duration(milliseconds: ms));
   }
+}
+
+class DoLetterTemplateDto {
+  final String? id;
+  final String templateName;
+  final String signingAuthority;
+  final String? recipientType;
+  final String? templateFileId;
+  final String? templateFileName;
+  final bool? isActive;
+  final List<String> applicableOrgTypeIds;
+
+  const DoLetterTemplateDto({
+    this.id,
+    required this.templateName,
+    required this.signingAuthority,
+    this.recipientType,
+    this.templateFileId,
+    this.templateFileName,
+    this.isActive,
+    this.applicableOrgTypeIds = const [],
+  });
+
+  factory DoLetterTemplateDto.fromJson(Map<String, dynamic> json) {
+    final recipient = json['recipientType']?.toString() ?? '';
+    final ids = recipient
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return DoLetterTemplateDto(
+      id: json['id']?.toString(),
+      templateName: json['templateName']?.toString() ??
+          json['name']?.toString() ??
+          '',
+      signingAuthority: json['signingAuthority']?.toString() ?? '',
+      recipientType: recipient.isEmpty ? null : recipient,
+      templateFileId: json['templateFileId']?.toString(),
+      templateFileName: json['templateFileName']?.toString(),
+      isActive: json['isActive'] as bool?,
+      applicableOrgTypeIds: ids,
+    );
+  }
+
+  Map<String, dynamic> toPayload() => {
+        'templateName': templateName,
+        'signingAuthority': signingAuthority,
+        'recipientType': applicableOrgTypeIds.isNotEmpty
+            ? applicableOrgTypeIds.join(',')
+            : (recipientType ?? ''),
+        if (isActive != null) 'isActive': isActive,
+      };
+}
+
+class OrgSubNodalOfficerDto {
+  final String? id;
+  final String? orgId;
+  final String? orgName;
+  final String fullName;
+  final String email;
+  final String? mobile;
+
+  const OrgSubNodalOfficerDto({
+    this.id,
+    this.orgId,
+    this.orgName,
+    required this.fullName,
+    required this.email,
+    this.mobile,
+  });
+
+  factory OrgSubNodalOfficerDto.fromJson(Map<String, dynamic> json) =>
+      OrgSubNodalOfficerDto(
+        id: json['id']?.toString(),
+        orgId: json['orgId']?.toString(),
+        orgName: json['orgName']?.toString(),
+        fullName: json['fullName']?.toString() ?? '',
+        email: json['email']?.toString() ?? '',
+        mobile: json['mobile']?.toString(),
+      );
+}
+
+class LoExperienceDto {
+  final String? id;
+  final String? eventName;
+  final int? year;
+  final String? roleResponsibilities;
+  final String? delegateDetails;
+
+  const LoExperienceDto({
+    this.id,
+    this.eventName,
+    this.year,
+    this.roleResponsibilities,
+    this.delegateDetails,
+  });
+
+  factory LoExperienceDto.fromJson(Map<String, dynamic> json) =>
+      LoExperienceDto(
+        id: json['id']?.toString(),
+        eventName: json['eventName']?.toString() ?? json['event']?.toString(),
+        year: (json['year'] as num?)?.toInt(),
+        roleResponsibilities: json['roleResponsibilities']?.toString() ??
+            json['role']?.toString(),
+        delegateDetails: json['delegateDetails']?.toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (eventName != null) 'eventName': eventName,
+        if (year != null) 'year': year,
+        if (roleResponsibilities != null)
+          'roleResponsibilities': roleResponsibilities,
+        if (delegateDetails != null) 'delegateDetails': delegateDetails,
+      };
+}
+
+class ConnectingFlightDraft {
+  final String flightNumber;
+  final String terminal;
+  final String date;
+  final String time;
+
+  const ConnectingFlightDraft({
+    this.flightNumber = '',
+    this.terminal = '',
+    this.date = '',
+    this.time = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'flightNumber': flightNumber,
+        'terminal': terminal,
+        'date': date,
+        'time': time,
+      };
+
+  factory ConnectingFlightDraft.fromJson(Map<String, dynamic> json) =>
+      ConnectingFlightDraft(
+        flightNumber: json['flightNumber']?.toString() ?? '',
+        terminal: json['terminal']?.toString() ?? '',
+        date: json['date']?.toString() ?? '',
+        time: json['time']?.toString() ?? '',
+      );
 }

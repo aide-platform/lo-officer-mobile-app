@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/network/aide_response.dart';
@@ -10,6 +12,13 @@ class DioLoPortalRepository implements LoPortalRepository {
   DioLoPortalRepository({Dio? dio}) : _dio = dio ?? createDio();
 
   final Dio _dio;
+
+  Future<void> _upload(String path, Uint8List bytes, String filename) async {
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    await _dio.post(path, data: form);
+  }
 
   @override
   Future<LiaisonOfficerDto?> getMyProfile() async {
@@ -97,5 +106,112 @@ class DioLoPortalRepository implements LoPortalRepository {
     final data = aide.data;
     if (data == null) throw ApiException('Empty travel response.');
     return data;
+  }
+
+  @override
+  Future<void> uploadPhoto(Uint8List bytes, String filename) =>
+      _upload(ApiConfig.myLoPhotoPath, bytes, filename);
+
+  @override
+  Future<void> uploadSignature(Uint8List bytes, String filename) =>
+      _upload(ApiConfig.myLoSignaturePath, bytes, filename);
+
+  @override
+  Future<void> uploadOrgBadgeFront(Uint8List bytes, String filename) =>
+      _upload(ApiConfig.myLoOrgBadgeFrontPath, bytes, filename);
+
+  @override
+  Future<void> uploadOrgBadgeBack(Uint8List bytes, String filename) =>
+      _upload(ApiConfig.myLoOrgBadgeBackPath, bytes, filename);
+
+  @override
+  Future<void> uploadAadhaarFront(Uint8List bytes, String filename) =>
+      _upload(ApiConfig.myLoAadhaarFrontPath, bytes, filename);
+
+  @override
+  Future<void> uploadAadhaarBack(Uint8List bytes, String filename) =>
+      _upload(ApiConfig.myLoAadhaarBackPath, bytes, filename);
+
+  @override
+  Future<List<LoExperienceDto>> listExperiences() async {
+    final res = await _dio.get(ApiConfig.myLoExperiencesPath);
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) =>
+          AideResponse.asMapList(raw).map(LoExperienceDto.fromJson).toList(),
+    );
+    return aide.data ?? const [];
+  }
+
+  @override
+  Future<LoExperienceDto> addExperience(Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConfig.myLoExperiencesPath, data: body);
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) => LoExperienceDto.fromJson(AideResponse.asMap(raw)),
+    );
+    return aide.data ?? LoExperienceDto.fromJson(body);
+  }
+
+  @override
+  Future<void> deleteExperience(String id) async {
+    await _dio.delete(ApiConfig.myLoExperiencePath(id));
+  }
+
+  @override
+  Future<List<String>> listLanguages() async {
+    final res = await _dio.get(ApiConfig.myLoLanguagesPath);
+    final aide = AideResponse.unwrap(res.data);
+    final raw = aide.data;
+    if (raw is List) {
+      return raw.map((e) {
+        if (e is String) return e;
+        if (e is Map) {
+          return e['languageName']?.toString() ??
+              e['name']?.toString() ??
+              e['language']?.toString() ??
+              '';
+        }
+        return e.toString();
+      }).where((e) => e.isNotEmpty).toList();
+    }
+    return const [];
+  }
+
+  @override
+  Future<void> setLanguages(List<String> languages) async {
+    // Replace set: post each language (CAP may accumulate; best-effort).
+    for (final lang in languages) {
+      await _dio.post(ApiConfig.myLoLanguagesPath, data: {'languageName': lang});
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getVehicles(String assignmentId) async {
+    final res = await _dio.get(ApiConfig.myLoVehiclesPath(assignmentId));
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: AideResponse.asMapList,
+    );
+    return aide.data ?? const [];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getNominations(String assignmentId) async {
+    final res = await _dio.get(ApiConfig.myLoNominationsPath(assignmentId));
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: AideResponse.asMapList,
+    );
+    return aide.data ?? const [];
+  }
+
+  @override
+  Future<List<int>> downloadBadge(String passId) async {
+    final res = await _dio.get<List<int>>(
+      ApiConfig.bvQuotaBadgeDownloadPath(passId),
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return res.data ?? const [];
   }
 }

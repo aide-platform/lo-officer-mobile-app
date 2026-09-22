@@ -34,6 +34,15 @@ class DioOrgRepRepository implements OrgRepRepository {
   }
 
   @override
+  Future<LiaisonOfficerDto?> getLo(String loId) async {
+    final los = await listLos();
+    for (final lo in los) {
+      if (lo.id == loId) return lo;
+    }
+    return null;
+  }
+
+  @override
   Future<LiaisonOfficerDto> nominateLo(Map<String, dynamic> body) async {
     final res = await _dio.post(ApiConfig.myOrganisationLosPath, data: body);
     final aide = AideResponse.unwrap(
@@ -71,5 +80,72 @@ class DioOrgRepRepository implements OrgRepRepository {
       'file': MultipartFile.fromBytes(bytes, filename: filename),
     });
     await _dio.post(ApiConfig.myOrganisationBulkImportPath, data: form);
+  }
+
+  @override
+  Future<List<OrgSubNodalOfficerDto>> listSubNodals() async {
+    try {
+      final res = await _dio.get(ApiConfig.orgSubNodalOfficersMinePath);
+      final aide = AideResponse.unwrap(
+        res.data,
+        parseData: (raw) => AideResponse.asMapList(raw)
+            .map(OrgSubNodalOfficerDto.fromJson)
+            .toList(),
+      );
+      return aide.data ?? const [];
+    } on DioException {
+      final res = await _dio.get(ApiConfig.orgSubNodalOfficersPath);
+      final aide = AideResponse.unwrap(
+        res.data,
+        parseData: (raw) => AideResponse.asMapList(raw)
+            .map(OrgSubNodalOfficerDto.fromJson)
+            .toList(),
+      );
+      return aide.data ?? const [];
+    }
+  }
+
+  @override
+  Future<OrgSubNodalOfficerDto> createSubNodal(Map<String, dynamic> body) async {
+    final res = await _dio.post(ApiConfig.orgSubNodalOfficersPath, data: body);
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) =>
+          OrgSubNodalOfficerDto.fromJson(AideResponse.asMap(raw)),
+    );
+    final data = aide.data;
+    if (data == null) throw ApiException('Empty sub-nodal response.');
+    return data;
+  }
+
+  @override
+  Future<OrgSubNodalOfficerDto> updateSubNodal(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    final res =
+        await _dio.put('${ApiConfig.orgSubNodalOfficersPath}/$id', data: body);
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) =>
+          OrgSubNodalOfficerDto.fromJson(AideResponse.asMap(raw)),
+    );
+    final data = aide.data;
+    if (data == null) throw ApiException('Empty sub-nodal response.');
+    return data;
+  }
+
+  @override
+  Future<void> deleteSubNodal(String id) async {
+    await _dio.delete('${ApiConfig.orgSubNodalOfficersPath}/$id');
+  }
+
+  @override
+  Future<List<int>> downloadBadge(String passId) async {
+    final res = await _dio.get<List<int>>(
+      ApiConfig.bvQuotaBadgeDownloadPath(passId),
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return res.data ?? const [];
   }
 }

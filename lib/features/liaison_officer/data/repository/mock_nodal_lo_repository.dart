@@ -1,4 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:liaison_officer/core/notifications/mock_email_notifier.dart';
+import 'package:liaison_officer/features/liaison_officer/data/local/do_letter_local_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
+import 'package:liaison_officer/features/liaison_officer/data/pdf/do_letter_pdf_builder.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/nodal_lo_repository.dart';
 
 class MockNodalLoRepository implements NodalLoRepository {
@@ -21,8 +26,11 @@ class MockNodalLoRepository implements NodalLoRepository {
       headDesignation: 'CMD',
       primaryEmail: 'org@bel.co.in',
       primaryContact: '+919999999999',
+      address: 'Bengaluru',
       loCount: 3,
       loSubmittedCount: 1,
+      loggedInCount: 2,
+      profilesCompletedCount: 1,
       isActive: true,
     ),
   ];
@@ -50,19 +58,45 @@ class MockNodalLoRepository implements NodalLoRepository {
   final List<LiaisonOfficerDto> _los = [
     const LiaisonOfficerDto(
       id: 'lo-1',
+      personId: 'person-lo-1',
       fullName: 'Demo Liaison',
       firstName: 'Demo',
       lastName: 'Liaison',
-      orgName: 'BEL',
+      orgId: 'org-1',
+      orgName: 'Bharat Electronics Limited',
       orgTypeName: 'DPSU',
+      officialEmail: 'liaison@test.com',
       profileStatus: 'SUBMITTED',
       profileComplete: true,
-      officialEmail: 'liaison@test.com',
+      languages: ['English', 'Hindi'],
+      availabilityStatus: 'Available',
+      currentPassId: 'pass-1',
+      currentPassNumber: 'LO-1001',
+      currentBadgeCatId: 'badge-cat-1',
+      currentBadgeCatName: 'LO Badge',
     ),
   ];
 
   final List<LoAssignmentDto> _assignments = [];
   final List<LoTaskDto> _tasks = [];
+  final List<DoLetterTemplateDto> _doTemplates = [
+    const DoLetterTemplateDto(
+      id: 'do-1',
+      templateName: 'Standard LO Nomination DO',
+      signingAuthority: 'Chairman, LO Committee',
+      recipientType: 'ot-1',
+      applicableOrgTypeIds: ['ot-1'],
+      isActive: true,
+      templateFileName: 'lo-do.pdf',
+    ),
+  ];
+
+  Map<String, dynamic> _quota = {
+    'allocated': 100,
+    'used': 12,
+    'remaining': 88,
+    'badgeCatId': 'badge-cat-1',
+  };
 
   @override
   Future<List<LoOrgTypeDto>> listOrgTypes() async => List.of(_orgTypes);
@@ -85,7 +119,7 @@ class MockNodalLoRepository implements NodalLoRepository {
     final item = LoOrgTypeDto(
       id: id,
       displayName: body['displayName']?.toString() ?? _orgTypes[idx].displayName,
-      description: body['description']?.toString(),
+      description: body['description']?.toString() ?? _orgTypes[idx].description,
       isActive: _orgTypes[idx].isActive,
     );
     _orgTypes[idx] = item;
@@ -93,18 +127,34 @@ class MockNodalLoRepository implements NodalLoRepository {
   }
 
   @override
-  Future<void> setOrgTypeActive(String id, bool active) async {}
+  Future<void> setOrgTypeActive(String id, bool active) async {
+    final idx = _orgTypes.indexWhere((e) => e.id == id);
+    if (idx < 0) return;
+    final cur = _orgTypes[idx];
+    _orgTypes[idx] = LoOrgTypeDto(
+      id: cur.id,
+      code: cur.code,
+      displayName: cur.displayName,
+      description: cur.description,
+      isActive: active,
+    );
+  }
 
   @override
   Future<List<LoOrganisationDto>> listOrganisations() async => List.of(_orgs);
 
   @override
   Future<LoOrganisationDto> createOrganisation(Map<String, dynamic> body) async {
+    final typeId = body['orgTypeId']?.toString();
+    String? typeName;
+    for (final t in _orgTypes) {
+      if (t.id == typeId) typeName = t.displayName;
+    }
     final item = LoOrganisationDto(
       id: 'org-${_orgs.length + 1}',
       orgName: body['orgName']?.toString() ?? '',
-      orgTypeId: body['orgTypeId']?.toString(),
-      orgTypeName: 'DPSU',
+      orgTypeId: typeId,
+      orgTypeName: typeName,
       headName: body['headName']?.toString() ?? '',
       headDesignation: body['headDesignation']?.toString() ?? '',
       address: body['address']?.toString(),
@@ -126,7 +176,28 @@ class MockNodalLoRepository implements NodalLoRepository {
     String id,
     Map<String, dynamic> body,
   ) async {
-    return createOrganisation({...body, 'id': id});
+    final idx = _orgs.indexWhere((e) => e.id == id);
+    final created = await createOrganisation(body);
+    final item = LoOrganisationDto(
+      id: id,
+      orgName: created.orgName,
+      orgTypeId: created.orgTypeId,
+      orgTypeName: created.orgTypeName,
+      headName: created.headName,
+      headDesignation: created.headDesignation,
+      address: created.address,
+      primaryEmail: created.primaryEmail,
+      primaryContact: created.primaryContact,
+      altEmail: created.altEmail,
+      altContact: created.altContact,
+      remarks: created.remarks,
+      isActive: true,
+      loCount: _orgs[idx].loCount,
+      loSubmittedCount: _orgs[idx].loSubmittedCount,
+    );
+    _orgs[idx] = item;
+    _orgs.removeLast();
+    return item;
   }
 
   @override
@@ -150,8 +221,24 @@ class MockNodalLoRepository implements NodalLoRepository {
   Future<EmailTemplateDto> updateEmailTemplate(
     String id,
     Map<String, dynamic> body,
-  ) async =>
-      createEmailTemplate(body);
+  ) async {
+    final idx = _emails.indexWhere((e) => e.id == id);
+    final item = EmailTemplateDto(
+      id: id,
+      name: body['name']?.toString() ?? _emails[idx].name,
+      subject: body['subject']?.toString() ?? _emails[idx].subject,
+      body: body['body']?.toString() ?? _emails[idx].body,
+      purposeTag: body['purposeTag']?.toString() ?? _emails[idx].purposeTag,
+      isActive: body['isActive'] as bool? ?? _emails[idx].isActive,
+    );
+    _emails[idx] = item;
+    return item;
+  }
+
+  @override
+  Future<void> deleteEmailTemplate(String id) async {
+    _emails.removeWhere((e) => e.id == id);
+  }
 
   @override
   Future<List<LoActivityDto>> listActivities() async => List.of(_activities);
@@ -169,21 +256,58 @@ class MockNodalLoRepository implements NodalLoRepository {
   }
 
   @override
-  Future<LoActivityDto> updateActivity(String id, Map<String, dynamic> body) async =>
-      createActivity(body);
+  Future<LoActivityDto> updateActivity(String id, Map<String, dynamic> body) async {
+    final idx = _activities.indexWhere((e) => e.id == id);
+    final item = LoActivityDto(
+      id: id,
+      activityTitle:
+          body['activityTitle']?.toString() ?? _activities[idx].activityTitle,
+      activityDesc:
+          body['activityDesc']?.toString() ?? _activities[idx].activityDesc,
+      isActive: body['isActive'] as bool? ?? _activities[idx].isActive,
+    );
+    _activities[idx] = item;
+    return item;
+  }
 
   @override
-  Future<void> setActivityActive(String id, bool active) async {}
+  Future<void> setActivityActive(String id, bool active) async {
+    final idx = _activities.indexWhere((e) => e.id == id);
+    if (idx < 0) return;
+    final cur = _activities[idx];
+    _activities[idx] = LoActivityDto(
+      id: cur.id,
+      activityTitle: cur.activityTitle,
+      activityDesc: cur.activityDesc,
+      isActive: active,
+    );
+  }
 
   @override
   Future<List<LiaisonOfficerDto>> listLiaisonOfficers() async => List.of(_los);
 
   @override
-  Future<LiaisonOfficerDto?> getLiaisonOfficer(String id) async =>
-      _los.cast<LiaisonOfficerDto?>().firstWhere(
-            (e) => e?.id == id,
-            orElse: () => null,
-          );
+  Future<LiaisonOfficerDto?> getLiaisonOfficer(String id) async {
+    for (final lo in _los) {
+      if (lo.id == id) return lo;
+    }
+    return null;
+  }
+
+  @override
+  Future<List<LoExperienceDto>> getLoExperiences(String loId) async => [
+        const LoExperienceDto(
+          id: 'exp-1',
+          eventName: 'Aero India 2023',
+          year: 2023,
+          roleResponsibilities: 'LO for foreign delegation',
+          delegateDetails: 'Air Chief',
+        ),
+      ];
+
+  @override
+  Future<List<String>> getLoLanguages(String loId) async =>
+      ['English', 'Hindi', 'French'];
 
   @override
   Future<List<LoAssignmentDto>> listAssignments() async =>
@@ -200,6 +324,11 @@ class MockNodalLoRepository implements NodalLoRepository {
       delegateType: body['delegateType']?.toString(),
     );
     _assignments.add(item);
+    await MockEmailNotifier.send(
+      to: 'liaison@test.com',
+      subject: 'New LO assignment',
+      body: 'You have been assigned to ${item.delegateName}',
+    );
     return item;
   }
 
@@ -217,6 +346,18 @@ class MockNodalLoRepository implements NodalLoRepository {
           'attendeeType': 'FOREIGN_INVITEE',
         },
       ];
+
+  @override
+  Future<Map<String, dynamic>?> getDelegateProfile({
+    required String attendeeType,
+    required String attendeeId,
+  }) async =>
+      {
+        'fullName': 'Air Marshal Demo VIP',
+        'passportNumber': 'Z1234567',
+        'decorations': 'AVSM',
+        'ministry': 'Defence',
+      };
 
   @override
   Future<List<LoTaskDto>> listTasks() async => List.of(_tasks);
@@ -241,12 +382,40 @@ class MockNodalLoRepository implements NodalLoRepository {
       loFullName: 'Demo Liaison',
     );
     _tasks.add(item);
+    await MockEmailNotifier.send(
+      to: 'liaison@test.com',
+      subject: 'New task assigned',
+      body: item.taskTitle ?? '',
+    );
     return item;
   }
 
   @override
-  Future<LoTaskDto> updateTask(String id, Map<String, dynamic> body) async =>
-      createTask(body);
+  Future<LoTaskDto> updateTask(String id, Map<String, dynamic> body) async {
+    final idx = _tasks.indexWhere((t) => t.id == id);
+    final item = LoTaskDto(
+      id: id,
+      loId: body['loId']?.toString() ?? _tasks[idx].loId,
+      loAssignId: body['loAssignId']?.toString() ?? _tasks[idx].loAssignId,
+      delegateName: body['delegateName']?.toString() ?? _tasks[idx].delegateName,
+      taskSource: body['taskSource']?.toString() ?? _tasks[idx].taskSource,
+      taskTitle: body['taskTitle']?.toString() ?? _tasks[idx].taskTitle,
+      taskDescription:
+          body['taskDescription']?.toString() ?? _tasks[idx].taskDescription,
+      scheduledDate:
+          body['scheduledDate']?.toString() ?? _tasks[idx].scheduledDate,
+      scheduledTime:
+          body['scheduledTime']?.toString() ?? _tasks[idx].scheduledTime,
+      locationVenue:
+          body['locationVenue']?.toString() ?? _tasks[idx].locationVenue,
+      remarks: body['remarks']?.toString() ?? _tasks[idx].remarks,
+      statusCode: _tasks[idx].statusCode,
+      statusName: _tasks[idx].statusName,
+      loFullName: _tasks[idx].loFullName,
+    );
+    _tasks[idx] = item;
+    return item;
+  }
 
   @override
   Future<LoTaskDto> updateTaskStatus({
@@ -261,25 +430,226 @@ class MockNodalLoRepository implements NodalLoRepository {
       taskTitle: 'Updated',
       loAssignId: 'x',
       taskSource: 'CUSTOM',
+      remarks: remarks,
     );
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listDoLetterTemplates() async => [
-        {
-          'id': 'do-1',
-          'name': 'Standard LO Nomination DO',
-          'signingAuthority': 'Chairman, LO Committee',
-        },
-      ];
+  Future<List<DoLetterTemplateDto>> listDoLetterTemplates() async =>
+      List.of(_doTemplates);
 
   @override
-  Future<Map<String, dynamic>?> getBadgeQuota() async => {
-        'allocated': 100,
-        'used': 12,
-        'remaining': 88,
-      };
+  Future<DoLetterTemplateDto> createDoLetterTemplate({
+    required Map<String, dynamic> payload,
+    Uint8List? fileBytes,
+    String? filename,
+  }) async {
+    final recipient = payload['recipientType']?.toString() ?? '';
+    final item = DoLetterTemplateDto(
+      id: 'do-${_doTemplates.length + 1}',
+      templateName: payload['templateName']?.toString() ?? '',
+      signingAuthority: payload['signingAuthority']?.toString() ?? '',
+      recipientType: recipient,
+      applicableOrgTypeIds: recipient
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
+      isActive: true,
+      templateFileName: filename ?? 'template.pdf',
+    );
+    _doTemplates.add(item);
+    return item;
+  }
 
   @override
-  Future<void> assignBadge(Map<String, dynamic> body) async {}
+  Future<DoLetterTemplateDto> updateDoLetterTemplate(
+    String id, {
+    required Map<String, dynamic> payload,
+    Uint8List? fileBytes,
+    String? filename,
+  }) async {
+    final created = await createDoLetterTemplate(
+      payload: payload,
+      fileBytes: fileBytes,
+      filename: filename,
+    );
+    final idx = _doTemplates.indexWhere((e) => e.id == id);
+    final item = DoLetterTemplateDto(
+      id: id,
+      templateName: created.templateName,
+      signingAuthority: created.signingAuthority,
+      recipientType: created.recipientType,
+      applicableOrgTypeIds: created.applicableOrgTypeIds,
+      isActive: payload['isActive'] as bool? ?? true,
+      templateFileName: created.templateFileName,
+    );
+    if (idx >= 0) {
+      _doTemplates[idx] = item;
+      _doTemplates.removeLast();
+    }
+    return item;
+  }
+
+  @override
+  Future<void> deleteDoLetterTemplate(String id) async {
+    _doTemplates.removeWhere((e) => e.id == id);
+  }
+
+  @override
+  Future<List<int>> downloadDoLetterTemplateFile(String id) async =>
+      '%PDF-1.4 mock DO letter for $id'.codeUnits;
+
+  @override
+  Future<List<int>> downloadOrgDoLetter(String orgId) async {
+    LoOrganisationDto? org;
+    for (final o in _orgs) {
+      if (o.id == orgId) org = o;
+    }
+    if (org == null) return const [];
+    DoLetterTemplateDto? t;
+    for (final tpl in _doTemplates) {
+      if (org.orgTypeId != null &&
+          (tpl.applicableOrgTypeIds.contains(org.orgTypeId) ||
+              tpl.recipientType == org.orgTypeId)) {
+        t = tpl;
+        break;
+      }
+    }
+    t ??= _doTemplates.isEmpty ? null : _doTemplates.first;
+    return DoLetterPdfBuilder.build(org: org, template: t);
+  }
+
+  @override
+  Future<void> uploadSignedDoLetter({
+    required String orgId,
+    required Uint8List bytes,
+    required String filename,
+    required String signingAuthority,
+    required Map<String, bool> checklist,
+  }) async {
+    if (checklist.values.any((v) => !v)) {
+      throw Exception('All checklist items must be confirmed.');
+    }
+    await DoLetterLocalStore.markSigned(
+      orgId: orgId,
+      signingAuthority: signingAuthority,
+      pdfBytes: bytes,
+    );
+  }
+
+  @override
+  Future<void> sendNominationEmail({
+    required String orgId,
+    required String emailTemplateId,
+    List<PickedAttachment> attachments = const [],
+  }) async {
+    LoOrganisationDto? org;
+    for (final o in _orgs) {
+      if (o.id == orgId) org = o;
+    }
+    EmailTemplateDto? tpl;
+    for (final e in _emails) {
+      if (e.id == emailTemplateId) tpl = e;
+    }
+    final merged = List<PickedAttachment>.from(attachments);
+    final tag = (tpl?.purposeTag ?? '').toLowerCase();
+    if (tag.contains('do letter') || tag.contains('do_letter')) {
+      final signed = await DoLetterLocalStore.signedPdfBytes(orgId);
+      if (signed != null && signed.isNotEmpty) {
+        merged.insert(
+          0,
+          PickedAttachment(bytes: signed, filename: 'signed-do-$orgId.pdf'),
+        );
+      }
+    }
+    await MockEmailNotifier.send(
+      to: org?.primaryEmail ?? orgId,
+      subject: tpl?.subject ?? 'Nomination',
+      body:
+          '${tpl?.body ?? 'Please nominate LOs'}\n\nAttachments: ${merged.map((e) => e.filename).join(', ')}',
+    );
+    await DoLetterLocalStore.markNominationSent(orgId);
+  }
+
+  @override
+  Future<void> sendNominationEmailBulk({
+    required List<String> orgIds,
+    required String emailTemplateId,
+  }) async {
+    for (final id in orgIds) {
+      await sendNominationEmail(orgId: id, emailTemplateId: emailTemplateId);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> orgDoLetterStatus(String orgId) =>
+      DoLetterLocalStore.statusFor(orgId);
+
+  @override
+  Future<Map<String, dynamic>?> getBadgeQuota() async => Map.of(_quota);
+
+  @override
+  Future<void> assignBadge(Map<String, dynamic> body) async {
+    final ids = (body['personIds'] as List?) ?? const [];
+    final remaining = (_quota['remaining'] as num?)?.toInt() ?? 0;
+    if (ids.length > remaining) {
+      throw Exception('Badge quota exceeded. Remaining: $remaining');
+    }
+    _quota = {
+      ..._quota,
+      'used': ((_quota['used'] as num?)?.toInt() ?? 0) + ids.length,
+      'remaining': remaining - ids.length,
+    };
+  }
+
+  @override
+  Future<List<int>> downloadBadge(String passId) async =>
+      'BADGE-$passId'.codeUnits;
+
+  final List<OrgSubNodalOfficerDto> _subNodals = [
+    const OrgSubNodalOfficerDto(
+      id: 'sn-nodal-1',
+      fullName: 'Committee Sub Nodal',
+      email: 'subnodal@aeroindia.gov.in',
+      mobile: '+919888877766',
+    ),
+  ];
+
+  @override
+  Future<List<OrgSubNodalOfficerDto>> listSubNodals() async =>
+      List.of(_subNodals);
+
+  @override
+  Future<OrgSubNodalOfficerDto> createSubNodal(Map<String, dynamic> body) async {
+    final item = OrgSubNodalOfficerDto(
+      id: 'sn-${DateTime.now().millisecondsSinceEpoch}',
+      fullName: body['fullName']?.toString() ?? '',
+      email: body['email']?.toString() ?? '',
+      mobile: body['mobile']?.toString(),
+    );
+    _subNodals.add(item);
+    return item;
+  }
+
+  @override
+  Future<OrgSubNodalOfficerDto> updateSubNodal(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    final item = OrgSubNodalOfficerDto(
+      id: id,
+      fullName: body['fullName']?.toString() ?? '',
+      email: body['email']?.toString() ?? '',
+      mobile: body['mobile']?.toString(),
+    );
+    final i = _subNodals.indexWhere((e) => e.id == id);
+    if (i >= 0) _subNodals[i] = item;
+    return item;
+  }
+
+  @override
+  Future<void> deleteSubNodal(String id) async {
+    _subNodals.removeWhere((e) => e.id == id);
+  }
 }

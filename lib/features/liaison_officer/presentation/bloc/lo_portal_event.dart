@@ -30,3 +30,50 @@ class LoPortalTravelUpdated extends LoPortalEvent {
 }
 
 class LoPortalAlertsRefreshRequested extends LoPortalEvent {}
+
+class LoPortalUploadRequested extends LoPortalEvent {
+  LoPortalUploadRequested({
+    required this.kind,
+    required this.bytes,
+    required this.filename,
+  });
+  final LoUploadKind kind;
+  final Uint8List bytes;
+  final String filename;
+}
+
+class LoPortalExperienceAdded extends LoPortalEvent {
+  LoPortalExperienceAdded(this.body);
+  final Map<String, dynamic> body;
+}
+
+class LoPortalExperienceDeleted extends LoPortalEvent {
+  LoPortalExperienceDeleted(this.id);
+  final String id;
+}
+
+class LoPortalLanguagesSaved extends LoPortalEvent {
+  LoPortalLanguagesSaved(this.languages);
+  final List<String> languages;
+}
+
+class LoPortalDelegateExtrasRequested extends LoPortalEvent {
+  LoPortalDelegateExtrasRequested(this.assignmentId);
+  final String assignmentId;
+}
+
+class LoPortalAlertLeadMinutesChanged extends LoPortalEvent {
+  LoPortalAlertLeadMinutesChanged(this.minutes);
+  final int minutes;
+}
+
+class LoPortalBadgeDownloadRequested extends LoPortalEvent {
+  LoPortalBadgeDownloadRequested({
+    required this.passId,
+    this.filename,
+  });
+  final String passId;
+  final String? filename;
+}
+
+class LoPortalClearMessages extends LoPortalEvent {}

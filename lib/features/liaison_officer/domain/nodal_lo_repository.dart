@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 
 abstract class NodalLoRepository {
@@ -19,6 +21,7 @@ abstract class NodalLoRepository {
     String id,
     Map<String, dynamic> body,
   );
+  Future<void> deleteEmailTemplate(String id);
 
   Future<List<LoActivityDto>> listActivities();
   Future<LoActivityDto> createActivity(Map<String, dynamic> body);
@@ -27,11 +30,17 @@ abstract class NodalLoRepository {
 
   Future<List<LiaisonOfficerDto>> listLiaisonOfficers();
   Future<LiaisonOfficerDto?> getLiaisonOfficer(String id);
+  Future<List<LoExperienceDto>> getLoExperiences(String loId);
+  Future<List<String>> getLoLanguages(String loId);
 
   Future<List<LoAssignmentDto>> listAssignments();
   Future<LoAssignmentDto> createAssignment(Map<String, dynamic> body);
   Future<void> deleteAssignment(String id);
   Future<List<Map<String, dynamic>>> listAssignableDelegates();
+  Future<Map<String, dynamic>?> getDelegateProfile({
+    required String attendeeType,
+    required String attendeeId,
+  });
 
   Future<List<LoTaskDto>> listTasks();
   Future<LoTaskDto> createTask(Map<String, dynamic> body);
@@ -42,7 +51,62 @@ abstract class NodalLoRepository {
     String? remarks,
   });
 
-  Future<List<Map<String, dynamic>>> listDoLetterTemplates();
+  Future<List<DoLetterTemplateDto>> listDoLetterTemplates();
+  Future<DoLetterTemplateDto> createDoLetterTemplate({
+    required Map<String, dynamic> payload,
+    Uint8List? fileBytes,
+    String? filename,
+  });
+  Future<DoLetterTemplateDto> updateDoLetterTemplate(
+    String id, {
+    required Map<String, dynamic> payload,
+    Uint8List? fileBytes,
+    String? filename,
+  });
+  Future<void> deleteDoLetterTemplate(String id);
+  Future<List<int>> downloadDoLetterTemplateFile(String id);
+
+  /// LO.3.2 — resolve template by org type and return PDF bytes (or empty).
+  Future<List<int>> downloadOrgDoLetter(String orgId);
+
+  /// LO.3.2 — upload signed PDF after checklist confirmation.
+  Future<void> uploadSignedDoLetter({
+    required String orgId,
+    required Uint8List bytes,
+    required String filename,
+    required String signingAuthority,
+    required Map<String, bool> checklist,
+  });
+
+  /// LO.3.3 — send nomination email (individual).
+  Future<void> sendNominationEmail({
+    required String orgId,
+    required String emailTemplateId,
+    List<PickedAttachment> attachments,
+  });
+
+  Future<void> sendNominationEmailBulk({
+    required List<String> orgIds,
+    required String emailTemplateId,
+  });
+
+  Future<Map<String, dynamic>> orgDoLetterStatus(String orgId);
+
   Future<Map<String, dynamic>?> getBadgeQuota();
   Future<void> assignBadge(Map<String, dynamic> body);
+  Future<List<int>> downloadBadge(String passId);
+
+  Future<List<OrgSubNodalOfficerDto>> listSubNodals();
+  Future<OrgSubNodalOfficerDto> createSubNodal(Map<String, dynamic> body);
+  Future<OrgSubNodalOfficerDto> updateSubNodal(
+    String id,
+    Map<String, dynamic> body,
+  );
+  Future<void> deleteSubNodal(String id);
+}
+
+class PickedAttachment {
+  const PickedAttachment({required this.bytes, required this.filename});
+  final Uint8List bytes;
+  final String filename;
 }

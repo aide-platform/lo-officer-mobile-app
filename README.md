@@ -31,6 +31,22 @@ flutter run \
 - DI: [`lib/core/di/app_dependencies.dart`](lib/core/di/app_dependencies.dart)
 - CAP auth: CAPTCHA + Email OTP → JWT
 - Design system: light/dark gradients, [`lib/core/widgets/app_ui_kit.dart`](lib/core/widgets/app_ui_kit.dart)
+- Live entry: [`RoleHomeRouter`](lib/core/routing/role_home_router.dart) → role shells (not the orphaned SQLite `liaisonOfficerMain`)
+
+## Feature coverage (LO.2–LO.9)
+
+| Area | Shell | Notes |
+|------|-------|-------|
+| LO.2 masters | Nodal | Org types, DO/email templates, activities — edit/deactivate + PDF |
+| LO.3 orgs | Nodal | Full org form; DO download/upload (5-item checklist); nomination send |
+| LO.4 nominate | Org Rep | Excel/CSV import via `file_picker`, sub-nodal CRUD, read-only LO detail |
+| LO.5 profile | LO Portal | Full CAP form, uploads, experiences, languages, submit status |
+| LO.6–8 | Nodal | LO review filters/detail, bulk badges + quota, assign + task filters |
+| LO.9 | LO Portal | Vehicles/nominations, connecting flights, alert lead minutes |
+
+CAP OpenAPI has no LO-org DO letter / send-nomination paths — see [`docs/api-lo-endpoints.md`](docs/api-lo-endpoints.md). Mock uses `DoLetterLocalStore`; live calls fail soft on 404.
+
+Packages: `image_picker`, `file_picker`, `path_provider`, `share_plus` for uploads/downloads.
 
 ## Docs
 
