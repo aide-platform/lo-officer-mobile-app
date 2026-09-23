@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.bel.liaison_officer"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker → flutter_plugin_android_lifecycle requires compileSdk ≥ 36
+    compileSdk = maxOf(flutter.compileSdkVersion, 36)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
