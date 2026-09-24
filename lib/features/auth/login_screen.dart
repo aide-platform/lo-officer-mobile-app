@@ -184,35 +184,21 @@ class _LoginScreenState extends State<LoginScreen>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const DecoratedBox(
+                SafeAssetImage(
+                  assetPath: AppAssetManager.mainBg3,
+                  fit: BoxFit.cover,
+                  fallback: const ColoredBox(color: AeroColors.navy),
+                ),
+                DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0xFFE8F2FC),
-                        Color(0xFFF7FAFD),
-                        Color(0xFFFFFFFF),
+                        Colors.black.withValues(alpha: 0.35),
+                        Colors.black.withValues(alpha: 0.20),
+                        Colors.black.withValues(alpha: 0.55),
                       ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 120,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          AppTheme.saffron.withValues(alpha: 0.55),
-                          Colors.white.withValues(alpha: 0.4),
-                          AppTheme.indiaGreen.withValues(alpha: 0.5),
-                        ],
-                      ),
                     ),
                   ),
                 ),
@@ -300,12 +286,12 @@ class _LoginScreenState extends State<LoginScreen>
                               icon: Icon(
                                 Icons.headset_mic_outlined,
                                 size: 18,
-                                color: AppTheme.royalBlue,
+                                color: Colors.white.withValues(alpha: 0.95),
                               ),
                               label: Text(
                                 'Need Help? Contact Support',
                                 style: TextStyle(
-                                  color: AppTheme.royalBlue,
+                                  color: Colors.white.withValues(alpha: 0.95),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -319,8 +305,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: AeroColors.textMuted
-                                      .withValues(alpha: 0.9),
+                                  color: Colors.white.withValues(alpha: 0.75),
                                 ),
                               ),
                             ],
@@ -704,9 +689,8 @@ class _CaptchaBlock extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              flex: 5,
               child: Container(
-                height: 64,
+                height: 72,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECEFF3),
@@ -716,26 +700,23 @@ class _CaptchaBlock extends StatelessWidget {
                 child: image,
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 6,
-              child: TextFormField(
-                controller: controller,
-                style: const TextStyle(color: AeroColors.navy),
-                decoration: _inputDecoration(
-                  hint: 'ENTER CAPTCHA',
-                  prefix: Icons.security_outlined,
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'CAPTCHA required' : null,
-              ),
-            ),
             IconButton(
               onPressed: onRefresh,
               tooltip: 'Refresh CAPTCHA',
               icon: Icon(Icons.refresh_rounded, color: AppTheme.royalBlue),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        TextFormField(
+          controller: controller,
+          style: const TextStyle(color: AeroColors.navy),
+          decoration: _inputDecoration(
+            hint: 'ENTER CAPTCHA',
+            prefix: Icons.security_outlined,
+          ),
+          validator: (v) =>
+              v == null || v.trim().isEmpty ? 'CAPTCHA required' : null,
         ),
       ],
     );
