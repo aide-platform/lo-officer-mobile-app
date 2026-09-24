@@ -52,8 +52,8 @@ class AppPageScaffold extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? const [Color(0xFF070814), Color(0xFF12153A)]
-                : const [Color(0xFFF4F0FF), Color(0xFFE8F1FF)],
+                ? const [Color(0xFF070B18), Color(0xFF12182E)]
+                : const [Color(0xFFF4F7FC), Color(0xFFE8F1FF)],
           ),
         ),
         child: SafeArea(
@@ -61,7 +61,11 @@ class AppPageScaffold extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: GradientHeader(title: title, actions: actions),
+                child: GradientHeader(
+                  title: title,
+                  actions: actions,
+                  showMenu: drawer != null,
+                ),
               ),
               Expanded(
                 child: Center(
@@ -87,11 +91,13 @@ class GradientHeader extends StatelessWidget {
     required this.title,
     this.actions,
     this.leading,
+    this.showMenu = false,
   });
 
   final String title;
   final List<Widget>? actions;
   final Widget? leading;
+  final bool showMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -101,13 +107,22 @@ class GradientHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: isDark ? AppTheme.purpleGradient : AppTheme.lightPurpleGradient,
-        boxShadow: AppTheme.glowShadow(AppTheme.activeAccent, opacity: 0.18),
+        gradient:
+            isDark ? AppTheme.brandHeaderGradient : AppTheme.lightPurpleGradient,
+        boxShadow: AppTheme.glowShadow(AppTheme.royalBlue, opacity: 0.18),
       ),
       child: Row(
         children: [
-          if (leading != null) ...[leading!, const SizedBox(width: 8)],
-          if (Navigator.canPop(context) && leading == null)
+          if (showMenu)
+            IconButton(
+              tooltip: 'Menu',
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            )
+          else if (leading != null) ...[
+            leading!,
+            const SizedBox(width: 8),
+          ] else if (Navigator.canPop(context))
             IconButton(
               onPressed: () => Navigator.maybePop(context),
               icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -154,14 +169,19 @@ class AppCard extends StatelessWidget {
       decoration: AppTheme.glassCardDecoration(radius: 18, isDark: isDark),
       child: child,
     );
-    if (onTap == null) return card;
+    // Use transparent canvas Material (not MaterialType.transparency) so
+    // nested ListTiles can paint ink/highlights without Flutter warnings.
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: card,
-      ),
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? card
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(18),
+              child: card,
+            ),
     );
   }
 }

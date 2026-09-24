@@ -179,11 +179,12 @@ class OrgRepBloc extends Bloc<OrgRepEvent, OrgRepState> {
     Emitter<OrgRepState> emit,
   ) async {
     try {
-      await repository.bulkImport(event.bytes, event.filename);
+      final map = await repository.bulkImport(event.bytes, event.filename);
       final los = await repository.listLos();
       emit(state.copyWith(
         status: OrgRepStatus.ready,
         los: los,
+        lastImportResult: map,
         infoMessage: 'Bulk import completed.',
         clearError: true,
       ));
@@ -191,6 +192,12 @@ class OrgRepBloc extends Bloc<OrgRepEvent, OrgRepState> {
       emit(state.copyWith(
         status: OrgRepStatus.failure,
         errorMessage: e.toString(),
+        lastImportResult: {
+          'error': e.toString(),
+          'errors': [
+            {'row': '—', 'message': e.toString()},
+          ],
+        },
       ));
     }
   }

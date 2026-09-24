@@ -15,7 +15,7 @@ abstract class OrgRepRepository {
   Future<void> sendReminder(String loId);
   Future<void> sendPendingReminders();
   Future<List<int>> downloadImportTemplate();
-  Future<void> bulkImport(List<int> bytes, String filename);
+  Future<Map<String, dynamic>> bulkImport(List<int> bytes, String filename);
 
   Future<List<OrgSubNodalOfficerDto>> listSubNodals();
   Future<OrgSubNodalOfficerDto> createSubNodal(Map<String, dynamic> body);

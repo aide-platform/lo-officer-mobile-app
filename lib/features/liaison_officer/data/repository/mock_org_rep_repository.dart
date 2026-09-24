@@ -49,6 +49,8 @@ class MockOrgRepRepository implements OrgRepRepository {
       email: 'sub1@bel.co.in',
       mobile: '+919111111111',
       orgName: 'BEL',
+      designation: 'Coordinator',
+      isActive: true,
     ),
   ];
 
@@ -81,6 +83,8 @@ class MockOrgRepRepository implements OrgRepRepository {
       officialEmail: body['primaryEmail']?.toString(),
       officialContact: body['primaryMobile']?.toString(),
       salutationName: body['salutation']?.toString(),
+      rank: body['rank']?.toString(),
+      designation: body['designation']?.toString(),
       profileStatus: 'PENDING',
       profileComplete: false,
       orgName: 'BEL',
@@ -125,7 +129,7 @@ class MockOrgRepRepository implements OrgRepRepository {
       'firstName,lastName,primaryEmail,primaryMobile\n'.codeUnits;
 
   @override
-  Future<void> bulkImport(List<int> bytes, String filename) async {
+  Future<Map<String, dynamic>> bulkImport(List<int> bytes, String filename) async {
     _los.add(
       LiaisonOfficerDto(
         id: 'lo-import-${_los.length + 1}',
@@ -138,6 +142,14 @@ class MockOrgRepRepository implements OrgRepRepository {
         orgName: 'BEL',
       ),
     );
+    return {
+      'inserted': 3,
+      'skipped': 1,
+      'errorCount': 1,
+      'errors': [
+        {'row': 4, 'message': 'Duplicate email (mock)'},
+      ],
+    };
   }
 
   @override
@@ -152,6 +164,9 @@ class MockOrgRepRepository implements OrgRepRepository {
       email: body['email']?.toString() ?? '',
       mobile: body['mobile']?.toString(),
       orgName: 'BEL',
+      designation: body['designation']?.toString(),
+      isActive: body['isActive'] as bool? ?? true,
+      canApprove: body['canApprove'] as bool?,
     );
     _subNodals.add(item);
     return item;
@@ -163,12 +178,16 @@ class MockOrgRepRepository implements OrgRepRepository {
     Map<String, dynamic> body,
   ) async {
     final idx = _subNodals.indexWhere((e) => e.id == id);
+    final prev = _subNodals[idx];
     final item = OrgSubNodalOfficerDto(
       id: id,
-      fullName: body['fullName']?.toString() ?? _subNodals[idx].fullName,
-      email: body['email']?.toString() ?? _subNodals[idx].email,
-      mobile: body['mobile']?.toString() ?? _subNodals[idx].mobile,
-      orgName: _subNodals[idx].orgName,
+      fullName: body['fullName']?.toString() ?? prev.fullName,
+      email: body['email']?.toString() ?? prev.email,
+      mobile: body['mobile']?.toString() ?? prev.mobile,
+      orgName: prev.orgName,
+      designation: body['designation']?.toString() ?? prev.designation,
+      isActive: body['isActive'] as bool? ?? prev.isActive,
+      canApprove: body['canApprove'] as bool? ?? prev.canApprove,
     );
     _subNodals[idx] = item;
     return item;

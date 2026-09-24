@@ -88,6 +88,11 @@ class DioNodalLoRepository implements NodalLoRepository {
       );
 
   @override
+  Future<void> deleteOrganisation(String id) async {
+    await _dio.delete('${ApiConfig.loOrganisationsPath}/$id');
+  }
+
+  @override
   Future<List<EmailTemplateDto>> listEmailTemplates() =>
       _list(ApiConfig.emailTemplatesPath, EmailTemplateDto.fromJson);
 
@@ -154,6 +159,37 @@ class DioNodalLoRepository implements NodalLoRepository {
   }
 
   @override
+  Future<LiaisonOfficerDto> createLiaisonOfficer(Map<String, dynamic> body) =>
+      _one(
+        _dio.post(ApiConfig.liaisonOfficersPath, data: body),
+        LiaisonOfficerDto.fromJson,
+      );
+
+  @override
+  Future<LiaisonOfficerDto> updateLiaisonOfficer(
+    String id,
+    Map<String, dynamic> body,
+  ) =>
+      _one(
+        _dio.put('${ApiConfig.liaisonOfficersPath}/$id', data: body),
+        LiaisonOfficerDto.fromJson,
+      );
+
+  @override
+  Future<void> deleteLiaisonOfficer(String id) async {
+    await _dio.delete('${ApiConfig.liaisonOfficersPath}/$id');
+  }
+
+  @override
+  Future<List<int>> fetchFileBytes(String fileId) async {
+    final res = await _dio.get<List<int>>(
+      ApiConfig.filePath(fileId),
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return res.data ?? const [];
+  }
+
+  @override
   Future<List<LoExperienceDto>> getLoExperiences(String loId) async {
     final res =
         await _dio.get('${ApiConfig.liaisonOfficersPath}/$loId/experiences');
@@ -181,6 +217,24 @@ class DioNodalLoRepository implements NodalLoRepository {
       }).where((e) => e.isNotEmpty).toList();
     }
     return const [];
+  }
+
+  @override
+  Future<void> sendLoReminder(String loId) async {
+    await _dio.post(ApiConfig.liaisonOfficerReminderPath(loId));
+  }
+
+  @override
+  Future<void> sendPendingLoReminders() async {
+    await _dio.post(ApiConfig.liaisonOfficersPendingRemindersPath);
+  }
+
+  @override
+  Future<void> setLiaisonOfficerActive(String loId, bool active) async {
+    await _dio.put(
+      ApiConfig.liaisonOfficerActivePath(loId),
+      queryParameters: {'active': active},
+    );
   }
 
   @override
@@ -238,6 +292,11 @@ class DioNodalLoRepository implements NodalLoRepository {
         _dio.put('${ApiConfig.loTasksPath}/$id', data: body),
         LoTaskDto.fromJson,
       );
+
+  @override
+  Future<void> deleteTask(String id) async {
+    await _dio.delete('${ApiConfig.loTasksPath}/$id');
+  }
 
   @override
   Future<LoTaskDto> updateTaskStatus({

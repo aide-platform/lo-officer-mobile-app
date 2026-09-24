@@ -1,0 +1,19 @@
+// Align plugin compileSdk for AGP 9 / flutter_plugin_android_lifecycle (requires 36+).
+// Applied from build.gradle.kts — Groovy DSL can mutate android.compileSdk after plugins set theirs.
+subprojects { sub ->
+    sub.afterEvaluate {
+        def android = sub.extensions.findByName("android")
+        if (android == null) {
+            return
+        }
+        try {
+            android.compileSdk = 36
+        } catch (Throwable ignored) {
+            try {
+                android.compileSdkVersion(36)
+            } catch (Throwable ignored2) {
+                // Not an Android module or API shape changed.
+            }
+        }
+    }
+}

@@ -79,6 +79,13 @@ class ApiConfig {
   static const String loOrgTypesPath = '/app/lo-org-types';
   static const String loOrganisationsPath = '/app/lo-organisations';
   static const String liaisonOfficersPath = '/app/liaison-officers';
+  static String liaisonOfficerReminderPath(String id) =>
+      '$liaisonOfficersPath/$id/reminder';
+  static const String liaisonOfficersPendingRemindersPath =
+      '$liaisonOfficersPath/reminders/pending';
+  static String liaisonOfficerActivePath(String id) =>
+      '$liaisonOfficersPath/$id/active';
+  static String filePath(String id) => '/app/files/$id';
   static const String loAssignmentsPath = '/app/lo-assignments';
   static const String loAssignmentDelegatesPath =
       '/app/lo-assignments/delegates';
@@ -106,4 +113,46 @@ class ApiConfig {
       '/app/lo-organisations/$orgId/do-letter/signed';
   static String loOrgSendNominationPath(String orgId) =>
       '/app/lo-organisations/$orgId/send-nomination';
+
+  // ── Notifications (in-app feed) ──────────────────────────────
+  static const String notificationsMinePath = '/app/notifications/mine';
+  static String notificationReadPath(String id) =>
+      '/app/notifications/mine/$id/read';
+  static const String notificationsReadAllPath =
+      '/app/notifications/mine/read-all';
+  static const String notificationsUnreadCountPath =
+      '/app/notifications/mine/unread-count';
+
+  // ── Catering requirements ────────────────────────────────────
+  static const String cateringReqsPath = '/app/catering-reqs';
+  static const String cateringReqsMinePath = '/app/catering-reqs/mine';
+  static const String cateringReqsPendingPath = '/app/catering-reqs/pending';
+  static const String cateringReqsCommitteeRecipientsPath =
+      '/app/catering-reqs/my-committee-recipients';
+  static String cateringReqPath(String id) => '/app/catering-reqs/$id';
+  static String cateringReqApprovePath(String id) =>
+      '/app/catering-reqs/$id/approve';
+  static String cateringReqRejectPath(String id) =>
+      '/app/catering-reqs/$id/reject';
+
+  // ── E-Coupons ────────────────────────────────────────────────
+  static const String ecouponsPath = '/app/ecoupons';
+  static const String ecouponsMinePath = '/app/ecoupons/mine';
+  static const String ecouponsForMyCommitteePath =
+      '/app/ecoupons/for-my-committee';
+  static const String ecouponsForMyCommitteePdfPath =
+      '/app/ecoupons/for-my-committee/pdf';
+  static const String ecouponsMyPdfPath = '/app/ecoupons/my/pdf';
+  static const String ecouponsDistributePath = '/app/ecoupons/distribute';
+  static String ecouponPath(String id) => '/app/ecoupons/$id';
+  static String ecouponPdfPath(String id) => '/app/ecoupons/$id/pdf';
+  static String ecouponsDistributeByReqPath(String cateringReqId) =>
+      '/app/ecoupons/distribute/$cateringReqId';
+
+  /// Aliases kept for older call sites / hot-reload stability.
+  static const String ecouponsForCommitteePath = ecouponsForMyCommitteePath;
+  static const String ecouponsForCommitteePdfPath =
+      ecouponsForMyCommitteePdfPath;
+  static String ecouponsDistributeForReqPath(String cateringReqId) =>
+      ecouponsDistributeByReqPath(cateringReqId);
 }

@@ -3,6 +3,7 @@ enum AppRole {
   liaisonOfficer,
   organisationRepresentative,
   nodalOfficer,
+  subNodalOfficer,
   unknown,
 }
 
@@ -15,10 +16,15 @@ extension AppRoleX on AppRole {
         return 'Organisation Representative';
       case AppRole.nodalOfficer:
         return 'LO Committee Nodal Officer';
+      case AppRole.subNodalOfficer:
+        return 'LO Committee Sub Nodal Officer';
       case AppRole.unknown:
         return 'User';
     }
   }
+
+  bool get isNodalFamily =>
+      this == AppRole.nodalOfficer || this == AppRole.subNodalOfficer;
 }
 
 AppRole resolveAppRole(String? role) {
@@ -33,13 +39,18 @@ AppRole resolveAppRole(String? role) {
     return AppRole.liaisonOfficer;
   }
 
+  // Sub Nodal of LO Committee — before generic org / nodal matches.
+  if (r.contains('sub nodal') ||
+      r.contains('sub-nodal') ||
+      r.contains('subnodal')) {
+    return AppRole.subNodalOfficer;
+  }
+
   if (r.contains('organisation') ||
       r.contains('organization') ||
       r.contains('org_rep') ||
       r.contains('org-rep') ||
-      r.contains('orgrep') ||
-      r.contains('sub nodal') ||
-      r.contains('sub-nodal')) {
+      r.contains('orgrep')) {
     return AppRole.organisationRepresentative;
   }
 
@@ -47,9 +58,7 @@ AppRole resolveAppRole(String? role) {
       r.contains('committee') ||
       r.contains('admin') ||
       r.contains('organizer') ||
-      r.contains('organiser') ||
-      r.contains('hospitality') ||
-      r.contains('protocol')) {
+      r.contains('organiser')) {
     return AppRole.nodalOfficer;
   }
 

@@ -19,6 +19,7 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
 
     on<NodalLoCreateOrganisation>(_onCreateOrg);
     on<NodalLoUpdateOrganisation>(_onUpdateOrg);
+    on<NodalLoDeleteOrganisation>(_onDeleteOrganisation);
 
     on<NodalLoCreateEmailTemplate>(_onCreateEmail);
     on<NodalLoUpdateEmailTemplate>(_onUpdateEmail);
@@ -42,6 +43,12 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
     on<NodalLoSetLoFilters>(_onSetLoFilters);
     on<NodalLoLoadLoDetail>(_onLoadLoDetail);
     on<NodalLoClearLoDetail>(_onClearLoDetail);
+    on<NodalLoSendLoReminder>(_onSendLoReminder);
+    on<NodalLoSendPendingLoReminders>(_onSendPendingLoReminders);
+    on<NodalLoSetLiaisonActive>(_onSetLiaisonActive);
+    on<NodalLoCreateLiaisonOfficer>(_onCreateLiaisonOfficer);
+    on<NodalLoUpdateLiaisonOfficer>(_onUpdateLiaisonOfficer);
+    on<NodalLoDeleteLiaisonOfficer>(_onDeleteLiaisonOfficer);
 
     on<NodalLoToggleLoSelection>(_onToggleLoSelection);
     on<NodalLoClearLoSelection>(_onClearLoSelection);
@@ -52,6 +59,7 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
     on<NodalLoDeleteAssignment>(_onDeleteAssignment);
     on<NodalLoCreateTask>(_onCreateTask);
     on<NodalLoUpdateTask>(_onUpdateTask);
+    on<NodalLoDeleteTask>(_onDeleteTask);
     on<NodalLoSetTaskFilters>(_onSetTaskFilters);
     on<NodalLoCreateSubNodal>(_onCreateSub);
     on<NodalLoUpdateSubNodal>(_onUpdateSub);
@@ -225,6 +233,29 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
             o.id == event.id ? item : o,
         ],
         infoMessage: 'Organisation updated.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onDeleteOrganisation(
+    NodalLoDeleteOrganisation event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      await repository.deleteOrganisation(event.id);
+      final statuses = Map<String, Map<String, dynamic>>.from(state.orgStatuses)
+        ..remove(event.id);
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        organisations: [
+          for (final o in state.organisations)
+            if (o.id != event.id) o,
+        ],
+        orgStatuses: statuses,
+        infoMessage: 'Organisation deleted.',
         clearError: true,
       ));
     } catch (e) {
@@ -613,6 +644,130 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
     ));
   }
 
+  Future<void> _onSendLoReminder(
+    NodalLoSendLoReminder event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      await repository.sendLoReminder(event.loId);
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        infoMessage: 'Reminder sent.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onSendPendingLoReminders(
+    NodalLoSendPendingLoReminders event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      await repository.sendPendingLoReminders();
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        infoMessage: 'Reminders sent to incomplete LO profiles.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onSetLiaisonActive(
+    NodalLoSetLiaisonActive event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      await repository.setLiaisonOfficerActive(event.loId, event.active);
+      final los = await repository.listLiaisonOfficers();
+      LiaisonOfficerDto? detail = state.detailLo;
+      if (detail?.id == event.loId) {
+        for (final lo in los) {
+          if (lo.id == event.loId) {
+            detail = lo;
+            break;
+          }
+        }
+      }
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        liaisonOfficers: los,
+        detailLo: detail,
+        infoMessage: event.active ? 'LO activated.' : 'LO deactivated.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onCreateLiaisonOfficer(
+    NodalLoCreateLiaisonOfficer event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      final item = await repository.createLiaisonOfficer(event.body);
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        liaisonOfficers: [...state.liaisonOfficers, item],
+        infoMessage: 'Liaison Officer added.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onUpdateLiaisonOfficer(
+    NodalLoUpdateLiaisonOfficer event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      final item =
+          await repository.updateLiaisonOfficer(event.id, event.body);
+      LiaisonOfficerDto? detail = state.detailLo;
+      if (detail?.id == event.id) detail = item;
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        liaisonOfficers: [
+          for (final lo in state.liaisonOfficers)
+            lo.id == event.id ? item : lo,
+        ],
+        detailLo: detail,
+        infoMessage: 'Liaison Officer updated.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onDeleteLiaisonOfficer(
+    NodalLoDeleteLiaisonOfficer event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      await repository.deleteLiaisonOfficer(event.id);
+      final clearDetail = state.detailLo?.id == event.id;
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        liaisonOfficers: [
+          for (final lo in state.liaisonOfficers)
+            if (lo.id != event.id) lo,
+        ],
+        clearDetailLo: clearDetail,
+        selectedLoIds: Set<String>.from(state.selectedLoIds)..remove(event.id),
+        infoMessage: 'Liaison Officer removed.',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
   void _onToggleLoSelection(
     NodalLoToggleLoSelection event,
     Emitter<NodalLoState> emit,
@@ -664,7 +819,10 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
         return;
       }
 
-      await repository.assignBadge({'personIds': personIds});
+      await repository.assignBadge({
+        'personIds': personIds,
+        if (event.badgeCatId != null) 'badgeCatId': event.badgeCatId,
+      });
       final quota = await repository.getBadgeQuota();
       final los = await repository.listLiaisonOfficers();
 
@@ -781,6 +939,26 @@ class NodalLoBloc extends Bloc<NodalLoEvent, NodalLoState> {
           for (final t in state.tasks) t.id == event.id ? item : t,
         ],
         infoMessage: 'Task updated (notification queued).',
+        clearError: true,
+      ));
+    } catch (e) {
+      _fail(emit, e);
+    }
+  }
+
+  Future<void> _onDeleteTask(
+    NodalLoDeleteTask event,
+    Emitter<NodalLoState> emit,
+  ) async {
+    try {
+      await repository.deleteTask(event.id);
+      emit(state.copyWith(
+        status: NodalLoStatus.ready,
+        tasks: [
+          for (final t in state.tasks)
+            if (t.id != event.id) t,
+        ],
+        infoMessage: 'Task deleted.',
         clearError: true,
       ));
     } catch (e) {

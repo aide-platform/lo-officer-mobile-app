@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/lo_portal_repository.dart';
@@ -54,6 +55,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     }
 
     try {
+      await _flushOfflineQueue();
       final profile = await repository.getMyProfile();
       final delegates = await repository.getMyDelegates();
       final tasks = await repository.getMyTasks();
@@ -62,6 +64,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       await LoPortalCache.saveProfile(profile);
       await LoPortalCache.saveDelegates(delegates);
       await LoPortalCache.saveTasks(tasks);
+      await LoOfflineStore.cacheDelegates(delegates);
+      await LoOfflineStore.cacheTasks(tasks);
 
       for (final t in tasks) {
         if (t.scheduledDate != null &&
@@ -88,6 +92,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         languages: languages,
         alerts: refreshedAlerts,
         alertLeadMinutes: lead,
+        clearError: true,
+        clearInfo: true,
       ));
     } catch (e) {
       if (cachedProfile != null ||
@@ -95,7 +101,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           cachedTasks.isNotEmpty) {
         emit(state.copyWith(
           status: LoPortalStatus.ready,
-          errorMessage: 'Showing cached data. $e',
+          errorMessage: 'Offline — showing cached data. $e',
           alertLeadMinutes: lead,
         ));
         return;
@@ -105,6 +111,27 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         errorMessage: e.toString(),
       ));
     }
+  }
+
+  Future<void> _flushOfflineQueue() async {
+    final queue = await LoOfflineStore.peekQueue();
+    if (queue.isEmpty) return;
+    final remaining = <Map<String, dynamic>>[];
+    for (final item in queue) {
+      final taskId = item['taskId']?.toString();
+      final statusCode = item['statusCode']?.toString();
+      if (taskId == null || statusCode == null) continue;
+      try {
+        await repository.updateTaskStatus(
+          taskId: taskId,
+          statusCode: statusCode,
+          remarks: item['remarks']?.toString(),
+        );
+      } catch (_) {
+        remaining.add(item);
+      }
+    }
+    await LoOfflineStore.replaceQueue(remaining);
   }
 
   Future<void> _onSaveProfile(
@@ -156,9 +183,15 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         status: LoPortalStatus.ready,
       ));
     } catch (e) {
+      await LoOfflineStore.enqueueTaskStatus(
+        taskId: event.taskId,
+        statusCode: event.statusCode,
+        remarks: event.remarks,
+      );
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage:
+            'Offline — status queued for sync: ${e.toString()}',
       ));
     }
   }

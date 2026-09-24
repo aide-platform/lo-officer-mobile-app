@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
+import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
+import 'package:liaison_officer/core/themes/data/local/theme_settings_local_data_source.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
+import 'package:liaison_officer/features/auth/landing_splash.dart';
 import 'package:liaison_officer/features/auth/login_screen.dart';
+import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await LoOfflineStore.init();
+  } catch (e) {
+    debugPrint('LoOfflineStore init skipped: $e');
+  }
+  await PushNotificationService.instance.initialize();
   AppDependencies.create();
   final themeCubit = await ThemeCubit.create();
   final session = await SessionStore.load();
   SystemChrome.setSystemUIOverlayStyle(
-    themeCubit.state == ThemeMode.light
+    themeCubit.state.mode == ThemeMode.light
         ? SystemUiOverlayStyle.dark
         : SystemUiOverlayStyle.light,
   );
@@ -46,19 +55,28 @@ class LiaisonOfficerApp extends StatelessWidget {
         BlocProvider.value(value: authBloc),
         BlocProvider.value(value: themeCubit),
       ],
-      child: BlocBuilder<ThemeCubit, ThemeMode>(
-        builder: (context, themeMode) {
+      child: BlocBuilder<ThemeCubit, AppThemeSettings>(
+        builder: (context, settings) {
           SystemChrome.setSystemUIOverlayStyle(
-            themeMode == ThemeMode.light
+            settings.mode == ThemeMode.light
                 ? SystemUiOverlayStyle.dark
                 : SystemUiOverlayStyle.light,
           );
           return MaterialApp(
-            title: 'Liaison Officer',
+            title: 'Aero India LO',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeMode,
+            theme: AppTheme.themeFor(settings.palette, dark: false),
+            darkTheme: AppTheme.themeFor(settings.palette, dark: true),
+            themeMode: settings.mode,
+            builder: (context, child) {
+              final mq = MediaQuery.of(context);
+              return MediaQuery(
+                data: mq.copyWith(
+                  textScaler: TextScaler.linear(settings.font.scale),
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
             home: SplashGate(initialSession: initialSession),
             routes: {
               '/login': (_) => const LoginScreen(),
@@ -80,78 +98,21 @@ class SplashGate extends StatefulWidget {
 }
 
 class _SplashGateState extends State<SplashGate> {
-  bool _ready = false;
-
-  @override
-  void initState() {
-    super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 700), () {
-      if (mounted) setState(() => _ready = true);
-    });
-  }
+  bool _continueToLogin = false;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.backgroundColor : AppTheme.lightBackground;
-
-    if (!_ready) {
-      return Scaffold(
-        backgroundColor: bg,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              AppAssetManager.splash,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => ColoredBox(
-                color: bg,
-                child: Center(
-                  child: Icon(
-                    Icons.badge_outlined,
-                    size: 72,
-                    color: AppTheme.activeAccent,
-                  ),
-                ),
-              ),
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    bg.withValues(alpha: 0.35),
-                    bg.withValues(alpha: 0.75),
-                  ],
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 48),
-                child: Text(
-                  'Liaison Officer',
-                  style: TextStyle(
-                    color: isDark ? Colors.white : AppTheme.lightTextPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     final session = widget.initialSession;
     if (session != null && session.isValid) {
       return RoleHomeRouter(email: session.email, role: session.role);
     }
 
-    return const LoginScreen();
+    if (_continueToLogin) {
+      return const LoginScreen();
+    }
+
+    return LandingSplash(
+      onContinue: () => setState(() => _continueToLogin = true),
+    );
   }
 }

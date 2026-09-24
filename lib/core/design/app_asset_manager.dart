@@ -4,9 +4,13 @@ class AppAssetManager {
   AppAssetManager._();
 
   static const String logo = 'assets/images/icon.png';
+  static const String aeroIndiaLogo = 'assets/images/aero-india-logo.png';
+  static const String modLogoWhite = 'assets/images/mod-logo-white.png';
   static const String defaultVipAvatar = 'assets/images/aero-ind1.png';
-  static const String splash = 'assets/images/aero-ind1.png';
+  static const String splash = 'assets/images/mainBackground_3.png';
+  static const String landingHero = 'assets/images/mainBackground_3.png';
   static const String mainBg3 = 'assets/images/mainBackground_3.png';
+  static const String aeroIndiaHero = 'assets/images/aero-india-hero.png';
 }
 
 class SafeAssetImage extends StatelessWidget {

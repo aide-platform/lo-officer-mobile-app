@@ -13,6 +13,7 @@ class OrgRepState {
   final List<int>? lastTemplateBytes;
   final List<int>? lastDownloadBytes;
   final String? lastDownloadFilename;
+  final Map<String, dynamic>? lastImportResult;
 
   const OrgRepState({
     this.status = OrgRepStatus.initial,
@@ -25,6 +26,7 @@ class OrgRepState {
     this.lastTemplateBytes,
     this.lastDownloadBytes,
     this.lastDownloadFilename,
+    this.lastImportResult,
   });
 
   OrgRepState copyWith({
@@ -38,10 +40,12 @@ class OrgRepState {
     List<int>? lastTemplateBytes,
     List<int>? lastDownloadBytes,
     String? lastDownloadFilename,
+    Map<String, dynamic>? lastImportResult,
     bool clearError = false,
     bool clearInfo = false,
     bool clearDownload = false,
     bool clearSelectedDetail = false,
+    bool clearImportResult = false,
   }) {
     return OrgRepState(
       status: status ?? this.status,
@@ -60,6 +64,9 @@ class OrgRepState {
       lastDownloadFilename: clearDownload
           ? null
           : (lastDownloadFilename ?? this.lastDownloadFilename),
+      lastImportResult: clearImportResult
+          ? null
+          : (lastImportResult ?? this.lastImportResult),
     );
   }
 }

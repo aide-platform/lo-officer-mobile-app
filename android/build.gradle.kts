@@ -15,32 +15,12 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-subprojects {
-    project.evaluationDependsOn(":app")
-}
 
-// Plugins such as file_picker may ship with compileSdk 34 while
-// flutter_plugin_android_lifecycle requires 36+. Align all Android modules.
-subprojects {
-    afterEvaluate {
-        val androidExt = extensions.findByName("android") ?: return@afterEvaluate
-        fun invokeSetter(methodName: String, value: Any): Boolean {
-            return try {
-                val method = androidExt.javaClass.methods.firstOrNull { m ->
-                    m.name == methodName && m.parameterCount == 1
-                } ?: return false
-                method.invoke(androidExt, value)
-                true
-            } catch (_: Exception) {
-                false
-            }
-        }
-        // Prefer AGP 8+ `compileSdk = 36`, fall back to legacy compileSdkVersion.
-        if (!invokeSetter("setCompileSdk", 36)) {
-            invokeSetter("setCompileSdkVersion", 36)
-        }
-    }
-}
+// Do not use evaluationDependsOn(":app") with AGP 9 / Gradle 9 —
+// it evaluates :app early and breaks afterEvaluate.
+
+// Force plugin modules (e.g. file_picker @ compileSdk 34) up to 36+.
+apply(from = "fix_compile_sdk.gradle")
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)

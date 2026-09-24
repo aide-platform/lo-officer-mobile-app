@@ -14,6 +14,7 @@ abstract class NodalLoRepository {
     String id,
     Map<String, dynamic> body,
   );
+  Future<void> deleteOrganisation(String id);
 
   Future<List<EmailTemplateDto>> listEmailTemplates();
   Future<EmailTemplateDto> createEmailTemplate(Map<String, dynamic> body);
@@ -30,8 +31,18 @@ abstract class NodalLoRepository {
 
   Future<List<LiaisonOfficerDto>> listLiaisonOfficers();
   Future<LiaisonOfficerDto?> getLiaisonOfficer(String id);
+  Future<LiaisonOfficerDto> createLiaisonOfficer(Map<String, dynamic> body);
+  Future<LiaisonOfficerDto> updateLiaisonOfficer(
+    String id,
+    Map<String, dynamic> body,
+  );
+  Future<void> deleteLiaisonOfficer(String id);
   Future<List<LoExperienceDto>> getLoExperiences(String loId);
   Future<List<String>> getLoLanguages(String loId);
+  Future<void> sendLoReminder(String loId);
+  Future<void> sendPendingLoReminders();
+  Future<void> setLiaisonOfficerActive(String loId, bool active);
+  Future<List<int>> fetchFileBytes(String fileId);
 
   Future<List<LoAssignmentDto>> listAssignments();
   Future<LoAssignmentDto> createAssignment(Map<String, dynamic> body);
@@ -45,6 +56,7 @@ abstract class NodalLoRepository {
   Future<List<LoTaskDto>> listTasks();
   Future<LoTaskDto> createTask(Map<String, dynamic> body);
   Future<LoTaskDto> updateTask(String id, Map<String, dynamic> body);
+  Future<void> deleteTask(String id);
   Future<LoTaskDto> updateTaskStatus({
     required String id,
     required String statusCode,

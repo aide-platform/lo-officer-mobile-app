@@ -78,16 +78,16 @@ class AppColors {
   static const Color roleVisitor = AppTheme.blueAccent;
   static const Color roleExhibitor = AppTheme.purpleAccent;
   static const Color roleDelegate = AppTheme.orangeAccent;
-  static const Color roleLO = Color(0xFFC77DFF);
-  static const Color roleNO = AppTheme.blueAccent;
-  static const Color roleSNO = Color(0xFF2563EB);
+  static const Color roleLO = AppTheme.royalBlue;
+  static const Color roleNO = AppTheme.royalBlue;
+  static const Color roleSNO = AppTheme.blueAccent;
   static const Color roleConservancy = AppTheme.greenAccent;
   static const Color roleContractor = Color(0xFF92400E);
   static const Color roleMedia = AppTheme.pinkAccent;
 
-  static const Color themePrimary = Color(0xFFC77DFF);
-  static const Color themeSecondary = AppTheme.purpleAccent;
-  static const LinearGradient themeGradient = AppTheme.purpleGradient;
+  static const Color themePrimary = AppTheme.royalBlue;
+  static const Color themeSecondary = AppTheme.saffron;
+  static const LinearGradient themeGradient = AppTheme.brandHeaderGradient;
 
   static Color themePrimaryOverlay(double opacity) =>
       themePrimary.withValues(alpha: opacity);
@@ -106,9 +106,9 @@ class AppColors {
   static Color dangerOverlay(double o) => danger.withValues(alpha: o);
   static Color warningOverlay(double o) => warning.withValues(alpha: o);
 
-  static const LinearGradient headerGrad = AppTheme.purpleGradient;
+  static const LinearGradient headerGrad = AppTheme.brandHeaderGradient;
 
-  static const LinearGradient adminHeaderGradient = AppTheme.purpleGradient;
+  static const LinearGradient adminHeaderGradient = AppTheme.brandHeaderGradient;
 
   static LinearGradient roleHeaderGradient(
     Color role, {

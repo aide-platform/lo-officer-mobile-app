@@ -12,6 +12,7 @@ import '../../core/design/app_colors.dart';
 import '../../core/design/contrast.dart';
 import '../../core/notifications/mock_email_notifier.dart';
 import '../../core/session/auth_logout.dart';
+import '../../core/themes/data/local/theme_settings_local_data_source.dart';
 import '../../core/themes/presentation/bloc/theme_cubit.dart';
 import '../../core/widgets/gradient_app_bar.dart';
 import '../../core/widgets/role_profile_drawer_header.dart';
@@ -757,15 +758,15 @@ class _LiaisonOfficerScreenState extends State<LiaisonOfficerScreen> {
               // Dark mode
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: BlocBuilder<ThemeCubit, ThemeMode>(
-                  builder: (context, themeMode) {
+                child: BlocBuilder<ThemeCubit, AppThemeSettings>(
+                  builder: (context, settings) {
                     return SwitchListTile(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       secondary: const Icon(Icons.dark_mode),
                       title: const Text('Dark Mode'),
-                      value: themeMode == ThemeMode.dark,
+                      value: settings.mode == ThemeMode.dark,
                       onChanged: (v) {
                         context.read<ThemeCubit>().setTheme(
                           v ? ThemeMode.dark : ThemeMode.light,

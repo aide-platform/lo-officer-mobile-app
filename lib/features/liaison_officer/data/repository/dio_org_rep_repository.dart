@@ -94,11 +94,19 @@ class DioOrgRepRepository implements OrgRepRepository {
   }
 
   @override
-  Future<void> bulkImport(List<int> bytes, String filename) async {
+  Future<Map<String, dynamic>> bulkImport(List<int> bytes, String filename) async {
     final form = FormData.fromMap({
       'file': MultipartFile.fromBytes(bytes, filename: filename),
     });
-    await _dio.post(ApiConfig.myOrganisationBulkImportPath, data: form);
+    final res =
+        await _dio.post(ApiConfig.myOrganisationBulkImportPath, data: form);
+    final data = res.data;
+    if (data is Map) {
+      final inner = data['data'];
+      if (inner is Map) return Map<String, dynamic>.from(inner);
+      return Map<String, dynamic>.from(data);
+    }
+    return {'message': 'Bulk import completed.', 'raw': data?.toString()};
   }
 
   @override

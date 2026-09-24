@@ -78,14 +78,15 @@ LO detail: OpenAPI has **no** `GET …/los/{loId}`. The app loads detail by filt
 | CRUD | `/app/email-templates` |
 | CRUD | `/app/do-letter-templates` (+ `/{id}/file` download/upload) |
 | CRUD | `/app/lo-activities` |
-| CRUD | `/app/liaison-officers` (+ `/{id}/experiences`, `/{id}/languages`) |
+| CRUD | `/app/liaison-officers` (+ `/{id}` PUT/DELETE, experiences, languages, reminder, pending reminders, active) |
 | CRUD | `/app/lo-assignments`, `/app/lo-assignments/delegates` |
 | CRUD | `/app/lo-tasks` |
+| GET | `/app/files/{id}` | LO document preview |
 | GET | `/app/committee/bv-quota/mine` |
 | POST | `/app/committee/bv-quota/assign-badge` (`personIds[]`) |
 | GET | `/app/committee/bv-quota/badge/{passId}/download` |
 
-Unused OpenAPI (skip unless product asks): `POST /app/liaison-officers/{id}/reminder`, `POST /app/liaison-officers/reminders/pending`, `PUT /app/liaison-officers/{id}/active`, `GET /app/lo-tasks/me`.
+Unused OpenAPI (skip unless product asks): `GET /app/lo-tasks/me`.
 
 ### Speculative — LO org DO letter / nomination
 
@@ -122,3 +123,15 @@ flutter run --dart-define=USE_MOCK_API=true
 ```
 
 Mock emails: `liaison@test.com`, `org@test.com`, `admin@aeroindia.gov.in` — OTP `123456`
+
+## LO requirements + live seed
+
+- Requirements coverage (LO.1–LO.9): [`lo-committee-requirements-matrix.md`](lo-committee-requirements-matrix.md)
+- Web ↔ mobile inventory: [`web-mobile-feature-inventory.md`](web-mobile-feature-inventory.md)
+- Live CAP seed (idempotent org types / orgs / LOs / assignments / tasks):
+
+```bash
+dart run scripts/seed_cap_lo.dart --email=<nodal-cap-email>
+```
+
+Requires a CAP User for the Nodal email (interactive CAPTCHA + OTP). Optional `--token=<JWT>` skips OTP when you already have a Nodal access token.

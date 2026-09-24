@@ -76,7 +76,243 @@ class NodalLoState {
     if (q == null) return 0;
     final rem = q['remaining'] ?? q['remainingQuota'] ?? q['available'];
     if (rem is num) return rem.toInt();
-    return int.tryParse(rem?.toString() ?? '') ?? 0;
+    final parsed = int.tryParse(rem?.toString() ?? '');
+    if (parsed != null) return parsed;
+    final lines = q['badgeLines'];
+    if (lines is List) {
+      var sum = 0;
+      for (final row in lines) {
+        if (row is Map) {
+          final a = row['available'] ?? row['remaining'];
+          if (a is num) sum += a.toInt();
+        }
+      }
+      return sum;
+    }
+    return 0;
+  }
+
+  /// Unique VIP person ids from assignments + assignable delegate roster.
+  int get totalVips {
+    final ids = <String>{};
+    for (final d in assignableDelegates) {
+      final id = d['personId']?.toString() ?? d['attendeeId']?.toString();
+      if (id != null && id.isNotEmpty) ids.add(id);
+    }
+    for (final a in assignments) {
+      if (a.personId != null && a.personId!.isNotEmpty) ids.add(a.personId!);
+    }
+    return ids.length;
+  }
+
+  int get vipsAssigned {
+    final ids = <String>{};
+    for (final a in assignments) {
+      if (a.personId != null && a.personId!.isNotEmpty) ids.add(a.personId!);
+    }
+    return ids.length;
+  }
+
+  int get losWithVipAssignment {
+    final ids = <String>{};
+    for (final a in assignments) {
+      if (a.loId != null && a.loId!.isNotEmpty) ids.add(a.loId!);
+    }
+    return ids.length;
+  }
+
+  int get losWithoutVipAssignment =>
+      (liaisonOfficers.length - losWithVipAssignment).clamp(0, 1 << 30);
+
+  int get completedTasks => tasks
+      .where((t) => (t.statusCode ?? '').toUpperCase() == 'COMPLETED')
+      .length;
+
+  int get pendingTasksCount => tasks
+      .where((t) => (t.statusCode ?? '').toUpperCase() == 'PENDING')
+      .length;
+
+  int get inProgressTasksCount => tasks
+      .where((t) => (t.statusCode ?? '').toUpperCase() == 'IN_PROGRESS')
+      .length;
+
+  int get losWithPriorExperience =>
+      liaisonOfficers.where((e) => e.hasPrevLoExp == true).length;
+
+  int get activeLos =>
+      liaisonOfficers.where((e) => e.isActive != false).length;
+
+  Map<String, int> get orgsByTypeCount {
+    final map = <String, int>{};
+    for (final o in organisations) {
+      final key = o.orgTypeName?.trim().isNotEmpty == true
+          ? o.orgTypeName!
+          : 'Other';
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  Map<String, int> get loProfileStatusCounts {
+    final map = <String, int>{};
+    for (final lo in liaisonOfficers) {
+      final key = (lo.profileStatus ?? 'UNKNOWN').trim();
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  /// Distinct VIP personIds grouped by LO organisation name.
+  List<MapEntry<String, int>> get orgWiseVipSummary {
+    final byOrg = <String, Set<String>>{};
+    for (final a in assignments) {
+      if (a.personId == null || a.personId!.isEmpty) continue;
+      var org = a.loOrgName?.trim();
+      if (org == null || org.isEmpty) {
+        for (final lo in liaisonOfficers) {
+          if (lo.id == a.loId) {
+            org = lo.orgName?.trim();
+            break;
+          }
+        }
+      }
+      org = (org == null || org.isEmpty) ? 'Unknown org' : org;
+      byOrg.putIfAbsent(org, () => <String>{}).add(a.personId!);
+    }
+    final list = byOrg.entries
+        .map((e) => MapEntry(e.key, e.value.length))
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return list;
+  }
+
+  /// Per-organisation rollup: LOs, VIPs assigned, tasks (video Organisation-wise Details).
+  List<({String name, String type, int los, int vips, int tasks, int completed})>
+      get orgWiseDetails {
+    final vipByOrg = <String, Set<String>>{};
+    final loCountByOrg = <String, int>{};
+    for (final lo in liaisonOfficers) {
+      final key = lo.orgName?.trim().isNotEmpty == true
+          ? lo.orgName!.trim()
+          : 'Unknown org';
+      loCountByOrg[key] = (loCountByOrg[key] ?? 0) + 1;
+    }
+    for (final a in assignments) {
+      if (a.personId == null || a.personId!.isEmpty) continue;
+      var org = a.loOrgName?.trim();
+      if (org == null || org.isEmpty) {
+        for (final lo in liaisonOfficers) {
+          if (lo.id == a.loId) {
+            org = lo.orgName?.trim();
+            break;
+          }
+        }
+      }
+      org = (org == null || org.isEmpty) ? 'Unknown org' : org;
+      vipByOrg.putIfAbsent(org, () => <String>{}).add(a.personId!);
+    }
+    final taskByOrg = <String, int>{};
+    final completedByOrg = <String, int>{};
+    for (final t in tasks) {
+      String? org;
+      for (final lo in liaisonOfficers) {
+        if (lo.id == t.loId) {
+          org = lo.orgName?.trim();
+          break;
+        }
+      }
+      final key = (org == null || org.isEmpty) ? 'Unknown org' : org;
+      taskByOrg[key] = (taskByOrg[key] ?? 0) + 1;
+      if ((t.statusCode ?? '').toUpperCase() == 'COMPLETED') {
+        completedByOrg[key] = (completedByOrg[key] ?? 0) + 1;
+      }
+    }
+
+    final names = <String>{
+      ...organisations.map((o) => o.orgName),
+      ...loCountByOrg.keys,
+      ...vipByOrg.keys,
+    };
+    final rows = <({String name, String type, int los, int vips, int tasks, int completed})>[];
+    for (final name in names) {
+      LoOrganisationDto? match;
+      for (final o in organisations) {
+        if (o.orgName == name) {
+          match = o;
+          break;
+        }
+      }
+      rows.add((
+        name: name,
+        type: match?.orgTypeName ?? '—',
+        los: loCountByOrg[name] ?? match?.loCount ?? 0,
+        vips: vipByOrg[name]?.length ?? 0,
+        tasks: taskByOrg[name] ?? 0,
+        completed: completedByOrg[name] ?? 0,
+      ));
+    }
+    rows.sort((a, b) => b.vips.compareTo(a.vips));
+    return rows;
+  }
+
+  /// Type-wise rollup: orgs, LOs, VIPs (video Organisation Type-wise Summary).
+  List<({String type, int orgs, int los, int withVip, int withoutVip, int vips})>
+      get typeWiseSummary {
+    final orgsByType = <String, int>{};
+    for (final o in organisations) {
+      final t = o.orgTypeName?.trim().isNotEmpty == true
+          ? o.orgTypeName!
+          : 'Other';
+      orgsByType[t] = (orgsByType[t] ?? 0) + 1;
+    }
+    final loByType = <String, List<LiaisonOfficerDto>>{};
+    for (final lo in liaisonOfficers) {
+      final t = lo.orgTypeName?.trim().isNotEmpty == true
+          ? lo.orgTypeName!
+          : 'Other';
+      loByType.putIfAbsent(t, () => []).add(lo);
+    }
+    final vipLoIds = {
+      for (final a in assignments)
+        if (a.loId != null && a.loId!.isNotEmpty) a.loId!,
+    };
+    final vipByType = <String, Set<String>>{};
+    for (final a in assignments) {
+      if (a.personId == null || a.personId!.isEmpty) continue;
+      String? type;
+      for (final lo in liaisonOfficers) {
+        if (lo.id == a.loId) {
+          type = lo.orgTypeName?.trim();
+          break;
+        }
+      }
+      type = (type == null || type.isEmpty) ? 'Other' : type;
+      vipByType.putIfAbsent(type, () => <String>{}).add(a.personId!);
+    }
+    final types = <String>{...orgsByType.keys, ...loByType.keys};
+    final rows = <({String type, int orgs, int los, int withVip, int withoutVip, int vips})>[];
+    for (final t in types) {
+      final los = loByType[t] ?? const [];
+      final withVip =
+          los.where((lo) => lo.id != null && vipLoIds.contains(lo.id)).length;
+      rows.add((
+        type: t,
+        orgs: orgsByType[t] ?? 0,
+        los: los.length,
+        withVip: withVip,
+        withoutVip: (los.length - withVip).clamp(0, 1 << 30),
+        vips: vipByType[t]?.length ?? 0,
+      ));
+    }
+    rows.sort((a, b) => b.orgs.compareTo(a.orgs));
+    return rows;
+  }
+
+  /// Delegate coverage: VIPs with ≥1 LO / total VIP roster.
+  String get delegateCoverageLabel {
+    final total = totalVips;
+    final assigned = vipsAssigned;
+    return '$assigned of $total VIP(s) have at least one LO assigned.';
   }
 
   List<LiaisonOfficerDto> get filteredLiaisonOfficers {

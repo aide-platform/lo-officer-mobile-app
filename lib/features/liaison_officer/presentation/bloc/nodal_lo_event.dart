@@ -191,6 +191,40 @@ class NodalLoLoadLoDetail extends NodalLoEvent {
 
 class NodalLoClearLoDetail extends NodalLoEvent {}
 
+class NodalLoSendLoReminder extends NodalLoEvent {
+  NodalLoSendLoReminder(this.loId);
+  final String loId;
+}
+
+class NodalLoSendPendingLoReminders extends NodalLoEvent {}
+
+class NodalLoSetLiaisonActive extends NodalLoEvent {
+  NodalLoSetLiaisonActive(this.loId, this.active);
+  final String loId;
+  final bool active;
+}
+
+class NodalLoCreateLiaisonOfficer extends NodalLoEvent {
+  NodalLoCreateLiaisonOfficer(this.body);
+  final Map<String, dynamic> body;
+}
+
+class NodalLoUpdateLiaisonOfficer extends NodalLoEvent {
+  NodalLoUpdateLiaisonOfficer(this.id, this.body);
+  final String id;
+  final Map<String, dynamic> body;
+}
+
+class NodalLoDeleteLiaisonOfficer extends NodalLoEvent {
+  NodalLoDeleteLiaisonOfficer(this.id);
+  final String id;
+}
+
+class NodalLoDeleteOrganisation extends NodalLoEvent {
+  NodalLoDeleteOrganisation(this.id);
+  final String id;
+}
+
 // ── LO.7 Badges ─────────────────────────────────────────────────────────────
 
 class NodalLoToggleLoSelection extends NodalLoEvent {
@@ -201,8 +235,9 @@ class NodalLoToggleLoSelection extends NodalLoEvent {
 class NodalLoClearLoSelection extends NodalLoEvent {}
 
 class NodalLoAssignBadge extends NodalLoEvent {
-  NodalLoAssignBadge({this.personIds});
+  NodalLoAssignBadge({this.personIds, this.badgeCatId});
   final List<String>? personIds;
+  final String? badgeCatId;
 }
 
 class NodalLoDownloadBadge extends NodalLoEvent {
@@ -232,6 +267,11 @@ class NodalLoUpdateTask extends NodalLoEvent {
   NodalLoUpdateTask(this.id, this.body);
   final String id;
   final Map<String, dynamic> body;
+}
+
+class NodalLoDeleteTask extends NodalLoEvent {
+  NodalLoDeleteTask(this.id);
+  final String id;
 }
 
 class NodalLoSetTaskFilters extends NodalLoEvent {

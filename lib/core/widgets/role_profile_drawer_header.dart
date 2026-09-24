@@ -51,8 +51,17 @@ class RoleProfileDrawerHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: AppColors.headerGradientFor(accentColor),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFE87820), // saffron
+            Color(0xFF0C1A3A), // navy
+            Color(0xFF128807), // india green
+          ],
+          stops: [0.0, 0.45, 1.0],
+        ),
       ),
       child: Stack(
         children: [

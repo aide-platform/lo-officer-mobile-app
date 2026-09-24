@@ -33,6 +33,18 @@ class LiaisonOfficerDto {
   final String? currentBadgeCatId;
   final List<String> languages;
   final String? availabilityStatus;
+  final String? photoFileId;
+  final String? photoFileName;
+  final String? signatureFileId;
+  final String? signatureFileName;
+  final String? aadhaarFrontId;
+  final String? aadhaarFrontFileName;
+  final String? aadhaarBackId;
+  final String? aadhaarBackFileName;
+  final String? orgBadgeFrontId;
+  final String? orgBadgeFrontFileName;
+  final String? orgBadgeBackId;
+  final String? orgBadgeBackFileName;
 
   const LiaisonOfficerDto({
     this.id,
@@ -67,10 +79,24 @@ class LiaisonOfficerDto {
     this.currentBadgeCatId,
     this.languages = const [],
     this.availabilityStatus,
+    this.photoFileId,
+    this.photoFileName,
+    this.signatureFileId,
+    this.signatureFileName,
+    this.aadhaarFrontId,
+    this.aadhaarFrontFileName,
+    this.aadhaarBackId,
+    this.aadhaarBackFileName,
+    this.orgBadgeFrontId,
+    this.orgBadgeFrontFileName,
+    this.orgBadgeBackId,
+    this.orgBadgeBackFileName,
   });
 
   factory LiaisonOfficerDto.fromJson(Map<String, dynamic> json) {
-    final langs = json['languages'] ?? json['languagesKnown'];
+    final langs = json['languages'] ??
+        json['languagesKnown'] ??
+        json['languageNames'];
     return LiaisonOfficerDto(
       id: json['id']?.toString(),
       personId: json['personId']?.toString(),
@@ -110,7 +136,35 @@ class LiaisonOfficerDto {
           : const [],
       availabilityStatus: json['availabilityStatus']?.toString() ??
           json['availability']?.toString(),
+      photoFileId: json['photoFileId']?.toString(),
+      photoFileName: json['photoFileName']?.toString(),
+      signatureFileId: json['signatureFileId']?.toString(),
+      signatureFileName: json['signatureFileName']?.toString(),
+      aadhaarFrontId: json['aadhaarFrontId']?.toString(),
+      aadhaarFrontFileName: json['aadhaarFrontFileName']?.toString(),
+      aadhaarBackId: json['aadhaarBackId']?.toString(),
+      aadhaarBackFileName: json['aadhaarBackFileName']?.toString(),
+      orgBadgeFrontId: json['orgBadgeFrontId']?.toString(),
+      orgBadgeFrontFileName: json['orgBadgeFrontFileName']?.toString(),
+      orgBadgeBackId: json['orgBadgeBackId']?.toString(),
+      orgBadgeBackFileName: json['orgBadgeBackFileName']?.toString(),
     );
+  }
+
+  /// Document slots present for preview (label → fileId).
+  Map<String, String> get documentFileIds {
+    final map = <String, String>{};
+    void put(String label, String? id) {
+      if (id != null && id.isNotEmpty) map[label] = id;
+    }
+
+    put('Photo', photoFileId);
+    put('Signature', signatureFileId);
+    put('Aadhaar front', aadhaarFrontId);
+    put('Aadhaar back', aadhaarBackId);
+    put('Org badge front', orgBadgeFrontId);
+    put('Org badge back', orgBadgeBackId);
+    return map;
   }
 
   String get displayName {
@@ -613,6 +667,9 @@ class OrgSubNodalOfficerDto {
   final String fullName;
   final String email;
   final String? mobile;
+  final String? designation;
+  final bool? isActive;
+  final bool? canApprove;
 
   const OrgSubNodalOfficerDto({
     this.id,
@@ -621,6 +678,9 @@ class OrgSubNodalOfficerDto {
     required this.fullName,
     required this.email,
     this.mobile,
+    this.designation,
+    this.isActive,
+    this.canApprove,
   });
 
   factory OrgSubNodalOfficerDto.fromJson(Map<String, dynamic> json) =>
@@ -631,6 +691,9 @@ class OrgSubNodalOfficerDto {
         fullName: json['fullName']?.toString() ?? '',
         email: json['email']?.toString() ?? '',
         mobile: json['mobile']?.toString(),
+        designation: json['designation']?.toString(),
+        isActive: json['isActive'] as bool?,
+        canApprove: json['canApprove'] as bool?,
       );
 }
 

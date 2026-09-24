@@ -253,6 +253,56 @@ void main() {
       expect(after.any((e) => e.id == fresh.id), isTrue);
     });
   });
+
+  group('org rep nominate + team', () {
+    test('nominateLo stores optional rank and designation', () async {
+      final repo = MockOrgRepRepository();
+      final lo = await repo.nominateLo({
+        'salutation': 'Mr',
+        'firstName': 'Ravi',
+        'lastName': 'Kumar',
+        'primaryEmail': 'ravi@bel.co.in',
+        'primaryMobile': '+919800000099',
+        'rank': 'Gp Capt',
+        'designation': 'Squadron Commander',
+      });
+      expect(lo.rank, 'Gp Capt');
+      expect(lo.designation, 'Squadron Commander');
+      expect(lo.profileStatus, 'PENDING');
+    });
+
+    test('updateSubNodal toggles isActive and designation', () async {
+      final repo = MockOrgRepRepository();
+      final list = await repo.listSubNodals();
+      expect(list, isNotEmpty);
+      final id = list.first.id!;
+      final updated = await repo.updateSubNodal(id, {
+        'fullName': list.first.fullName,
+        'email': list.first.email,
+        'mobile': list.first.mobile,
+        'designation': 'Ops Lead',
+        'isActive': false,
+      });
+      expect(updated.designation, 'Ops Lead');
+      expect(updated.isActive, isFalse);
+    });
+
+    test('downloadImportTemplate returns non-empty bytes', () async {
+      final repo = MockOrgRepRepository();
+      final bytes = await repo.downloadImportTemplate();
+      expect(bytes, isNotEmpty);
+    });
+  });
+
+  group('lo portal badge download', () {
+    test('downloadBadge returns bytes for currentPassId', () async {
+      final repo = MockLoPortalRepository();
+      final profile = await repo.getMyProfile();
+      expect(profile?.currentPassId, isNotNull);
+      final bytes = await repo.downloadBadge(profile!.currentPassId!);
+      expect(bytes, isNotEmpty);
+    });
+  });
 }
 
 /// Mirrors profile DOB → age calculation used in LO portal.

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 class PickedFileBytes {
@@ -72,5 +73,34 @@ class ImagePickService {
     final bytes = await x.readAsBytes();
     final name = x.name.isNotEmpty ? x.name : 'image.jpg';
     return PickedFileBytes(bytes: bytes, filename: name, mimeType: 'image/jpeg');
+  }
+
+  /// Shows a chooser for camera vs gallery, then picks.
+  static Future<PickedFileBytes?> pickImageWithChooser(
+    BuildContext context,
+  ) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return null;
+    return pickImage(source: source);
   }
 }

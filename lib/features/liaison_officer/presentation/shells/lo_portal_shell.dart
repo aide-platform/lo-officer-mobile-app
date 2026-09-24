@@ -1,16 +1,23 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
+import 'package:liaison_officer/core/widgets/role_shell_drawer.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/notifications_inbox_screen.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoPortalShell extends StatefulWidget {
   const LoPortalShell({
@@ -28,34 +35,144 @@ class LoPortalShell extends StatefulWidget {
 
 class _LoPortalShellState extends State<LoPortalShell> {
   int _index = 0;
+  int _unread = 0;
+  bool _wizardPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshUnread();
+  }
+
+  Future<void> _refreshUnread() async {
+    try {
+      final n =
+          await AppDependencies.instance.notificationsRepository.unreadCount();
+      if (mounted) setState(() => _unread = n);
+    } catch (_) {}
+  }
+
+  void _openProfile(BuildContext context, {required bool forceWizard}) {
+    final bloc = context.read<LoPortalBloc>();
+    final complete = bloc.state.profile?.profileComplete == true;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => BlocProvider.value(
+          value: bloc,
+          child: _ProfilePage(
+            email: widget.email,
+            readOnly: complete && !forceWizard,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openInbox(BuildContext context) {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute<void>(
+        builder: (_) => NotificationsInboxScreen(
+          onOpenDeepLink: (link) {
+            // Soft deep-link: switch to Tasks when link mentions task.
+            if (link.toLowerCase().contains('task')) {
+              setState(() => _index = 1);
+            } else if (link.toLowerCase().contains('delegate')) {
+              setState(() => _index = 0);
+            }
+          },
+        ),
+      ),
+    )
+        .then((_) => _refreshUnread());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final titles = ['Delegates', 'Tasks', 'Alerts'];
     final pages = [
       _DelegatesTab(email: widget.email),
       const _TasksTab(),
-      const _TravelTab(),
       const _AlertsTab(),
-      _ProfileTab(email: widget.email),
     ];
 
-    return AppPageScaffold(
-      title: 'LO Portal',
+    return AdaptiveRoleScaffold(
+      title: titles[_index.clamp(0, titles.length - 1)],
+      drawer: RoleShellDrawer(
+        email: widget.email,
+        roleLabel: widget.roleLabel,
+        navItems: [
+          RoleDrawerNavItem(
+            icon: Icons.groups_outlined,
+            label: 'Delegates',
+            onTap: () => setState(() => _index = 0),
+          ),
+          RoleDrawerNavItem(
+            icon: Icons.task_alt_outlined,
+            label: 'Tasks',
+            onTap: () => setState(() => _index = 1),
+          ),
+          RoleDrawerNavItem(
+            icon: Icons.notifications_outlined,
+            label: 'Alerts',
+            onTap: () => setState(() => _index = 2),
+          ),
+          RoleDrawerNavItem(
+            icon: Icons.person_outline,
+            label: 'My Profile',
+            onTap: () => _openProfile(context, forceWizard: false),
+          ),
+        ],
+      ),
       actions: [
         IconButton(
-          tooltip: 'Theme',
-          onPressed: () => context.read<ThemeCubit>().toggle(),
-          icon: const Icon(Icons.brightness_6_rounded, color: Colors.white),
+          tooltip: 'Notifications',
+          onPressed: () => _openInbox(context),
+          icon: Badge(
+            isLabelVisible: _unread > 0,
+            label: Text('$_unread'),
+            child: const Icon(Icons.notifications_outlined, color: Colors.white),
+          ),
         ),
-        IconButton(
-          tooltip: 'Logout',
-          onPressed: () => performLogout(context),
-          icon: const Icon(Icons.logout_rounded, color: Colors.white),
+        PopupMenuButton<String>(
+          tooltip: 'Account',
+          icon: const Icon(Icons.account_circle_outlined, color: Colors.white),
+          onSelected: (v) {
+            switch (v) {
+              case 'profile':
+                _openProfile(context, forceWizard: false);
+              case 'help':
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const HelpSupportScreen(),
+                  ),
+                );
+              case 'theme':
+                context.read<ThemeCubit>().toggle();
+              case 'logout':
+                performLogout(context);
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'profile', child: Text('My Profile')),
+            PopupMenuItem(value: 'help', child: Text('Help & Support')),
+            PopupMenuItem(value: 'theme', child: Text('Toggle theme')),
+            PopupMenuItem(value: 'logout', child: Text('Logout')),
+          ],
         ),
       ],
       body: BlocConsumer<LoPortalBloc, LoPortalState>(
         listener: (context, state) async {
           final bloc = context.read<LoPortalBloc>();
+          if (!_wizardPrompted &&
+              state.status == LoPortalStatus.ready &&
+              state.profile?.profileComplete != true) {
+            _wizardPrompted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _openProfile(context, forceWizard: true);
+            });
+          }
           if (state.lastDownloadBytes != null &&
               state.lastDownloadBytes!.isNotEmpty) {
             final bytes = state.lastDownloadBytes!;
@@ -93,35 +210,74 @@ class _LoPortalShellState extends State<LoPortalShell> {
                   context.read<LoPortalBloc>().add(LoPortalLoadRequested()),
             );
           }
-          return IndexedStack(index: _index, children: pages);
+          final showCacheBanner = state.status == LoPortalStatus.ready &&
+              state.errorMessage != null &&
+              state.errorMessage!.toLowerCase().contains('cached');
+          return Column(
+            children: [
+              if (showCacheBanner)
+                Material(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 18,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            state.errorMessage!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context
+                              .read<LoPortalBloc>()
+                              .add(LoPortalLoadRequested()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Expanded(child: IndexedStack(index: _index, children: pages)),
+            ],
+          );
         },
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            label: 'Delegates',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.task_alt_outlined),
-            label: 'Tasks',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.flight_takeoff_outlined),
-            label: 'Travel',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            label: 'Alerts',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.badge_outlined),
-            label: 'Profile',
-          ),
-        ],
-      ),
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.groups_outlined),
+          selectedIcon: Icon(Icons.groups),
+          label: 'Delegates',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.task_alt_outlined),
+          selectedIcon: Icon(Icons.task_alt),
+          label: 'Tasks',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.notifications_outlined),
+          selectedIcon: Icon(Icons.notifications),
+          label: 'Alerts',
+        ),
+      ],
+      selectedIndex: _index,
+      onDestinationSelected: (i) => setState(() => _index = i),
     );
   }
 }
@@ -145,7 +301,7 @@ class _DelegatesTab extends StatelessWidget {
           itemBuilder: (context, i) {
             final d = state.delegates[i];
             return AppCard(
-              onTap: () => _showDelegateDetail(context, d),
+              onTap: () => _openDelegateDetail(context, d),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -160,18 +316,23 @@ class _DelegatesTab extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (d.protocolEquiv != null)
-                        StatusChip(label: d.protocolEquiv!),
+                      AppStatusChip(
+                        label: _foreignDomesticLabel(d.delegateType),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(d.designation ?? ''),
-                  Text(d.organisation ?? ''),
-                  if (d.mobileNumber != null)
-                    Text(
-                      d.mobileNumber!,
-                      style: TextStyle(color: AppTheme.activeAccent),
+                  if (d.countryName != null && d.countryName!.isNotEmpty)
+                    Text(d.countryName!),
+                  Text(
+                    'Arr ${d.arrivalDate ?? '—'} · Dep ${d.departureDate ?? '—'}',
+                    style: TextStyle(
+                      color: AppTheme.activeAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
+                  ),
                 ],
               ),
             );
@@ -181,183 +342,259 @@ class _DelegatesTab extends StatelessWidget {
     );
   }
 
-  void _showDelegateDetail(BuildContext context, MyLoAssignmentDto d) {
+  void _openDelegateDetail(BuildContext context, MyLoAssignmentDto d) {
     final bloc = context.read<LoPortalBloc>();
     final assignmentId = d.assignmentId;
     if (assignmentId != null) {
       bloc.add(LoPortalDelegateExtrasRequested(assignmentId));
     }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => BlocProvider.value(
-        value: bloc,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  d.fullName ?? '',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                _kv('Designation', d.designation),
-                _kv('Organisation', d.organisation),
-                _kv('Ministry', d.ministry),
-                _kv('Gender', d.gender),
-                _kv('Protocol', d.protocolEquiv),
-                _kv('VIP category', d.vipCategory),
-                _kv('Country', d.countryName),
-                _kv('Email', d.email),
-                _kv('Mobile', d.mobileNumber),
-                _kv(
-                  'Arrival',
-                  '${d.arrivalFlight ?? ''} ${d.arrivalDate ?? ''} ${d.arrivalTime ?? ''}',
-                ),
-                _kv(
-                  'Departure',
-                  '${d.departureFlight ?? ''} ${d.departureDate ?? ''} ${d.departureTime ?? ''}',
-                ),
-                if (d.family.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Family',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  ...d.family.map(
-                    (f) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(f.fullName ?? ''),
-                      subtitle: Text(
-                        [
-                          f.relation,
-                          f.gender,
-                          if (f.passportNumber != null &&
-                              f.passportNumber!.trim().isNotEmpty)
-                            'Passport: ${f.passportNumber}'
-                                '${f.passportValidity != null ? ' · Valid till ${f.passportValidity}' : ''}',
-                        ].whereType<String>().where((e) => e.isNotEmpty).join(' · '),
-                      ),
-                    ),
-                  ),
-                ],
-                if (d.passportNumber != null &&
-                    d.passportNumber!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text('Passport',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
-                  _kv('Number', d.passportNumber),
-                  _kv('Expiry', d.passportExpiry),
-                  _kv('Nationality', d.passportNationality),
-                ],
-                if (d.decorations.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text('Decorations',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
-                  ...d.decorations.map((e) => Text('• $e')),
-                ],
-                if (assignmentId != null)
-                  BlocBuilder<LoPortalBloc, LoPortalState>(
-                    builder: (context, state) {
-                      final vehicles =
-                          state.vehiclesByAssignment[assignmentId] ?? const [];
-                      final nominations =
-                          state.nominationsByAssignment[assignmentId] ??
-                              const [];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Vehicles',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          if (vehicles.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Text('No vehicles assigned.'),
-                            )
-                          else
-                            ...vehicles.map(
-                              (v) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.directions_car_outlined),
-                                title: Text(
-                                  '${v['vehicleType'] ?? 'Vehicle'} · ${v['vehicleNumber'] ?? ''}',
-                                ),
-                                subtitle: Text(
-                                  [
-                                    if (v['driverName'] != null)
-                                      'Driver: ${v['driverName']}',
-                                    if (v['driverContact'] != null)
-                                      v['driverContact'].toString(),
-                                  ].join(' · '),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Nominations',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          if (nominations.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Text('No event nominations.'),
-                            )
-                          else
-                            ...nominations.map(
-                              (n) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading:
-                                    const Icon(Icons.event_available_outlined),
-                                title: Text(n['eventName']?.toString() ?? 'Event'),
-                                subtitle: Text(
-                                  [
-                                    n['eventDate'],
-                                    n['eventTime'],
-                                    n['venue'],
-                                  ]
-                                      .where(
-                                        (e) =>
-                                            e != null &&
-                                            e.toString().trim().isNotEmpty,
-                                      )
-                                      .join(' · '),
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-              ],
-            ),
-          ),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+          value: bloc,
+          child: _DelegateDetailPage(delegate: d),
         ),
       ),
     );
   }
 
-  Widget _kv(String k, String? v) {
-    if (v == null || v.trim().isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          Expanded(child: Text(v)),
-        ],
+  String _foreignDomesticLabel(String? type) {
+    final t = (type ?? '').toUpperCase();
+    if (t.contains('FOREIGN') || t.contains('INTL') || t.contains('INTERNATIONAL')) {
+      return 'Foreign';
+    }
+    if (t.contains('DOMESTIC') || t.contains('INDIA') || t.contains('NATIONAL')) {
+      return 'Domestic';
+    }
+    return t.isEmpty ? 'Delegate' : type!;
+  }
+}
+
+class _DelegateDetailPage extends StatelessWidget {
+  const _DelegateDetailPage({required this.delegate});
+  final MyLoAssignmentDto delegate;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = delegate;
+    final assignmentId = d.assignmentId;
+    return Scaffold(
+      appBar: AppBar(title: Text(d.fullName ?? 'Delegate')),
+      body: BlocBuilder<LoPortalBloc, LoPortalState>(
+        builder: (context, state) {
+          final live = () {
+            if (assignmentId == null) return d;
+            for (final e in state.delegates) {
+              if (e.assignmentId == assignmentId) return e;
+            }
+            return d;
+          }();
+          final arrivalConnecting = assignmentId == null
+              ? const <ConnectingFlightDraft>[]
+              : state.arrivalConnectingByAssignment[assignmentId] ?? const [];
+          final departureConnecting = assignmentId == null
+              ? const <ConnectingFlightDraft>[]
+              : state.departureConnectingByAssignment[assignmentId] ?? const [];
+          final vehicles = assignmentId == null
+              ? const <Map<String, dynamic>>[]
+              : state.vehiclesByAssignment[assignmentId] ?? const [];
+          final nominations = assignmentId == null
+              ? const <Map<String, dynamic>>[]
+              : state.nominationsByAssignment[assignmentId] ?? const [];
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                live.fullName ?? '',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              _detailKv('Designation', live.designation),
+              _detailKv('Organisation', live.organisation),
+              _detailKv('Ministry', live.ministry),
+              _detailKv('Gender', live.gender),
+              _detailKv('Protocol', live.protocolEquiv),
+              _detailKv('VIP category', live.vipCategory),
+              _detailKv('Country', live.countryName),
+              _detailLinkKv(
+                context,
+                'Email',
+                live.email,
+                () => _launchUri(Uri(
+                  scheme: 'mailto',
+                  path: live.email,
+                )),
+              ),
+              _detailLinkKv(
+                context,
+                'Mobile',
+                live.mobileNumber,
+                () => _launchUri(Uri(
+                  scheme: 'tel',
+                  path: live.mobileNumber,
+                )),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Accommodation & day schedules appear here when CAP returns those fields on the assignment payload.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              if (live.family.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('Family',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                ...live.family.map(
+                  (f) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(f.fullName ?? ''),
+                    subtitle: Text(
+                      [f.relation, f.gender]
+                          .whereType<String>()
+                          .where((e) => e.isNotEmpty)
+                          .join(' · '),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Text('Transport',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              if (vehicles.isEmpty)
+                const Text('No vehicles assigned.')
+              else
+                ...vehicles.map(
+                  (v) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.directions_car_outlined),
+                    title: Text(
+                      '${v['vehicleType'] ?? 'Vehicle'} · ${v['vehicleNumber'] ?? ''}',
+                    ),
+                    subtitle: Text(
+                      [
+                        if (v['driverName'] != null)
+                          'Driver: ${v['driverName']}',
+                        if (v['driverContact'] != null)
+                          v['driverContact'].toString(),
+                      ].join(' · '),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              const Text('Event nominations',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              if (nominations.isEmpty)
+                const Text('No event nominations.')
+              else
+                ...nominations.map(
+                  (n) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event_available_outlined),
+                    title: Text(n['eventName']?.toString() ?? 'Event'),
+                    subtitle: Text(
+                      [n['eventDate'], n['eventTime'], n['venue']]
+                          .where((e) =>
+                              e != null && e.toString().trim().isNotEmpty)
+                          .join(' · '),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              const Text('Travel',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text(
+                'Arrival: ${live.arrivalFlight ?? '—'} · ${live.arrivalDate ?? ''} ${live.arrivalTime ?? ''}',
+              ),
+              Text(
+                'Departure: ${live.departureFlight ?? '—'} · ${live.departureDate ?? ''} ${live.departureTime ?? ''}',
+              ),
+              if (arrivalConnecting.isNotEmpty)
+                Text(
+                  'Arrival connecting: ${arrivalConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
+                ),
+              if (departureConnecting.isNotEmpty)
+                Text(
+                  'Departure connecting: ${departureConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
+                ),
+              const SizedBox(height: 8),
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  _TravelTab().openEditor(
+                    context,
+                    live,
+                    arrivalConnecting,
+                    departureConnecting,
+                  );
+                },
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Update travel details'),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+}
+
+Widget _detailKv(String k, String? v) {
+  if (v == null || v.trim().isEmpty) return const SizedBox.shrink();
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        Expanded(child: Text(v)),
+      ],
+    ),
+  );
+}
+
+Widget _detailLinkKv(
+  BuildContext context,
+  String k,
+  String? v,
+  VoidCallback onTap,
+) {
+  if (v == null || v.trim().isEmpty) return const SizedBox.shrink();
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        Expanded(
+          child: InkWell(
+            onTap: onTap,
+            child: Text(
+              v,
+              style: TextStyle(
+                color: AppTheme.activeAccent,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _launchUri(Uri uri) async {
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
   }
 }
 
@@ -377,22 +614,41 @@ class _TasksTab extends StatelessWidget {
           grouped.putIfAbsent(key, () => []).add(t);
         }
         final keys = grouped.keys.toList();
-        return StaggeredList(
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 24),
           itemCount: keys.length,
           itemBuilder: (context, i) {
             final delegate = keys[i];
             final tasks = grouped[delegate]!;
+            final total = tasks.length;
+            final pending = tasks
+                .where((t) =>
+                    (t.statusCode ?? '').toUpperCase().contains('PEND') ||
+                    (t.statusName ?? '').toUpperCase().contains('PEND'))
+                .length;
+            final inProgress = tasks
+                .where((t) =>
+                    (t.statusCode ?? '').toUpperCase().contains('PROGRESS') ||
+                    (t.statusName ?? '').toUpperCase().contains('PROGRESS'))
+                .length;
+            final completed = tasks
+                .where((t) =>
+                    (t.statusCode ?? '').toUpperCase().contains('COMPLETE') ||
+                    (t.statusName ?? '').toUpperCase().contains('COMPLETE'))
+                .length;
             return AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    delegate,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  ...tasks.map((t) => _TaskTile(task: t)),
-                ],
+              child: ExpansionTile(
+                initiallyExpanded: i == 0,
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(
+                  delegate,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  'Total $total · Pending $pending · In progress $inProgress · Done $completed',
+                ),
+                children: tasks.map((t) => _TaskTile(task: t)).toList(),
               ),
             );
           },
@@ -405,6 +661,58 @@ class _TasksTab extends StatelessWidget {
 class _TaskTile extends StatelessWidget {
   const _TaskTile({required this.task});
   final LoTaskDto task;
+
+  Future<void> _updateStatus(BuildContext context) async {
+    if (task.id == null) return;
+    var status = task.statusCode ?? 'PENDING';
+    final remarks = TextEditingController();
+    final ok = await showAppFormSheet(
+      context: context,
+      title: 'Update status',
+      builder: (ctx, setLocal) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: status,
+            decoration: const InputDecoration(labelText: 'Status'),
+            items: const [
+              DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
+              DropdownMenuItem(
+                value: 'IN_PROGRESS',
+                child: Text('In Progress'),
+              ),
+              DropdownMenuItem(
+                value: 'COMPLETED',
+                child: Text('Completed'),
+              ),
+            ],
+            onChanged: (v) {
+              if (v != null) setLocal(() => status = v);
+            },
+          ),
+          TextField(
+            controller: remarks,
+            decoration: const InputDecoration(
+              labelText: 'Remarks (optional)',
+            ),
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) {
+      remarks.dispose();
+      return;
+    }
+    context.read<LoPortalBloc>().add(
+          LoPortalTaskStatusUpdated(
+            taskId: task.id!,
+            statusCode: status,
+            remarks: remarks.text.trim().isEmpty ? null : remarks.text.trim(),
+          ),
+        );
+    remarks.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -419,23 +727,10 @@ class _TaskTile extends StatelessWidget {
           task.locationVenue,
         ].where((e) => e != null && e.toString().isNotEmpty).join(' · '),
       ),
-      trailing: PopupMenuButton<String>(
-        initialValue: task.statusCode,
-        onSelected: (code) {
-          if (task.id == null) return;
-          context.read<LoPortalBloc>().add(
-                LoPortalTaskStatusUpdated(
-                  taskId: task.id!,
-                  statusCode: code,
-                ),
-              );
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'PENDING', child: Text('Pending')),
-          PopupMenuItem(value: 'IN_PROGRESS', child: Text('In Progress')),
-          PopupMenuItem(value: 'COMPLETED', child: Text('Completed')),
-        ],
-        child: StatusChip(label: task.statusName ?? task.statusCode ?? '—'),
+      trailing: IconButton(
+        tooltip: 'Update status',
+        onPressed: () => _updateStatus(context),
+        icon: AppStatusChip(label: task.statusName ?? task.statusCode ?? '—'),
       ),
     );
   }
@@ -443,6 +738,14 @@ class _TaskTile extends StatelessWidget {
 
 class _TravelTab extends StatelessWidget {
   const _TravelTab();
+
+  Future<void> openEditor(
+    BuildContext context,
+    MyLoAssignmentDto d,
+    List<ConnectingFlightDraft> seededArrival,
+    List<ConnectingFlightDraft> seededDeparture,
+  ) =>
+      _editTravel(context, d, seededArrival, seededDeparture);
 
   @override
   Widget build(BuildContext context) {
@@ -478,24 +781,10 @@ class _TravelTab extends StatelessWidget {
                   Text(
                     'Departure: ${d.departureFlight ?? '—'} · ${d.departureDate ?? ''} ${d.departureTime ?? ''}',
                   ),
-                  if (arrivalConnecting.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Arrival connecting: ${arrivalConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
-                      style: TextStyle(color: AppTheme.activeAccent),
-                    ),
-                  ],
-                  if (departureConnecting.isNotEmpty) ...[
-                    Text(
-                      'Departure connecting: ${departureConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
-                      style: TextStyle(color: AppTheme.activeAccent),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
-                      onPressed: () => _editTravel(
+                      onPressed: () => openEditor(
                         context,
                         d,
                         arrivalConnecting,
@@ -774,17 +1063,33 @@ class _TravelTab extends StatelessWidget {
         )
         .toList();
 
-    final saved = await showDialog<bool>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) {
-          return AlertDialog(
-            title: Text('Travel — ${d.fullName ?? ''}'),
-            content: SingleChildScrollView(
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 8,
+              bottom: MediaQuery.viewInsetsOf(ctx).bottom + 16,
+            ),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Text(
+                    'Travel — ${d.fullName ?? ''}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: arrivalFlight,
                     decoration:
@@ -846,19 +1151,23 @@ class _TravelTab extends StatelessWidget {
                     setLocal: setLocal,
                     context: ctx,
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Save'),
-              ),
-            ],
           );
         },
       ),
@@ -948,6 +1257,23 @@ class _AlertsTab extends StatelessWidget {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const NotificationsInboxScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.inbox_outlined),
+                  label: const Text('Open CAP notification inbox'),
+                ),
+              ),
+            ),
             Expanded(
               child: state.alerts.isEmpty
                   ? AppEmptyState(
@@ -993,9 +1319,10 @@ class _AlertsTab extends StatelessWidget {
   }
 }
 
-class _ProfileTab extends StatefulWidget {
-  const _ProfileTab({required this.email});
+class _ProfilePage extends StatefulWidget {
+  const _ProfilePage({required this.email, this.readOnly = false});
   final String email;
+  final bool readOnly;
 
   static int calcAge(DateTime dob) {
     final now = DateTime.now();
@@ -1008,10 +1335,10 @@ class _ProfileTab extends StatefulWidget {
   }
 
   @override
-  State<_ProfileTab> createState() => _ProfileTabState();
+  State<_ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfileTabState extends State<_ProfileTab> {
+class _ProfilePageState extends State<_ProfilePage> {
   static const _salutations = ['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'];
   static const _genders = ['Male', 'Female', 'Other', 'Prefer not to say'];
   static const _languageOptions = [
@@ -1044,8 +1371,10 @@ class _ProfileTabState extends State<_ProfileTab> {
   String? _whatsappSameAs;
   bool _hasPrevLoExp = false;
   bool _seeded = false;
+  int _step = 0; // 0 Personal, 1 Documents, 2 Prior Experience
 
   final Map<LoUploadKind, String> _uploadNames = {};
+  Uint8List? _pendingPhotoBytes;
 
   @override
   void dispose() {
@@ -1098,12 +1427,16 @@ class _ProfileTabState extends State<_ProfileTab> {
   }
 
   void _syncWhatsappFromSource() {
+    // Kept for future WhatsApp mirror UI.
     if (_whatsappSameAs == 'official') {
       _whatsapp.text = _officialContact.text;
     } else if (_whatsappSameAs == 'personal') {
       _whatsapp.text = _personalContact.text;
     }
   }
+
+  // ignore: unused_element
+  void _applyWhatsappMirror() => _syncWhatsappFromSource();
 
   String _dobLabel() {
     if (_dob == null) return 'Select date of birth';
@@ -1126,8 +1459,15 @@ class _ProfileTabState extends State<_ProfileTab> {
   }
 
   Future<void> _pickUpload(LoUploadKind kind, String label) async {
-    final file = await ImagePickService.pickImage();
+    final file = await ImagePickService.pickImageWithChooser(context);
     if (file == null || !mounted) return;
+    // Defer API upload until final Submit (wizard / edit).
+    setState(() {
+      _uploadNames[kind] = file.filename;
+      if (kind == LoUploadKind.photo) {
+        _pendingPhotoBytes = file.bytes;
+      }
+    });
     context.read<LoPortalBloc>().add(
           LoPortalUploadRequested(
             kind: kind,
@@ -1135,29 +1475,19 @@ class _ProfileTabState extends State<_ProfileTab> {
             filename: file.filename,
           ),
         );
-    setState(() => _uploadNames[kind] = file.filename);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text('$label: ${file.filename}'),
-      ),
-    );
   }
 
   Widget _uploadRow(LoUploadKind kind, String label) {
-    final name = _uploadNames[kind];
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: name == null ? null : Text(name),
-      trailing: name != null
-          ? StatusChip(label: name)
-          : TextButton.icon(
-              onPressed: () => _pickUpload(kind, label),
-              icon: const Icon(Icons.upload_file_outlined),
-              label: const Text('Upload'),
-            ),
-      onTap: name == null ? null : () => _pickUpload(kind, label),
+    return AppImageThumbRow(
+      label: label,
+      bytes: kind == LoUploadKind.photo ? _pendingPhotoBytes : null,
+      onPick: () => _pickUpload(kind, label),
+      onClear: () => setState(() {
+        _uploadNames.remove(kind);
+        if (kind == LoUploadKind.photo) {
+          _pendingPhotoBytes = null;
+        }
+      }),
     );
   }
 
@@ -1261,13 +1591,15 @@ class _ProfileTabState extends State<_ProfileTab> {
     return BlocConsumer<LoPortalBloc, LoPortalState>(
       listener: (context, state) {
         if (state.status == LoPortalStatus.ready &&
-            state.profile?.profileComplete == true) {
+            state.profile?.profileComplete == true &&
+            !widget.readOnly) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               behavior: SnackBarBehavior.floating,
               content: Text('Profile saved'),
             ),
           );
+          Navigator.of(context).maybePop();
         }
         if (state.status == LoPortalStatus.failure &&
             state.errorMessage != null) {
@@ -1282,321 +1614,371 @@ class _ProfileTabState extends State<_ProfileTab> {
       builder: (context, state) {
         _seed(state.profile);
         final p = state.profile;
-        final age = _dob == null ? null : _ProfileTab.calcAge(_dob!);
+        final age = _dob == null ? null : _ProfilePage.calcAge(_dob!);
 
-        return ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.email),
-                  Text('Org: ${p?.orgName ?? '—'} (${p?.orgTypeName ?? '—'})'),
-                  const SizedBox(height: 8),
-                  StatusChip(label: p?.profileStatus ?? 'DRAFT'),
-                  if (p?.currentPassId != null) ...[
-                    const SizedBox(height: 8),
-                    FilledButton.tonalIcon(
-                      onPressed: () => context.read<LoPortalBloc>().add(
-                            LoPortalBadgeDownloadRequested(
-                              passId: p!.currentPassId!,
-                              filename:
-                                  'badge-${p.currentPassNumber ?? p.currentPassId}.pdf',
-                            ),
-                          ),
-                      icon: const Icon(Icons.badge_outlined),
-                      label: const Text('Download badge'),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('salutation-$_salutation'),
-                    initialValue: _salutation,
-                    decoration: const InputDecoration(labelText: 'Salutation'),
-                    items: _salutations
-                        .map(
-                          (s) => DropdownMenuItem(value: s, child: Text(s)),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _salutation = v);
-                    },
-                  ),
-                  TextField(
-                    controller: _first,
-                    decoration: const InputDecoration(labelText: 'First name'),
-                  ),
-                  TextField(
-                    controller: _last,
-                    decoration: const InputDecoration(labelText: 'Last name'),
-                  ),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('gender-$_gender'),
-                    initialValue: _gender,
-                    decoration: const InputDecoration(labelText: 'Gender'),
-                    items: _genders
-                        .map(
-                          (g) => DropdownMenuItem(value: g, child: Text(g)),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _gender = v);
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Date of birth'),
-                    subtitle: Text(
-                      age == null ? _dobLabel() : '${_dobLabel()} · Age $age',
-                    ),
-                    trailing: const Icon(Icons.calendar_today_outlined),
-                    onTap: _pickDob,
-                  ),
-                  TextField(
-                    controller: _rank,
-                    decoration: const InputDecoration(labelText: 'Rank'),
-                  ),
-                  TextField(
-                    controller: _designation,
-                    decoration:
-                        const InputDecoration(labelText: 'Designation'),
-                  ),
-                  TextField(
-                    controller: _orgId,
-                    decoration: const InputDecoration(
-                      labelText: 'Organisation / Service ID',
-                    ),
-                  ),
-                  TextField(
-                    controller: _aadhaar,
-                    decoration:
-                        const InputDecoration(labelText: 'Aadhaar number'),
-                  ),
-                  TextField(
-                    controller: _officialEmail,
-                    decoration:
-                        const InputDecoration(labelText: 'Official email'),
-                  ),
-                  TextField(
-                    controller: _personalEmail,
-                    decoration:
-                        const InputDecoration(labelText: 'Personal email'),
-                  ),
-                  TextField(
-                    controller: _officialContact,
-                    decoration:
-                        const InputDecoration(labelText: 'Official contact'),
-                    onChanged: (_) {
-                      if (_whatsappSameAs == 'official') {
-                        _whatsapp.text = _officialContact.text;
-                      }
-                    },
-                  ),
-                  TextField(
-                    controller: _personalContact,
-                    decoration:
-                        const InputDecoration(labelText: 'Personal contact'),
-                    onChanged: (_) {
-                      if (_whatsappSameAs == 'personal') {
-                        _whatsapp.text = _personalContact.text;
-                      }
-                    },
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8, bottom: 4),
-                    child: Text(
-                      'WhatsApp same as',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  RadioListTile<String?>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Official contact'),
-                    value: 'official',
-                    groupValue: _whatsappSameAs,
-                    onChanged: (v) {
-                      setState(() {
-                        _whatsappSameAs = v;
-                        _syncWhatsappFromSource();
-                      });
-                    },
-                  ),
-                  RadioListTile<String?>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Personal contact'),
-                    value: 'personal',
-                    groupValue: _whatsappSameAs,
-                    onChanged: (v) {
-                      setState(() {
-                        _whatsappSameAs = v;
-                        _syncWhatsappFromSource();
-                      });
-                    },
-                  ),
-                  if (_whatsappSameAs != null)
-                    TextButton(
-                      onPressed: () {
-                        setState(() => _whatsappSameAs = null);
-                      },
-                      child: const Text('Enter WhatsApp manually'),
-                    ),
-                  TextField(
-                    controller: _whatsapp,
-                    enabled: _whatsappSameAs == null,
-                    decoration:
-                        const InputDecoration(labelText: 'WhatsApp number'),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12, bottom: 4),
-                    child: Text(
-                      'Previous LO experience?',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  RadioListTile<bool>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Yes'),
-                    value: true,
-                    groupValue: _hasPrevLoExp,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _hasPrevLoExp = v);
-                    },
-                  ),
-                  RadioListTile<bool>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('No'),
-                    value: false,
-                    groupValue: _hasPrevLoExp,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _hasPrevLoExp = v);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Documents',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  _uploadRow(LoUploadKind.photo, 'Photo'),
-                  _uploadRow(LoUploadKind.signature, 'Signature'),
-                  _uploadRow(LoUploadKind.orgBadgeFront, 'Org badge (front)'),
-                  _uploadRow(LoUploadKind.orgBadgeBack, 'Org badge (back)'),
-                  _uploadRow(LoUploadKind.aadhaarFront, 'Aadhaar (front)'),
-                  _uploadRow(LoUploadKind.aadhaarBack, 'Aadhaar (back)'),
-                ],
-              ),
-            ),
-            if (_hasPrevLoExp)
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Experience',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _addExperience,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add'),
-                        ),
-                      ],
-                    ),
-                    if (state.experiences.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text('No previous LO experience added.'),
-                      )
-                    else
-                      ...state.experiences.map(
-                        (e) => ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(e.eventName ?? 'Event'),
-                          subtitle: Text(
-                            [
-                              if (e.year != null) '${e.year}',
-                              e.roleResponsibilities,
-                              e.delegateDetails,
-                            ]
-                                .whereType<String>()
-                                .where((s) => s.isNotEmpty)
-                                .join(' · '),
-                          ),
-                          trailing: IconButton(
-                            tooltip: 'Delete',
-                            onPressed: e.id == null
-                                ? null
-                                : () => context.read<LoPortalBloc>().add(
-                                      LoPortalExperienceDeleted(e.id!),
-                                    ),
-                            icon: const Icon(Icons.delete_outline),
+        if (widget.readOnly) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('My Profile'),
+              actions: [
+                IconButton(
+                  tooltip: 'Edit',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        fullscreenDialog: true,
+                        builder: (_) => BlocProvider.value(
+                          value: context.read<LoPortalBloc>(),
+                          child: _ProfilePage(
+                            email: widget.email,
+                            readOnly: false,
                           ),
                         ),
                       ),
-                  ],
+                    );
+                  },
                 ),
-              ),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Languages',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+              ],
+            ),
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p?.fullName ?? '${_first.text} ${_last.text}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 18)),
+                      Text(widget.email),
+                      Text('Org: ${p?.orgName ?? '—'}'),
+                      const SizedBox(height: 8),
+                      AppStatusChip(label: p?.profileStatus ?? 'SUBMITTED'),
+                      if (p?.currentPassId != null &&
+                          p!.currentPassId!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        if (p.currentPassNumber != null)
+                          Text('Badge: ${p.currentPassNumber}'),
+                        const SizedBox(height: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: () => context.read<LoPortalBloc>().add(
+                                LoPortalBadgeDownloadRequested(
+                                  passId: p.currentPassId!,
+                                  filename:
+                                      'badge-${p.currentPassNumber ?? p.currentPassId}.pdf',
+                                ),
+                              ),
+                          icon: const Icon(Icons.badge_outlined),
+                          label: const Text('Download badge'),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _languageOptions.map((lang) {
-                      final selected = state.languages.contains(lang);
-                      return FilterChip(
-                        label: Text(lang),
-                        selected: selected,
-                        onSelected: (on) {
-                          final next = List<String>.from(state.languages);
-                          if (on) {
-                            if (!next.contains(lang)) next.add(lang);
-                          } else {
-                            next.remove(lang);
-                          }
-                          _saveLanguages(next);
-                        },
-                      );
-                    }).toList(),
+                ),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Personal',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      _detailKv('Designation', p?.designation ?? _designation.text),
+                      _detailKv('Rank', p?.rank ?? _rank.text),
+                      _detailKv('Gender', p?.genderName ?? _gender),
+                      _detailKv('DOB', p?.dateOfBirth ?? _dobLabel()),
+                    ],
+                  ),
+                ),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Contact',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      _detailKv('Official email', p?.officialEmail),
+                      _detailKv('Personal email', p?.personalEmail),
+                      _detailKv('Official contact', p?.officialContact),
+                      _detailKv('Personal contact', p?.personalContact),
+                      _detailKv('WhatsApp', p?.whatsappNumber),
+                    ],
+                  ),
+                ),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Languages',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      Wrap(
+                        spacing: 8,
+                        children: state.languages
+                            .map((l) => AppStatusChip(label: l))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Documents',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: _uploadNames.entries
+                            .map((e) => Chip(label: Text(e.value)))
+                            .toList(),
+                      ),
+                      if (_uploadNames.isEmpty)
+                        const Text('No documents uploaded yet.'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        Widget stepBody;
+        if (_step == 0) {
+          stepBody = AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<String>(
+                  key: ValueKey('salutation-$_salutation'),
+                  initialValue: _salutation,
+                  decoration: const InputDecoration(labelText: 'Salutation'),
+                  items: _salutations
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _salutation = v);
+                  },
+                ),
+                TextField(
+                  controller: _first,
+                  decoration: const InputDecoration(labelText: 'First name'),
+                ),
+                TextField(
+                  controller: _last,
+                  decoration: const InputDecoration(labelText: 'Last name'),
+                ),
+                DropdownButtonFormField<String>(
+                  key: ValueKey('gender-$_gender'),
+                  initialValue: _gender,
+                  decoration: const InputDecoration(labelText: 'Gender'),
+                  items: _genders
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _gender = v);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Date of birth'),
+                  subtitle: Text(
+                    age == null ? _dobLabel() : '${_dobLabel()} · Age $age',
+                  ),
+                  trailing: const Icon(Icons.calendar_today_outlined),
+                  onTap: _pickDob,
+                ),
+                TextField(
+                  controller: _rank,
+                  decoration: const InputDecoration(labelText: 'Rank'),
+                ),
+                TextField(
+                  controller: _designation,
+                  decoration: const InputDecoration(labelText: 'Designation'),
+                ),
+                TextField(
+                  controller: _orgId,
+                  decoration: const InputDecoration(
+                    labelText: 'Organisation / Service ID',
+                  ),
+                ),
+                TextField(
+                  controller: _aadhaar,
+                  decoration: const InputDecoration(labelText: 'Aadhaar number'),
+                ),
+                TextField(
+                  controller: _officialEmail,
+                  decoration:
+                      const InputDecoration(labelText: 'Official email'),
+                ),
+                TextField(
+                  controller: _personalEmail,
+                  decoration:
+                      const InputDecoration(labelText: 'Personal email'),
+                ),
+                TextField(
+                  controller: _officialContact,
+                  decoration:
+                      const InputDecoration(labelText: 'Official contact'),
+                ),
+                TextField(
+                  controller: _personalContact,
+                  decoration:
+                      const InputDecoration(labelText: 'Personal contact'),
+                ),
+                TextField(
+                  controller: _whatsapp,
+                  decoration:
+                      const InputDecoration(labelText: 'WhatsApp number'),
+                ),
+                const SizedBox(height: 8),
+                const Text('Languages',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                Wrap(
+                  spacing: 8,
+                  children: _languageOptions.map((lang) {
+                    final selected = state.languages.contains(lang);
+                    return FilterChip(
+                      label: Text(lang),
+                      selected: selected,
+                      onSelected: (on) {
+                        final next = List<String>.from(state.languages);
+                        if (on) {
+                          if (!next.contains(lang)) next.add(lang);
+                        } else {
+                          next.remove(lang);
+                        }
+                        _saveLanguages(next);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          );
+        } else if (_step == 1) {
+          stepBody = AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Documents',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                _uploadRow(LoUploadKind.photo, 'Photo'),
+                const SizedBox(height: 8),
+                _uploadRow(LoUploadKind.signature, 'Signature'),
+                const SizedBox(height: 8),
+                _uploadRow(LoUploadKind.orgBadgeFront, 'Org badge (front)'),
+                const SizedBox(height: 8),
+                _uploadRow(LoUploadKind.orgBadgeBack, 'Org badge (back)'),
+                const SizedBox(height: 8),
+                _uploadRow(LoUploadKind.aadhaarFront, 'Aadhaar (front)'),
+                const SizedBox(height: 8),
+                _uploadRow(LoUploadKind.aadhaarBack, 'Aadhaar (back)'),
+              ],
+            ),
+          );
+        } else {
+          stepBody = AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Prior LO experience',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('I have previous LO experience'),
+                  value: _hasPrevLoExp,
+                  onChanged: (v) => setState(() => _hasPrevLoExp = v),
+                ),
+                if (_hasPrevLoExp) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _addExperience,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add'),
+                    ),
+                  ),
+                  ...state.experiences.map(
+                    (e) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(e.eventName ?? 'Event'),
+                      subtitle: Text(
+                        [
+                          if (e.year != null) '${e.year}',
+                          e.roleResponsibilities,
+                        ]
+                            .whereType<String>()
+                            .where((s) => s.isNotEmpty)
+                            .join(' · '),
+                      ),
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: GradientButton(
-                label: 'Submit profile',
-                loading: state.status == LoPortalStatus.saving,
-                onPressed: () => _submit(state),
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(title: const Text('My Profile')),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(3, (i) {
+                    final active = i == _step;
+                    return Container(
+                      width: active ? 12 : 8,
+                      height: active ? 12 : 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: active
+                            ? AppTheme.activeAccent
+                            : Colors.grey.shade400,
+                      ),
+                    );
+                  }),
+                ),
               ),
-            ),
-          ],
+              Text(
+                ['Personal', 'Documents', 'Prior Experience'][_step],
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Expanded(child: ListView(children: [stepBody])),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      if (_step > 0)
+                        TextButton(
+                          onPressed: () => setState(() => _step--),
+                          child: const Text('Back'),
+                        ),
+                      const Spacer(),
+                      if (_step < 2)
+                        FilledButton(
+                          onPressed: () => setState(() => _step++),
+                          child: const Text('Next'),
+                        )
+                      else
+                        FilledButton(
+                          onPressed: state.status == LoPortalStatus.saving
+                              ? null
+                              : () => _submit(state),
+                          child: const Text('Submit'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );

@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
 import 'package:liaison_officer/core/notifications/mock_email_notifier.dart';
 import 'package:liaison_officer/features/liaison_officer/data/local/do_letter_local_store.dart';
@@ -201,6 +201,11 @@ class MockNodalLoRepository implements NodalLoRepository {
   }
 
   @override
+  Future<void> deleteOrganisation(String id) async {
+    _orgs.removeWhere((e) => e.id == id);
+  }
+
+  @override
   Future<List<EmailTemplateDto>> listEmailTemplates() async => List.of(_emails);
 
   @override
@@ -295,6 +300,114 @@ class MockNodalLoRepository implements NodalLoRepository {
   }
 
   @override
+  Future<LiaisonOfficerDto> createLiaisonOfficer(
+    Map<String, dynamic> body,
+  ) async {
+    final orgId = body['orgId']?.toString();
+    String? orgName;
+    String? orgTypeName;
+    for (final o in _orgs) {
+      if (o.id == orgId) {
+        orgName = o.orgName;
+        orgTypeName = o.orgTypeName;
+        break;
+      }
+    }
+    final first = body['firstName']?.toString() ?? '';
+    final last = body['lastName']?.toString() ?? '';
+    final item = LiaisonOfficerDto(
+      id: 'lo-${_los.length + 1}',
+      orgId: orgId,
+      orgName: orgName,
+      orgTypeName: orgTypeName,
+      salutationName: body['salutation']?.toString(),
+      firstName: first,
+      lastName: last,
+      fullName: '$first $last'.trim(),
+      rank: body['rank']?.toString(),
+      designation: body['designation']?.toString(),
+      officialEmail: body['primaryEmail']?.toString(),
+      officialContact: body['primaryMobile']?.toString(),
+      profileStatus: 'PENDING',
+      profileComplete: false,
+      isActive: true,
+      photoFileId: 'mock-photo-1',
+      signatureFileId: 'mock-sig-1',
+    );
+    _los.add(item);
+    return item;
+  }
+
+  @override
+  Future<LiaisonOfficerDto> updateLiaisonOfficer(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    final i = _los.indexWhere((e) => e.id == id);
+    if (i < 0) throw StateError('LO not found');
+    final cur = _los[i];
+    final orgId = body['orgId']?.toString() ?? cur.orgId;
+    String? orgName = cur.orgName;
+    String? orgTypeName = cur.orgTypeName;
+    for (final o in _orgs) {
+      if (o.id == orgId) {
+        orgName = o.orgName;
+        orgTypeName = o.orgTypeName;
+        break;
+      }
+    }
+    final first = body['firstName']?.toString() ?? cur.firstName ?? '';
+    final last = body['lastName']?.toString() ?? cur.lastName ?? '';
+    final item = LiaisonOfficerDto(
+      id: id,
+      personId: cur.personId,
+      orgId: orgId,
+      orgName: orgName,
+      orgTypeName: orgTypeName,
+      salutationName: body['salutation']?.toString() ?? cur.salutationName,
+      firstName: first,
+      lastName: last,
+      fullName: '$first $last'.trim(),
+      rank: body['rank']?.toString() ?? cur.rank,
+      designation: body['designation']?.toString() ?? cur.designation,
+      officialEmail: body['primaryEmail']?.toString() ?? cur.officialEmail,
+      officialContact:
+          body['primaryMobile']?.toString() ?? cur.officialContact,
+      profileStatus: cur.profileStatus,
+      profileComplete: cur.profileComplete,
+      isActive: cur.isActive,
+      photoFileId: cur.photoFileId,
+      signatureFileId: cur.signatureFileId,
+      aadhaarFrontId: cur.aadhaarFrontId,
+      aadhaarBackId: cur.aadhaarBackId,
+      orgBadgeFrontId: cur.orgBadgeFrontId,
+      orgBadgeBackId: cur.orgBadgeBackId,
+      currentPassId: cur.currentPassId,
+      currentPassNumber: cur.currentPassNumber,
+    );
+    _los[i] = item;
+    return item;
+  }
+
+  @override
+  Future<void> deleteLiaisonOfficer(String id) async {
+    _los.removeWhere((e) => e.id == id);
+  }
+
+  @override
+  Future<List<int>> fetchFileBytes(String fileId) async {
+    // Minimal 1x1 PNG
+    return const [
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00,
+      0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+      0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x05, 0xFE, 0xD4, 0xEF, 0x00, 0x00,
+      0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    ];
+  }
+
+  @override
   Future<List<LoExperienceDto>> getLoExperiences(String loId) async => [
         const LoExperienceDto(
           id: 'exp-1',
@@ -308,6 +421,31 @@ class MockNodalLoRepository implements NodalLoRepository {
   @override
   Future<List<String>> getLoLanguages(String loId) async =>
       ['English', 'Hindi', 'French'];
+
+  @override
+  Future<void> sendLoReminder(String loId) async {}
+
+  @override
+  Future<void> sendPendingLoReminders() async {}
+
+  @override
+  Future<void> setLiaisonOfficerActive(String loId, bool active) async {
+    final i = _los.indexWhere((e) => e.id == loId);
+    if (i < 0) return;
+    final cur = _los[i];
+    _los[i] = LiaisonOfficerDto(
+      id: cur.id,
+      firstName: cur.firstName,
+      lastName: cur.lastName,
+      fullName: cur.fullName,
+      orgName: cur.orgName,
+      orgTypeName: cur.orgTypeName,
+      officialEmail: cur.officialEmail,
+      profileStatus: cur.profileStatus,
+      profileComplete: cur.profileComplete,
+      isActive: active,
+    );
+  }
 
   @override
   Future<List<LoAssignmentDto>> listAssignments() async =>
@@ -343,7 +481,27 @@ class MockNodalLoRepository implements NodalLoRepository {
           'attendeeId': 'del-1',
           'personId': 'per-1',
           'fullName': 'Air Marshal Demo VIP',
+          'designation': 'Air Marshal',
           'attendeeType': 'FOREIGN_INVITEE',
+          'countryName': 'Algeria',
+          'arrivalDate': '2026-12-09',
+          'arrivalTime': '12:12',
+          'departureDate': '2026-12-25',
+          'departureTime': '12:12',
+          'familyCount': 0,
+        },
+        {
+          'attendeeId': 'del-2',
+          'personId': 'per-2',
+          'fullName': 'Dr. Murali Krishna',
+          'designation': 'RRM',
+          'attendeeType': 'FOREIGN_INVITEE',
+          'countryName': 'Algeria',
+          'arrivalDate': '2026-12-09',
+          'arrivalTime': '12:12',
+          'departureDate': '2026-12-25',
+          'departureTime': '12:12',
+          'familyCount': 0,
         },
       ];
 
@@ -392,30 +550,35 @@ class MockNodalLoRepository implements NodalLoRepository {
 
   @override
   Future<LoTaskDto> updateTask(String id, Map<String, dynamic> body) async {
-    final idx = _tasks.indexWhere((t) => t.id == id);
+    final idx = _tasks.indexWhere((e) => e.id == id);
+    if (idx < 0) throw StateError('Task not found');
+    final cur = _tasks[idx];
     final item = LoTaskDto(
       id: id,
-      loId: body['loId']?.toString() ?? _tasks[idx].loId,
-      loAssignId: body['loAssignId']?.toString() ?? _tasks[idx].loAssignId,
-      delegateName: body['delegateName']?.toString() ?? _tasks[idx].delegateName,
-      taskSource: body['taskSource']?.toString() ?? _tasks[idx].taskSource,
-      taskTitle: body['taskTitle']?.toString() ?? _tasks[idx].taskTitle,
+      loId: body['loId']?.toString() ?? cur.loId,
+      loAssignId: body['loAssignId']?.toString() ?? cur.loAssignId,
+      delegateName: body['delegateName']?.toString() ?? cur.delegateName,
+      taskSource: body['taskSource']?.toString() ?? cur.taskSource,
+      activityId: body['activityId']?.toString() ?? cur.activityId,
+      taskTitle: body['taskTitle']?.toString() ?? cur.taskTitle,
       taskDescription:
-          body['taskDescription']?.toString() ?? _tasks[idx].taskDescription,
-      scheduledDate:
-          body['scheduledDate']?.toString() ?? _tasks[idx].scheduledDate,
-      scheduledTime:
-          body['scheduledTime']?.toString() ?? _tasks[idx].scheduledTime,
-      locationVenue:
-          body['locationVenue']?.toString() ?? _tasks[idx].locationVenue,
-      remarks: body['remarks']?.toString() ?? _tasks[idx].remarks,
-      statusCode: _tasks[idx].statusCode,
-      statusName: _tasks[idx].statusName,
-      loFullName: _tasks[idx].loFullName,
+          body['taskDescription']?.toString() ?? cur.taskDescription,
+      scheduledDate: body['scheduledDate']?.toString() ?? cur.scheduledDate,
+      scheduledTime: body['scheduledTime']?.toString() ?? cur.scheduledTime,
+      locationVenue: body['locationVenue']?.toString() ?? cur.locationVenue,
+      remarks: body['remarks']?.toString() ?? cur.remarks,
+      statusCode: cur.statusCode,
+      statusName: cur.statusName,
     );
     _tasks[idx] = item;
     return item;
   }
+
+  @override
+  Future<void> deleteTask(String id) async {
+    _tasks.removeWhere((e) => e.id == id);
+  }
+
 
   @override
   Future<LoTaskDto> updateTaskStatus({
@@ -613,6 +776,8 @@ class MockNodalLoRepository implements NodalLoRepository {
       fullName: 'Committee Sub Nodal',
       email: 'subnodal@aeroindia.gov.in',
       mobile: '+919888877766',
+      designation: 'Deputy Nodal',
+      isActive: true,
     ),
   ];
 
@@ -627,6 +792,9 @@ class MockNodalLoRepository implements NodalLoRepository {
       fullName: body['fullName']?.toString() ?? '',
       email: body['email']?.toString() ?? '',
       mobile: body['mobile']?.toString(),
+      designation: body['designation']?.toString(),
+      isActive: body['isActive'] as bool? ?? true,
+      canApprove: body['canApprove'] as bool?,
     );
     _subNodals.add(item);
     return item;
@@ -637,13 +805,19 @@ class MockNodalLoRepository implements NodalLoRepository {
     String id,
     Map<String, dynamic> body,
   ) async {
+    final i = _subNodals.indexWhere((e) => e.id == id);
+    final prev = i >= 0 ? _subNodals[i] : null;
     final item = OrgSubNodalOfficerDto(
       id: id,
-      fullName: body['fullName']?.toString() ?? '',
-      email: body['email']?.toString() ?? '',
-      mobile: body['mobile']?.toString(),
+      orgId: prev?.orgId,
+      orgName: prev?.orgName,
+      fullName: body['fullName']?.toString() ?? prev?.fullName ?? '',
+      email: body['email']?.toString() ?? prev?.email ?? '',
+      mobile: body['mobile']?.toString() ?? prev?.mobile,
+      designation: body['designation']?.toString() ?? prev?.designation,
+      isActive: body['isActive'] as bool? ?? prev?.isActive,
+      canApprove: body['canApprove'] as bool? ?? prev?.canApprove,
     );
-    final i = _subNodals.indexWhere((e) => e.id == id);
     if (i >= 0) _subNodals[i] = item;
     return item;
   }

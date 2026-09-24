@@ -15,6 +15,10 @@ class AeroColors {
   static const navy = Color(0xFF0C1A3A); // IAF deep navy
   static const navyMid = Color(0xFF16295C); // card fills
   static const navyLight = Color(0xFF1E3A7A); // hover tints
+  static const royalBlue = Color(0xFF0055B8);
+
+  static const saffron = Color(0xFFFF9933);
+  static const indiaGreen = Color(0xFF128807);
 
   static const gold = Color(0xFFC9A84C); // medal gold
   static const goldLight = Color(0xFFE2C97A); // highlight
@@ -72,14 +76,15 @@ class AeroTheme {
   static ThemeData light() => ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AeroColors.navy,
-          primary: AeroColors.navy,
-          secondary: AeroColors.gold,
+          seedColor: AeroColors.royalBlue,
+          primary: AeroColors.royalBlue,
+          secondary: AeroColors.saffron,
+          tertiary: AeroColors.indiaGreen,
           surface: AeroColors.offWhite,
           onPrimary: Colors.white,
           onSecondary: AeroColors.navy,
         ),
-        primaryColor: AeroColors.navy,
+        primaryColor: AeroColors.royalBlue,
         scaffoldBackgroundColor: AeroColors.offWhite,
         cardTheme: CardThemeData(
           elevation: 3,

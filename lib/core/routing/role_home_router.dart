@@ -34,17 +34,25 @@ class RoleHomeRouter extends StatelessWidget {
           child: OrgRepShell(email: email, roleLabel: appRole.label),
         );
       case AppRole.nodalOfficer:
+      case AppRole.subNodalOfficer:
         return BlocProvider(
           create: (_) => NodalLoBloc(repository: deps.nodalLoRepository)
             ..add(NodalLoLoadRequested()),
-          child: NodalOfficerShell(email: email, roleLabel: appRole.label),
+          child: NodalOfficerShell(
+            email: email,
+            roleLabel: appRole.label,
+            isSubNodal: appRole == AppRole.subNodalOfficer,
+          ),
         );
       case AppRole.liaisonOfficer:
       case AppRole.unknown:
         return BlocProvider(
           create: (_) => LoPortalBloc(repository: deps.loPortalRepository)
             ..add(LoPortalLoadRequested()),
-          child: LoPortalShell(email: email, roleLabel: AppRole.liaisonOfficer.label),
+          child: LoPortalShell(
+            email: email,
+            roleLabel: AppRole.liaisonOfficer.label,
+          ),
         );
     }
   }
