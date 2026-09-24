@@ -49,3 +49,7 @@ app.*.map.json
 /android/bel-truststore.jks
 /android/local.properties
 .cursor/
+
+# Accidental npm tooling (Flutter project — not used)
+node_modules/
+
