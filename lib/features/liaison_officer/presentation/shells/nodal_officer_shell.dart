@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/core/widgets/role_shell_drawer.dart';
@@ -154,7 +155,7 @@ class _NodalOfficerShellState extends State<NodalOfficerShell> {
                   context.read<NodalLoBloc>().add(NodalLoLoadRequested()),
             );
           }
-          return IndexedStack(
+          return AppTabFade(
             index: _index,
             children: [
               _NodalHomeTab(

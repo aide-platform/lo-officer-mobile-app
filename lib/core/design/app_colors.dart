@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
-/// Neon-mapped color API compatible with the Aero LO module.
-/// LO accent (`roleLO`) uses purple neon instead of emerald.
+/// Color API compatible with the Aero LO module.
+/// Prefer [AppTheme] / [Theme.of] `colorScheme` for new UI.
+/// Legacy purple neon values are mapped to navy / royal blue.
 class AppColors {
   AppColors._();
 
   static const Color primary = AppTheme.purpleAccent;
-  static const Color primaryDark = Color(0xFF49117C);
+  static const Color primaryDark = AppTheme.navy;
+  static const Color navyMid = AppTheme.navyMid;
   static const Color primaryLight = AppTheme.blueAccent;
 
   static const Color teal = AppTheme.greenAccent;
@@ -17,9 +19,10 @@ class AppColors {
   static const Color goldLight = Color(0xFFE8C96A);
   static const Color goldDark = Color(0xFFB8860B);
 
-  static const Color gradientStart = AppTheme.purpleAccent;
-  static const Color gradientMid = Color(0xFF8E2DE2);
-  static const Color gradientEnd = Color(0xFFC77DFF);
+  static const Color gradientStart = AppTheme.royalBlue;
+  /// Deprecated purple neon — mapped to brand blue.
+  static const Color gradientMid = AppTheme.royalBlue;
+  static const Color gradientEnd = AppTheme.blueAccent;
 
   static const Color gradientTealStart = Color(0xFF094E54);
   static const Color gradientTealEnd = Color(0xFF00A896);
@@ -59,8 +62,7 @@ class AppColors {
   static const Color successAccent = success;
   static const Color dangerAccent = danger;
 
-  static const Color navy = primary;
-  static const Color navyMid = Color(0xFF2A1458);
+  static const Color navy = AppTheme.navy;
   static const Color headerGradient = gradientStart;
   static const Color sky = teal;
   static const Color cockpit = tealLight;

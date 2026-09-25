@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
-import 'package:liaison_officer/core/design/aero_brand_widgets.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
@@ -187,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen>
                 SafeAssetImage(
                   assetPath: AppAssetManager.mainBg3,
                   fit: BoxFit.cover,
-                  fallback: const ColoredBox(color: AeroColors.navy),
+                  fallback: const ColoredBox(color: AppTheme.navy),
                 ),
                 DecoratedBox(
                   decoration: BoxDecoration(
@@ -204,7 +205,12 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 SafeArea(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+                    ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 440),
@@ -212,29 +218,37 @@ class _LoginScreenState extends State<LoginScreen>
                           children: [
                             SafeAssetImage(
                               assetPath: AppAssetManager.aeroIndiaLogo,
-                              width: 96,
-                              height: 96,
+                              width: 112,
+                              height: 112,
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: AppSpacing.lg),
                             Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(22),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadii.xl),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AeroColors.navy
-                                        .withValues(alpha: 0.10),
+                                    color: AppTheme.navy
+                                        .withValues(alpha: 0.12),
                                     blurRadius: 28,
                                     offset: const Offset(0, 12),
                                   ),
                                 ],
                               ),
-                              padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.xl,
+                                AppSpacing.xl,
+                                AppSpacing.xl,
+                                AppSpacing.xl,
+                              ),
                               child: Form(
                                 key: _formKey,
                                 child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 280),
+                                  duration: AppMotion.tab,
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
                                   child: _otpSent
                                       ? _OtpStep(
                                           key: const ValueKey('otp'),
@@ -267,6 +281,11 @@ class _LoginScreenState extends State<LoginScreen>
                                           captchaImageBase64:
                                               authState.captchaImageBase64,
                                           loading: authState.isLoading,
+                                          failureMessage:
+                                              authState.status ==
+                                                      AuthStatus.failure
+                                                  ? authState.errorMessage
+                                                  : null,
                                           onRefreshCaptcha: () => context
                                               .read<AuthBloc>()
                                               .add(AuthCaptchaRequested()),
@@ -275,10 +294,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: AppSpacing.lg),
                             TextButton.icon(
                               onPressed: () {
-                                // Support contact — keep lightweight.
                                 _showSnack(
                                   'Contact LO Committee support via your nodal officer.',
                                 );
@@ -297,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                             if (kDebugMode || ApiConfig.useMockApi) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: AppSpacing.sm),
                               Text(
                                 ApiConfig.useMockApi
                                     ? 'Mock: liaison@test.com / org@test.com / admin@aeroindia.gov.in · OTP 123456'
@@ -333,6 +351,7 @@ class _EmailStep extends StatelessWidget {
     required this.loading,
     required this.onRefreshCaptcha,
     required this.onSend,
+    this.failureMessage,
   });
 
   final TextEditingController emailController;
@@ -341,37 +360,83 @@ class _EmailStep extends StatelessWidget {
   final bool loading;
   final VoidCallback onRefreshCaptcha;
   final VoidCallback onSend;
+  final String? failureMessage;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           'WELCOME BACK',
-          style: TextStyle(
-            fontSize: 12,
-            letterSpacing: 1.4,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.royalBlue,
-          ),
+          style: textTheme.labelSmall?.copyWith(
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.royalBlue,
+              ) ??
+              const TextStyle(
+                fontSize: 12,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.royalBlue,
+              ),
         ),
-        const SizedBox(height: 6),
-        const Text(
+        const SizedBox(height: AppSpacing.xs),
+        Text(
           'Verify your identity',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AeroColors.navy,
-          ),
+          style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppTheme.navy,
+              ) ??
+              const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.navy,
+              ),
         ),
-        const SizedBox(height: 22),
-        _FieldLabel('EMAIL ID / MOBILE NUMBER'),
-        const SizedBox(height: 6),
+        if (failureMessage != null && failureMessage!.trim().isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppTheme.pinkAccent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(
+                color: AppTheme.pinkAccent.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.wifi_off_rounded,
+                  color: AppTheme.pinkAccent,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    failureMessage!,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppTheme.navy,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onRefreshCaptcha,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        const _FieldLabel('EMAIL ID / MOBILE NUMBER'),
+        const SizedBox(height: AppSpacing.xs),
         TextFormField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
-          style: const TextStyle(color: AeroColors.navy),
+          style: const TextStyle(color: AppTheme.navy),
           decoration: _inputDecoration(
             hint: 'you@example.com',
             prefix: Icons.mail_outline_rounded,
@@ -379,15 +444,16 @@ class _EmailStep extends StatelessWidget {
           validator: (v) =>
               v == null || v.trim().isEmpty ? 'Email required' : null,
         ),
-        const SizedBox(height: 16),
-        _FieldLabel('CAPTCHA'),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.lg),
+        const _FieldLabel('CAPTCHA'),
+        const SizedBox(height: AppSpacing.xs),
         _CaptchaBlock(
           imageBase64: captchaImageBase64,
           controller: captchaController,
           onRefresh: onRefreshCaptcha,
+          loading: loading && captchaImageBase64 == null,
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: AppSpacing.xl),
         _PrimaryButton(
           label: 'Send OTP',
           loading: loading,
@@ -443,7 +509,7 @@ class _OtpStep extends StatelessWidget {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
-            color: AeroColors.navy,
+            color: AppTheme.navy,
           ),
         ),
         const SizedBox(height: 14),
@@ -461,7 +527,7 @@ class _OtpStep extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 13,
                   height: 1.35,
-                  color: AeroColors.navy,
+                  color: AppTheme.navy,
                 ),
               ),
               TextButton(
@@ -495,7 +561,7 @@ class _OtpStep extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AeroColors.navy,
+                  color: AppTheme.navy,
                 ),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
@@ -541,7 +607,7 @@ class _OtpStep extends StatelessWidget {
           child: resendSeconds > 0
               ? Text(
                   "Resend OTP in ${resendSeconds}s",
-                  style: TextStyle(fontSize: 13, color: AeroColors.textMuted),
+                  style: TextStyle(fontSize: 13, color: AppTheme.lightTextMuted),
                 )
               : TextButton(
                   onPressed: loading ? null : onResend,
@@ -561,12 +627,17 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 11,
-        letterSpacing: 0.8,
-        fontWeight: FontWeight.w700,
-        color: AeroColors.textMuted,
-      ),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            letterSpacing: 0.8,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.lightTextMuted,
+          ) ??
+          const TextStyle(
+            fontSize: 11,
+            letterSpacing: 0.8,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.lightTextMuted,
+          ),
     );
   }
 }
@@ -577,21 +648,26 @@ InputDecoration _inputDecoration({
 }) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: AeroColors.textMuted.withValues(alpha: 0.7)),
-    prefixIcon: Icon(prefix, color: AeroColors.textMuted, size: 20),
+    hintStyle: TextStyle(
+      color: AppTheme.lightTextMuted.withValues(alpha: 0.7),
+    ),
+    prefixIcon: Icon(prefix, color: AppTheme.lightTextMuted, size: 20),
     filled: true,
-    fillColor: const Color(0xFFF5F8FC),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    fillColor: AppTheme.lightInputBg,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.md,
+      vertical: 14,
+    ),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: AeroColors.divider),
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      borderSide: const BorderSide(color: AppTheme.lightBorder),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: AeroColors.divider),
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      borderSide: const BorderSide(color: AppTheme.lightBorder),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadii.md),
       borderSide: const BorderSide(color: AppTheme.royalBlue, width: 1.5),
     ),
   );
@@ -612,41 +688,44 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: FilledButton(
-        onPressed: enabled ? onPressed : null,
-        style: FilledButton.styleFrom(
-          backgroundColor: AppTheme.royalBlue,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AeroColors.divider,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+    return AppPressScale(
+      enabled: enabled && !loading,
+      child: SizedBox(
+        height: 52,
+        child: FilledButton(
+          onPressed: enabled ? onPressed : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.royalBlue,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: AppTheme.lightBorder,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
           ),
-        ),
-        child: loading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  color: Colors.white,
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
+          child: loading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: Colors.white,
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 18),
-                ],
-              ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    const Icon(Icons.arrow_forward_rounded, size: 18),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -657,19 +736,26 @@ class _CaptchaBlock extends StatelessWidget {
     required this.imageBase64,
     required this.controller,
     required this.onRefresh,
+    this.loading = false,
   });
 
   final String? imageBase64;
   final TextEditingController controller;
   final VoidCallback onRefresh;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     Widget image;
-    if (imageBase64 == null || imageBase64!.isEmpty) {
+    if (loading || imageBase64 == null || imageBase64!.isEmpty) {
       image = const SizedBox(
         height: 52,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppTheme.royalBlue,
+          ),
+        ),
       );
     } else {
       try {
@@ -679,7 +765,11 @@ class _CaptchaBlock extends StatelessWidget {
         final bytes = base64Decode(raw);
         image = Image.memory(bytes, height: 52, fit: BoxFit.contain);
       } catch (_) {
-        image = const Text('CAPTCHA unavailable');
+        image = const Text(
+          'CAPTCHA unavailable — tap refresh',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: AppTheme.lightTextMuted),
+        );
       }
     }
 
@@ -691,26 +781,33 @@ class _CaptchaBlock extends StatelessWidget {
             Expanded(
               child: Container(
                 height: 72,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECEFF3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AeroColors.divider),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  border: Border.all(color: AppTheme.lightBorder),
                 ),
                 child: image,
               ),
             ),
-            IconButton(
-              onPressed: onRefresh,
-              tooltip: 'Refresh CAPTCHA',
-              icon: Icon(Icons.refresh_rounded, color: AppTheme.royalBlue),
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: IconButton(
+                onPressed: onRefresh,
+                tooltip: 'Refresh CAPTCHA',
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  color: AppTheme.royalBlue,
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.sm),
         TextFormField(
           controller: controller,
-          style: const TextStyle(color: AeroColors.navy),
+          style: const TextStyle(color: AppTheme.navy),
           decoration: _inputDecoration(
             hint: 'ENTER CAPTCHA',
             prefix: Icons.security_outlined,

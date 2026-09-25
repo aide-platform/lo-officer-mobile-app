@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
 class Breakpoints {
@@ -60,7 +61,12 @@ class AppPageScaffold extends StatelessWidget {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  0,
+                ),
                 child: GradientHeader(
                   title: title,
                   actions: actions,
@@ -68,12 +74,17 @@ class AppPageScaffold extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: Breakpoints.contentMaxWidth(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: Breakpoints.contentMaxWidth(context),
+                      ),
+                      child: body,
                     ),
-                    child: body,
                   ),
                 ),
               ),
@@ -103,10 +114,16 @@ class GradientHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
         gradient:
             isDark ? AppTheme.brandHeaderGradient : AppTheme.lightPurpleGradient,
         boxShadow: AppTheme.glowShadow(AppTheme.royalBlue, opacity: 0.18),
@@ -114,10 +131,14 @@ class GradientHeader extends StatelessWidget {
       child: Row(
         children: [
           if (showMenu)
-            IconButton(
-              tooltip: 'Menu',
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: IconButton(
+                tooltip: 'Menu',
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                icon: const Icon(Icons.menu_rounded, color: Colors.white),
+              ),
             )
           else if (leading != null) ...[
             leading!,
@@ -305,6 +326,10 @@ class StaggeredList extends StatelessWidget {
   final IndexedWidgetBuilder itemBuilder;
   final EdgeInsets? padding;
 
+  static const Duration itemDuration = Duration(milliseconds: 280);
+  static const int staggerMs = 40;
+  static const int staggerCapMs = 240;
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
@@ -313,7 +338,11 @@ class StaggeredList extends StatelessWidget {
       itemBuilder: (context, index) {
         return TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),
-          duration: Duration(milliseconds: 280 + (index * 40).clamp(0, 240)),
+          duration: Duration(
+            milliseconds:
+                itemDuration.inMilliseconds +
+                (index * staggerMs).clamp(0, staggerCapMs),
+          ),
           curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             return Opacity(

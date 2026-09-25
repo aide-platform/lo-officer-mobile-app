@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/session/app_role.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/shells/lo_portal_shell.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/shells/nodal_officer_shell.dart';
@@ -63,12 +64,8 @@ void navigateToRoleHome(BuildContext context, AuthBlocState authState) {
   final role = authState.role ?? 'Liaison Officer';
   Navigator.pushReplacement(
     context,
-    PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 420),
-      pageBuilder: (_, animation, __) => FadeTransition(
-        opacity: animation,
-        child: RoleHomeRouter(email: email, role: role),
-      ),
+    AppPageFadeRoute(
+      page: RoleHomeRouter(email: email, role: role),
     ),
   );
 }

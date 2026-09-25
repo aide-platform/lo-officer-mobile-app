@@ -7,6 +7,7 @@ import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/core/widgets/role_shell_drawer.dart';
@@ -126,13 +127,17 @@ class _LoPortalShellState extends State<LoPortalShell> {
         ],
       ),
       actions: [
-        IconButton(
-          tooltip: 'Notifications',
-          onPressed: () => _openInbox(context),
-          icon: Badge(
-            isLabelVisible: _unread > 0,
-            label: Text('$_unread'),
-            child: const Icon(Icons.notifications_outlined, color: Colors.white),
+        SizedBox(
+          width: 48,
+          height: 48,
+          child: IconButton(
+            tooltip: 'Notifications',
+            onPressed: () => _openInbox(context),
+            icon: Badge(
+              isLabelVisible: _unread > 0,
+              label: Text('$_unread'),
+              child: const Icon(Icons.notifications_outlined, color: Colors.white),
+            ),
           ),
         ),
         PopupMenuButton<String>(
@@ -254,7 +259,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
                     ),
                   ),
                 ),
-              Expanded(child: IndexedStack(index: _index, children: pages)),
+              Expanded(
+                child: AppTabFade(index: _index, children: pages),
+              ),
             ],
           );
         },

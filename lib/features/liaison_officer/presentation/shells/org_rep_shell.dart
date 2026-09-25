@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/core/widgets/role_shell_drawer.dart';
@@ -315,7 +316,7 @@ class _OrgRepShellState extends State<OrgRepShell> {
                   context.read<OrgRepBloc>().add(OrgRepLoadRequested()),
             );
           }
-          return IndexedStack(
+          return AppTabFade(
             index: _index,
             children: [
               _OverviewTab(email: widget.email, roleLabel: widget.roleLabel),

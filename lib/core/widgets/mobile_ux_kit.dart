@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
@@ -12,26 +13,26 @@ class AppStatusPalette {
   static Color forLabel(String? raw) {
     final s = (raw ?? '').trim().toUpperCase().replaceAll(' ', '_');
     if (s.contains('REJECT') || s.contains('INACTIVE') || s.contains('FAIL')) {
-      return const Color(0xFFC62828);
+      return AppTheme.pinkAccent;
     }
     if (s.contains('COMPLETE') ||
         s.contains('APPROV') ||
         s.contains('SUBMIT') ||
         s.contains('ACTIVE') ||
         s == 'DONE') {
-      return const Color(0xFF2E7D32);
+      return AppTheme.indiaGreen;
     }
     if (s.contains('PROGRESS') ||
         s.contains('ASSIGN') ||
         s.contains('DISTRIBUT') ||
         s.contains('IN_REVIEW')) {
-      return const Color(0xFF1565C0);
+      return AppTheme.royalBlue;
     }
     if (s.contains('PENDING') ||
         s.contains('DRAFT') ||
         s.contains('INCOMPLETE') ||
         s.isEmpty) {
-      return const Color(0xFFEF6C00);
+      return AppTheme.saffron;
     }
     return AppTheme.activeAccent;
   }
@@ -584,7 +585,12 @@ class AdaptiveRoleScaffold extends StatelessWidget {
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.sm,
+                        AppSpacing.sm,
+                        AppSpacing.sm,
+                        0,
+                      ),
                       child: GradientHeader(
                         title: title,
                         actions: actions,
@@ -592,15 +598,20 @@ class AdaptiveRoleScaffold extends StatelessWidget {
                       ),
                     ),
                     Expanded(
-                      child: secondaryBody == null
-                          ? body
-                          : Row(
-                              children: [
-                                Expanded(flex: 2, child: body),
-                                const VerticalDivider(width: 1),
-                                Expanded(flex: 3, child: secondaryBody!),
-                              ],
-                            ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                        child: secondaryBody == null
+                            ? body
+                            : Row(
+                                children: [
+                                  Expanded(flex: 2, child: body),
+                                  const VerticalDivider(width: 1),
+                                  Expanded(flex: 3, child: secondaryBody!),
+                                ],
+                              ),
+                      ),
                     ),
                   ],
                 ),
