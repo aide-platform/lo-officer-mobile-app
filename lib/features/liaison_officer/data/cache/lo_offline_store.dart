@@ -183,4 +183,18 @@ class LoOfflineStore {
       return const [];
     }
   }
+
+  /// Issues waiting for CAP POST (or re-POST after failure).
+  static Future<List<LoIssueReport>> listPendingIssues() async {
+    final all = await listIssues();
+    return all.where((e) => !e.synced).toList();
+  }
+
+  /// Task queue + movement queue + unsynced issues.
+  static Future<int> pendingSyncCount() async {
+    final tasks = await peekQueue();
+    final movements = await peekMovementQueue();
+    final issues = await listPendingIssues();
+    return tasks.length + movements.length + issues.length;
+  }
 }

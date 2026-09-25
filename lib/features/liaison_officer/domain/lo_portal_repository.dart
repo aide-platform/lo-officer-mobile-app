@@ -52,7 +52,7 @@ abstract class LoPortalRepository {
   /// Composed itinerary from travel + nominations + vehicles (no CAP endpoint).
   Future<List<LoItineraryItem>> getItinerary(String assignmentId);
 
-  /// Report operational issue — tries CAP POST then durable local Hive.
+  /// Report operational issue — CAP POST; Hive offline queue on failure.
   Future<LoIssueReport> reportIssue(LoIssueReport issue);
 
   Future<List<LoIssueReport>> listReportedIssues();

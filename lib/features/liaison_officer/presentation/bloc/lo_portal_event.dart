@@ -43,7 +43,14 @@ class LoPortalIssueReported extends LoPortalEvent {
   final LoIssueReport issue;
 }
 
+class LoPortalIssueRetryRequested extends LoPortalEvent {
+  LoPortalIssueRetryRequested(this.issueId);
+  final String issueId;
+}
+
 class LoPortalIssuesRefreshRequested extends LoPortalEvent {}
+
+class LoPortalPendingSyncRefreshRequested extends LoPortalEvent {}
 
 class LoPortalAlertsRefreshRequested extends LoPortalEvent {}
 

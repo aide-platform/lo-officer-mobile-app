@@ -14,7 +14,7 @@ Auth header: `Authorization: Bearer <accessToken>`
 | Status | Meaning |
 |--------|---------|
 | **Wired** | Dio repository calls this path when `USE_MOCK_API=false` |
-| **Speculative** | Tried then soft-fails to local Hive (not in public OpenAPI) |
+| **Offline queue** | On failure, Hive stores the write and retries on next portal load |
 
 ### Authentication — wired
 
@@ -38,12 +38,12 @@ Auth header: `Authorization: Bearer <accessToken>`
 | DELETE | `/app/my-lo/me/languages/{rowId}` | Replace-set |
 | GET | `/app/my-lo/me/delegates` | |
 | GET | `/app/my-lo/me/tasks` | |
-| PUT | `/app/my-lo/me/tasks/{taskId}/status?statusCode=` | |
-| PUT | `/app/my-lo/me/assignments/{assignmentId}/travel` | |
+| PUT | `/app/my-lo/me/tasks/{taskId}/status?statusCode=` | Offline queue |
+| PUT | `/app/my-lo/me/assignments/{assignmentId}/travel` | Offline queue (movement) |
 | PUT | `/app/my-lo/me/assignments/{assignmentId}/arrival-flight` | |
 | GET | `/app/my-lo/me/assignments/{assignmentId}/vehicles` | |
 | GET | `/app/my-lo/me/assignments/{assignmentId}/nominations` | |
-| POST | `/app/my-lo/me/issues` | **Speculative** — soft-fails to on-device Hive + Share |
+| POST | `/app/my-lo/me/issues` | Wired + Hive offline queue + Share escalate |
 | GET | `/app/committee/bv-quota/badge/{passId}/download` | LO badge PDF |
 
 ### Notifications — wired

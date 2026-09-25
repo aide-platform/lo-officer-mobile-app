@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
@@ -10,7 +11,6 @@ import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_po
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_issue_report_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class LoDelegateDetailScreen extends StatelessWidget {
   const LoDelegateDetailScreen({super.key, required this.delegate});
@@ -106,18 +106,46 @@ class LoDelegateDetailScreen extends StatelessWidget {
                 _detailKv('Protocol', live.protocolEquiv),
                 _detailKv('VIP category', live.vipCategory),
                 _detailKv('Country', live.countryName),
-                _detailLinkKv(
-                  context,
-                  'Email',
-                  live.email,
-                  () => _launchUri(Uri(scheme: 'mailto', path: live.email)),
-                ),
-                _detailLinkKv(
-                  context,
-                  'Mobile',
-                  live.mobileNumber,
-                  () => _launchUri(Uri(scheme: 'tel', path: live.mobileNumber)),
-                ),
+                _detailKv('Email', live.email),
+                _detailKv('Mobile', live.mobileNumber),
+                if (_hasContact(live.email) ||
+                    LoContactActions.normalizePhone(live.mobileNumber) !=
+                        null) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (_hasContact(live.email))
+                        OutlinedButton.icon(
+                          onPressed: () => LoContactActions.email(live.email),
+                          icon: const Icon(Icons.email_outlined, size: 18),
+                          label: const Text('Email'),
+                        ),
+                      if (LoContactActions.normalizePhone(live.mobileNumber) !=
+                          null) ...[
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              LoContactActions.call(live.mobileNumber),
+                          icon: const Icon(Icons.call_outlined, size: 18),
+                          label: const Text('Call'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              LoContactActions.sms(live.mobileNumber),
+                          icon: const Icon(Icons.sms_outlined, size: 18),
+                          label: const Text('SMS'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              LoContactActions.whatsApp(live.mobileNumber),
+                          icon: const Icon(Icons.chat_outlined, size: 18),
+                          label: const Text('WhatsApp'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
                 if (live.family.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _sectionTitle(context, 'Family'),
@@ -194,6 +222,8 @@ class LoDelegateDetailScreen extends StatelessWidget {
       ),
     );
   }
+
+  bool _hasContact(String? v) => v != null && v.trim().isNotEmpty;
 
   Widget _sectionTitle(BuildContext context, String title) {
     return Padding(
@@ -281,6 +311,20 @@ class LoDelegateDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+      onConfirmValidate: () {
+        if (kind == LoMovementKind.departure &&
+            date.text.trim().isEmpty &&
+            notes.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Departure needs a date or notes'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return false;
+        }
+        return true;
+      },
     );
 
     if (ok == true && context.mounted && d.assignmentId != null) {
@@ -323,6 +367,7 @@ class _ItineraryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final venue = (item.venue ?? '').trim();
     return AppCard(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -331,8 +376,8 @@ class _ItineraryTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor:
-                AppStatusPalette.forLabel(item.kind.name).withValues(alpha: 0.15),
+            backgroundColor: AppStatusPalette.forLabel(item.kind.name)
+                .withValues(alpha: 0.15),
             child: Icon(_icon, size: 18, color: AppTheme.activeAccent),
           ),
           const SizedBox(width: 12),
@@ -351,13 +396,24 @@ class _ItineraryTile extends StatelessWidget {
                   [
                     if ((item.date ?? '').isNotEmpty) item.date,
                     if ((item.time ?? '').isNotEmpty) item.time,
-                    if ((item.venue ?? '').isNotEmpty) item.venue,
+                    if (venue.isNotEmpty) venue,
                   ].join(' · '),
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (venue.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => LoContactActions.openMaps(venue),
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text('Navigate'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -381,6 +437,13 @@ class _TransportCard extends StatelessWidget {
     final pickup = vehicle['pickupTime']?.toString() ??
         vehicle['pickupSchedule']?.toString() ??
         vehicle['schedule']?.toString();
+    final pickupLoc = vehicle['pickupLocation']?.toString() ??
+        vehicle['location']?.toString() ??
+        vehicle['pickupPoint']?.toString();
+    final phoneOk = LoContactActions.normalizePhone(contact) != null;
+    final mapsQuery = (pickupLoc ?? '').trim().isNotEmpty
+        ? pickupLoc
+        : (number != '—' ? 'Vehicle $number pickup' : null);
 
     return AppCard(
       margin: const EdgeInsets.only(bottom: 8),
@@ -403,17 +466,10 @@ class _TransportCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text('Driver: $driver'),
           ],
-          if (contact != null && contact.isNotEmpty)
-            InkWell(
-              onTap: () => _launchUri(Uri(scheme: 'tel', path: contact)),
-              child: Text(
-                contact,
-                style: TextStyle(
-                  color: AppTheme.activeAccent,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
+          if (contact != null && contact.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(contact),
+          ],
           if (pickup != null && pickup.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
@@ -421,6 +477,46 @@ class _TransportCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ],
+          if ((pickupLoc ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text('Location: $pickupLoc'),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (phoneOk) ...[
+                FilledButton.tonalIcon(
+                  onPressed: () => LoContactActions.call(contact),
+                  icon: const Icon(Icons.call_outlined, size: 18),
+                  label: const Text('Call'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => LoContactActions.sms(
+                    contact,
+                    body: 'Hello, regarding pickup for Aero India.',
+                  ),
+                  icon: const Icon(Icons.sms_outlined, size: 18),
+                  label: const Text('SMS'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => LoContactActions.whatsApp(
+                    contact,
+                    text: 'Hello, regarding pickup for Aero India.',
+                  ),
+                  icon: const Icon(Icons.chat_outlined, size: 18),
+                  label: const Text('WhatsApp'),
+                ),
+              ],
+              if ((mapsQuery ?? '').trim().isNotEmpty)
+                FilledButton.icon(
+                  onPressed: () => LoContactActions.openMaps(mapsQuery),
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: const Text('Navigate'),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -442,43 +538,4 @@ Widget _detailKv(String k, String? v) {
       ],
     ),
   );
-}
-
-Widget _detailLinkKv(
-  BuildContext context,
-  String k,
-  String? v,
-  VoidCallback onTap,
-) {
-  if (v == null || v.trim().isEmpty) return const SizedBox.shrink();
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ),
-        Expanded(
-          child: InkWell(
-            onTap: onTap,
-            child: Text(
-              v,
-              style: TextStyle(
-                color: AppTheme.activeAccent,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<void> _launchUri(Uri uri) async {
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri);
-  }
 }

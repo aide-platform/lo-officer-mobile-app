@@ -234,6 +234,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
             final showCacheBanner = state.status == LoPortalStatus.ready &&
                 state.errorMessage != null &&
                 state.errorMessage!.toLowerCase().contains('cached');
+            final pending = state.pendingSyncCount;
             return Column(
               children: [
                 if (showCacheBanner)
@@ -270,6 +271,46 @@ class _LoPortalShellState extends State<LoPortalShell> {
                                 .read<LoPortalBloc>()
                                 .add(LoPortalLoadRequested()),
                             child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (pending > 0)
+                  Material(
+                    color: Theme.of(context).colorScheme.tertiaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.sync_outlined,
+                            size: 18,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onTertiaryContainer,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$pending pending sync '
+                              '(tasks, movements, or issues)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onTertiaryContainer,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context
+                                .read<LoPortalBloc>()
+                                .add(LoPortalLoadRequested()),
+                            child: const Text('Sync now'),
                           ),
                         ],
                       ),

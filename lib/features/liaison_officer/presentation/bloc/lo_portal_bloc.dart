@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -21,7 +22,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     on<LoPortalTravelUpdated>(_onTravel);
     on<LoPortalMovementUpdated>(_onMovement);
     on<LoPortalIssueReported>(_onIssueReported);
+    on<LoPortalIssueRetryRequested>(_onIssueRetry);
     on<LoPortalIssuesRefreshRequested>(_onIssuesRefresh);
+    on<LoPortalPendingSyncRefreshRequested>(_onPendingSyncRefresh);
     on<LoPortalAlertsRefreshRequested>(_onAlerts);
     on<LoPortalUploadRequested>(_onUpload);
     on<LoPortalExperienceAdded>(_onExpAdd);
@@ -34,6 +37,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
   }
 
   final LoPortalRepository repository;
+
+  Future<int> _refreshPendingCount() => LoOfflineStore.pendingSyncCount();
 
   Future<void> _onLoad(
     LoPortalLoadRequested event,
@@ -48,6 +53,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     final cachedTasks = await LoPortalCache.loadTasks();
     final alerts = await LoPortalCache.loadAlerts();
     final cachedIssues = await LoOfflineStore.listIssues();
+    final pending = await _refreshPendingCount();
     if (cachedProfile != null ||
         cachedDelegates.isNotEmpty ||
         cachedTasks.isNotEmpty) {
@@ -59,6 +65,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         alerts: alerts,
         issues: cachedIssues,
         alertLeadMinutes: lead,
+        pendingSyncCount: pending,
       ));
     }
 
@@ -91,6 +98,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         }
       }
       final refreshedAlerts = await LoPortalCache.loadAlerts();
+      await PushNotificationService.instance.scheduleTaskLeadReminders(
+        tasks: tasks,
+        leadMinutes: lead,
+      );
 
       emit(state.copyWith(
         status: LoPortalStatus.ready,
@@ -102,6 +113,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         issues: issues,
         alerts: refreshedAlerts,
         alertLeadMinutes: lead,
+        pendingSyncCount: await _refreshPendingCount(),
         clearError: true,
         clearInfo: true,
       ));
@@ -114,12 +126,14 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           errorMessage: 'Offline — showing cached data. $e',
           issues: cachedIssues,
           alertLeadMinutes: lead,
+          pendingSyncCount: await _refreshPendingCount(),
         ));
         return;
       }
       emit(state.copyWith(
         status: LoPortalStatus.failure,
         errorMessage: e.toString(),
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     }
   }
@@ -170,6 +184,15 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       }
       await LoOfflineStore.replaceMovementQueue(remaining);
     }
+
+    final pendingIssues = await LoOfflineStore.listPendingIssues();
+    for (final issue in pendingIssues) {
+      try {
+        await repository.reportIssue(issue);
+      } catch (_) {
+        // Left unsynced in Hive for next flush / manual retry.
+      }
+    }
   }
 
   Future<void> _onSaveProfile(
@@ -182,7 +205,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       await LoPortalCache.saveProfile(profile);
       await LoPortalCache.pushAlert(
         title: 'Profile submitted',
-        body: 'Your LO profile status is ${profile.profileStatus ?? 'SUBMITTED'}.',
+        body:
+            'Your LO profile status is ${profile.profileStatus ?? 'SUBMITTED'}.',
       );
       final alerts = await LoPortalCache.loadAlerts();
       emit(state.copyWith(
@@ -219,6 +243,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         tasks: tasks,
         alerts: await LoPortalCache.loadAlerts(),
         status: LoPortalStatus.ready,
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     } catch (e) {
       await LoOfflineStore.enqueueTaskStatus(
@@ -228,8 +253,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       );
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage:
-            'Offline — status queued for sync: ${e.toString()}',
+        errorMessage: 'Offline — status queued for sync: ${e.toString()}',
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     }
   }
@@ -255,12 +280,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         title: 'Travel details updated',
         body: 'Travel updated for ${updated.fullName ?? 'delegate'}.',
       );
-      final arrivalConnecting =
-          <String, List<ConnectingFlightDraft>>{
+      final arrivalConnecting = <String, List<ConnectingFlightDraft>>{
         ...state.arrivalConnectingByAssignment,
       };
-      final departureConnecting =
-          <String, List<ConnectingFlightDraft>>{
+      final departureConnecting = <String, List<ConnectingFlightDraft>>{
         ...state.departureConnectingByAssignment,
       };
       final arrivalRaw = event.body['arrivalConnectingFlights'];
@@ -318,6 +341,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         status: LoPortalStatus.ready,
         infoMessage: '${event.movement.kind.label} status saved.',
         clearError: true,
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     } catch (e) {
       await LoOfflineStore.enqueueMovement(
@@ -327,6 +351,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
         errorMessage: 'Offline — movement queued for sync: $e',
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     }
   }
@@ -340,10 +365,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       final issues = await repository.listReportedIssues();
       final submitted = saved.synced;
       await LoPortalCache.pushAlert(
-        title: submitted ? 'Issue submitted' : 'Issue saved on device',
+        title: submitted ? 'Issue submitted' : 'Issue queued offline',
         body: submitted
             ? '${saved.title} was submitted to CAP.'
-            : '${saved.title} — stored on this device. Share to escalate.',
+            : '${saved.title} — queued for sync. Share to escalate now if needed.',
       );
       emit(state.copyWith(
         issues: issues,
@@ -351,13 +376,48 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         status: LoPortalStatus.ready,
         infoMessage: submitted
             ? 'Issue submitted successfully.'
-            : 'Issue saved on this device. Use Share to escalate to organisers.',
+            : 'Issue saved on device and queued for sync when online.',
         clearError: true,
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
         errorMessage: e.toString(),
+        pendingSyncCount: await _refreshPendingCount(),
+      ));
+    }
+  }
+
+  Future<void> _onIssueRetry(
+    LoPortalIssueRetryRequested event,
+    Emitter<LoPortalState> emit,
+  ) async {
+    LoIssueReport? target;
+    for (final i in state.issues) {
+      if (i.id == event.issueId) {
+        target = i;
+        break;
+      }
+    }
+    if (target == null || target.synced) return;
+    try {
+      final saved = await repository.reportIssue(target);
+      final issues = await repository.listReportedIssues();
+      emit(state.copyWith(
+        issues: issues,
+        status: LoPortalStatus.ready,
+        infoMessage: saved.synced
+            ? 'Issue synced to CAP.'
+            : 'Still offline — will retry on next load.',
+        clearError: true,
+        pendingSyncCount: await _refreshPendingCount(),
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: LoPortalStatus.failure,
+        errorMessage: 'Sync failed: $e',
+        pendingSyncCount: await _refreshPendingCount(),
       ));
     }
   }
@@ -367,7 +427,17 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     Emitter<LoPortalState> emit,
   ) async {
     final issues = await repository.listReportedIssues();
-    emit(state.copyWith(issues: issues));
+    emit(state.copyWith(
+      issues: issues,
+      pendingSyncCount: await _refreshPendingCount(),
+    ));
+  }
+
+  Future<void> _onPendingSyncRefresh(
+    LoPortalPendingSyncRefreshRequested event,
+    Emitter<LoPortalState> emit,
+  ) async {
+    emit(state.copyWith(pendingSyncCount: await _refreshPendingCount()));
   }
 
   Future<void> _onAlerts(
@@ -477,6 +547,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('lo_alert_lead_minutes', event.minutes);
     emit(state.copyWith(alertLeadMinutes: event.minutes));
+    await PushNotificationService.instance.scheduleTaskLeadReminders(
+      tasks: state.tasks,
+      leadMinutes: event.minutes,
+    );
   }
 
   Future<void> _onBadgeDownload(
@@ -488,8 +562,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       emit(state.copyWith(
         status: LoPortalStatus.ready,
         lastDownloadBytes: bytes,
-        lastDownloadFilename:
-            event.filename ?? 'badge-${event.passId}.pdf',
+        lastDownloadFilename: event.filename ?? 'badge-${event.passId}.pdf',
         infoMessage: 'Badge ready to share.',
         clearError: true,
       ));

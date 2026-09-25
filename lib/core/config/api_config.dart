@@ -32,7 +32,7 @@ class ApiConfig {
   static const String myLoMePath = '/app/my-lo/me';
   static const String myLoDelegatesPath = '/app/my-lo/me/delegates';
   static const String myLoTasksPath = '/app/my-lo/me/tasks';
-  /// Speculative — not in public OpenAPI yet; soft-fails to local Hive.
+  /// CAP issue create; unsynced reports queue in Hive until flush succeeds.
   static const String myLoIssuesPath = '/app/my-lo/me/issues';
   static String myLoTaskStatusPath(String taskId) =>
       '/app/my-lo/me/tasks/$taskId/status';

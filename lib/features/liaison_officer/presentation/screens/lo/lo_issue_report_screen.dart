@@ -6,7 +6,7 @@ import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Issue reporting — durable on device; speculative CAP POST when available.
+/// Issue reporting — CAP POST with Hive offline queue + Share escalate.
 class LoIssueReportScreen extends StatefulWidget {
   const LoIssueReportScreen({
     super.key,
@@ -22,6 +22,8 @@ class LoIssueReportScreen extends StatefulWidget {
 }
 
 class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
+  bool _submitting = false;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +41,7 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
   }
 
   Future<void> _openForm() async {
+    if (_submitting) return;
     final title = TextEditingController();
     final details = TextEditingController();
     var category = LoIssueCategory.other;
@@ -57,8 +60,8 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
             child: const Padding(
               padding: EdgeInsets.all(10),
               child: Text(
-                'Issues are stored on this device. If CAP accepts the report it '
-                'shows as Submitted; otherwise use Share to escalate to organisers.',
+                'Reports POST to CAP when online. Offline reports stay on this '
+                'device and sync on the next load. Use Share to escalate now.',
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -66,11 +69,12 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: title,
-            decoration: const InputDecoration(labelText: 'Title'),
+            decoration: const InputDecoration(labelText: 'Title *'),
+            textCapitalization: TextCapitalization.sentences,
           ),
           DropdownButtonFormField<LoIssueCategory>(
             initialValue: category,
-            decoration: const InputDecoration(labelText: 'Category'),
+            decoration: const InputDecoration(labelText: 'Category *'),
             items: LoIssueCategory.values
                 .map(
                   (c) => DropdownMenuItem(
@@ -100,7 +104,9 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
           ),
           TextField(
             controller: details,
-            decoration: const InputDecoration(labelText: 'Details'),
+            decoration: const InputDecoration(
+              labelText: 'Details * (min 10 characters)',
+            ),
             maxLines: 3,
           ),
           if (widget.delegateName != null)
@@ -116,15 +122,28 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
             ),
         ],
       ),
-      onConfirmValidate: () => title.text.trim().isNotEmpty,
+      onConfirmValidate: () {
+        final err = LoIssueReport.validate(
+          title: title.text,
+          details: details.text,
+        );
+        if (err != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+          );
+          return false;
+        }
+        return true;
+      },
     );
 
     if (ok == true && mounted) {
+      setState(() => _submitting = true);
       context.read<LoPortalBloc>().add(
             LoPortalIssueReported(
               LoIssueReport(
                 id: 'issue-${DateTime.now().millisecondsSinceEpoch}',
-                title: title.text.trim(),
+                title: LoIssueReport.sanitizeTitle(title.text),
                 category: category,
                 priority: priority,
                 details: details.text.trim(),
@@ -134,6 +153,8 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
               ),
             ),
           );
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (mounted) setState(() => _submitting = false);
     }
     title.dispose();
     details.dispose();
@@ -144,9 +165,15 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Issue reports')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openForm,
-        icon: const Icon(Icons.add),
-        label: const Text('Report'),
+        onPressed: _submitting ? null : _openForm,
+        icon: _submitting
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.add),
+        label: Text(_submitting ? 'Submitting…' : 'Report'),
       ),
       body: BlocBuilder<LoPortalBloc, LoPortalState>(
         builder: (context, state) {
@@ -169,8 +196,8 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
                     child: const Padding(
                       padding: EdgeInsets.all(12),
                       child: Text(
-                        'Issues stay on this device. Share any report to escalate '
-                        'to organisers when CAP write is unavailable.',
+                        'Tap a non-submitted chip to retry sync. Share escalates '
+                        'to organisers anytime.',
                         style: TextStyle(fontSize: 12),
                       ),
                     ),
@@ -193,8 +220,13 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
                             ),
                           ),
                         ),
-                        AppStatusChip(
-                          label: issue.synced ? 'Submitted' : 'On device',
+                        InkWell(
+                          onTap: issue.synced
+                              ? null
+                              : () => context.read<LoPortalBloc>().add(
+                                    LoPortalIssueRetryRequested(issue.id),
+                                  ),
+                          child: AppStatusChip(label: issue.statusLabel),
                         ),
                         IconButton(
                           tooltip: 'Share / escalate',

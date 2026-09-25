@@ -186,6 +186,25 @@ void main() {
       expect(issue.status, 'on_device');
       expect(issue.synced, isFalse);
     });
+
+    test('validate requires title and details length', () {
+      expect(
+        LoIssueReport.validate(title: '  ', details: 'long enough text'),
+        isNotNull,
+      );
+      expect(
+        LoIssueReport.validate(title: 'Gate', details: 'short'),
+        isNotNull,
+      );
+      expect(
+        LoIssueReport.validate(
+          title: '  Gate delay  ',
+          details: 'Queue building at Gate 3 entrance',
+        ),
+        isNull,
+      );
+      expect(LoIssueReport.sanitizeTitle('  Gate   delay  '), 'Gate delay');
+    });
   });
 }
 

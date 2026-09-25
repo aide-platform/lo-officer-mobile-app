@@ -1,4 +1,4 @@
-/// LO operational issue report (durable on device; CAP create is speculative).
+/// LO operational issue report — CAP POST with durable Hive offline queue.
 enum LoIssuePriority { low, medium, high, critical }
 
 enum LoIssueCategory {
@@ -32,8 +32,34 @@ class LoIssueReport {
   final DateTime reportedAt;
   final String? assignmentId;
   final String? delegateName;
+
+  /// `submitted` | `on_device` | `failed`
   final String status;
   final bool synced;
+
+  bool get isPendingSync => !synced;
+
+  String get statusLabel {
+    if (synced || status == 'submitted') return 'Submitted';
+    if (status == 'failed') return 'Failed';
+    return 'On device';
+  }
+
+  /// Title non-empty + details at least 10 chars.
+  static String? validate({
+    required String title,
+    required String details,
+  }) {
+    final t = sanitizeTitle(title);
+    if (t.isEmpty) return 'Title is required';
+    if (details.trim().length < 10) {
+      return 'Details must be at least 10 characters';
+    }
+    return null;
+  }
+
+  static String sanitizeTitle(String raw) =>
+      raw.trim().replaceAll(RegExp(r'\s+'), ' ');
 
   LoIssueReport copyWith({
     String? id,
@@ -69,7 +95,7 @@ class LoIssueReport {
       ..writeln('Title: $title')
       ..writeln('Category: ${category.name}')
       ..writeln('Priority: ${priority.name}')
-      ..writeln('Status: ${synced ? 'Submitted' : 'On device'}')
+      ..writeln('Status: $statusLabel')
       ..writeln('Reported: ${reportedAt.toLocal()}');
     if ((delegateName ?? '').isNotEmpty) {
       buf.writeln('Delegate: $delegateName');
@@ -112,9 +138,10 @@ class LoIssueReport {
   factory LoIssueReport.fromJson(Map<String, dynamic> json) {
     final statusRaw = json['status']?.toString();
     // Migrate legacy pending_sync label to on_device.
-    final status = statusRaw == 'pending_sync' || statusRaw == null || statusRaw.isEmpty
-        ? (json['synced'] == true ? 'submitted' : 'on_device')
-        : statusRaw;
+    final status =
+        statusRaw == 'pending_sync' || statusRaw == null || statusRaw.isEmpty
+            ? (json['synced'] == true ? 'submitted' : 'on_device')
+            : statusRaw;
     return LoIssueReport(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',

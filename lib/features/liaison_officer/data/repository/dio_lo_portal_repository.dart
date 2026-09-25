@@ -311,13 +311,16 @@ class DioLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<LoIssueReport> reportIssue(LoIssueReport issue) async {
-    // Speculative CAP create; soft-fail to durable on-device store.
+    // CAP create with durable Hive offline queue on failure.
     try {
       final res = await _dio.post(
         ApiConfig.myLoIssuesPath,
         data: issue.toApiBody(),
       );
       final aide = AideResponse.unwrap(res.data);
+      if (aide.success == false) {
+        throw StateError(aide.message ?? 'Issue create rejected');
+      }
       String? remoteId;
       try {
         if (aide.data != null) {
@@ -330,11 +333,13 @@ class DioLoPortalRepository implements LoPortalRepository {
         status: 'submitted',
       );
       return LoOfflineStore.saveIssue(submitted);
+    } on DioException catch (_) {
+      final local = issue.copyWith(synced: false, status: 'on_device');
+      return LoOfflineStore.saveIssue(local);
     } catch (_) {
-      // Expected while CAP has no LO issue write — keep local.
+      final local = issue.copyWith(synced: false, status: 'failed');
+      return LoOfflineStore.saveIssue(local);
     }
-    final local = issue.copyWith(synced: false, status: 'on_device');
-    return LoOfflineStore.saveIssue(local);
   }
 
   @override

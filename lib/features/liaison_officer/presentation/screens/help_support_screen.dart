@@ -32,7 +32,7 @@ class HelpSupportScreen extends StatelessWidget {
     ),
     (
       '8 · Issues & alerts',
-      'Report operational issues from delegate detail or Alerts. Notifications cover schedule and task updates.',
+      'Report issues from delegate detail or Alerts. Offline reports sync on next load; Share escalates. Local OS reminders cover task lead times.',
     ),
     (
       '9 · Profile, Help & Theme',

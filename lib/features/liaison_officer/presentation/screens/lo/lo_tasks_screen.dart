@@ -12,6 +12,18 @@ class LoTasksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<LoPortalBloc, LoPortalState>(
       builder: (context, state) {
+        if (state.status == LoPortalStatus.loading && state.tasks.isEmpty) {
+          return const AppLoading(label: 'Loading tasks…');
+        }
+        if (state.status == LoPortalStatus.failure &&
+            state.tasks.isEmpty &&
+            state.delegates.isEmpty) {
+          return AppErrorView(
+            message: state.errorMessage ?? 'Failed to load tasks',
+            onRetry: () =>
+                context.read<LoPortalBloc>().add(LoPortalLoadRequested()),
+          );
+        }
         return RefreshIndicator(
           onRefresh: () async {
             context.read<LoPortalBloc>().add(LoPortalLoadRequested());
@@ -26,7 +38,10 @@ class LoTasksScreen extends StatelessWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: const [
                     SizedBox(height: 120),
-                    AppEmptyState(message: 'No tasks assigned.'),
+                    AppEmptyState(
+                      message: 'No tasks assigned.',
+                      icon: Icons.task_alt_outlined,
+                    ),
                   ],
                 )
               : Builder(
@@ -134,9 +149,10 @@ class _TaskTile extends StatelessWidget {
           TextField(
             controller: remarks,
             decoration: const InputDecoration(
-              labelText: 'Remarks (optional)',
+              labelText: 'Remarks (optional, max 500)',
             ),
             maxLines: 2,
+            maxLength: 500,
           ),
         ],
       ),
@@ -145,11 +161,12 @@ class _TaskTile extends StatelessWidget {
       remarks.dispose();
       return;
     }
+    final note = remarks.text.trim();
     context.read<LoPortalBloc>().add(
           LoPortalTaskStatusUpdated(
             taskId: task.id!,
             statusCode: status,
-            remarks: remarks.text.trim().isEmpty ? null : remarks.text.trim(),
+            remarks: note.isEmpty ? null : note,
           ),
         );
     remarks.dispose();

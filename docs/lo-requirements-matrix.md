@@ -25,8 +25,8 @@ AppBar **bell** opens CAP `NotificationsInboxScreen` (`/app/notifications/mine`)
 | 7 | Task list | **DONE** | `lo_tasks_screen` | `GET /app/my-lo/me/tasks` | Grouped by delegate |
 | 8 | Task status update | **DONE** | status sheet + offline queue | `PUT …/tasks/{id}/status` | `LoOfflineStore` flush on load |
 | 9 | Delegate movement | **DONE** | Movement sheet on detail | `PUT …/travel`, `PUT …/arrival-flight` | kinds: arrival / transfer / venue_entry / departure |
-| 10 | Issue reporting | **DONE** | `lo_issue_report_screen` + Hive + Share | Speculative `POST /app/my-lo/me/issues` | Soft-fail → on-device; Share to escalate |
-| 11 | Notifications | **DONE** | Alerts tab + CAP inbox | `/app/notifications/mine*` | Local alerts + CAP unread badge |
+| 10 | Issue reporting | **DONE** | `lo_issue_report_screen` + Hive queue + Share | `POST /app/my-lo/me/issues` | Offline queue + tap-to-retry sync |
+| 11 | Notifications | **DONE** | Alerts tab + CAP inbox + local OS reminders | `/app/notifications/mine*` + `flutter_local_notifications` | FCM still opt-in (`ENABLE_FCM`) |
 
 ## Coverage (this app)
 
@@ -36,7 +36,7 @@ AppBar **bell** opens CAP `NotificationsInboxScreen` (`/app/notifications/mine`)
 | LO.5 | LO profile | Profile | `/app/my-lo/me` | — |
 | LO.9.1–9.2 | Delegates + travel | Delegate detail | delegates / travel | Accommodation SKIP |
 | LO.9.3 | Task status + remarks | Tasks | task status PUT | — |
-| LO.9.4 | Notifications | Alerts + inbox | `/app/notifications/mine*` | FCM follow-up |
+| LO.9.4 | Notifications | Alerts + inbox + OS lead reminders | `/app/notifications/mine*` | FCM follow-up when configs land |
 
 ## Run
 
