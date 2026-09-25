@@ -338,17 +338,20 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     try {
       final saved = await repository.reportIssue(event.issue);
       final issues = await repository.listReportedIssues();
+      final submitted = saved.synced;
       await LoPortalCache.pushAlert(
-        title: 'Issue reported',
-        body:
-            '${saved.title} (saved locally — CAP sync pending).',
+        title: submitted ? 'Issue submitted' : 'Issue saved on device',
+        body: submitted
+            ? '${saved.title} was submitted to CAP.'
+            : '${saved.title} — stored on this device. Share to escalate.',
       );
       emit(state.copyWith(
         issues: issues,
         alerts: await LoPortalCache.loadAlerts(),
         status: LoPortalStatus.ready,
-        infoMessage:
-            'Issue saved locally. CAP has no LO issue endpoint yet (pending sync).',
+        infoMessage: submitted
+            ? 'Issue submitted successfully.'
+            : 'Issue saved on this device. Use Share to escalate to organisers.',
         clearError: true,
       ));
     } catch (e) {

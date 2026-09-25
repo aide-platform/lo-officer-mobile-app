@@ -4,10 +4,10 @@ class MockNotificationsRepository implements NotificationsRepository {
   final List<Map<String, dynamic>> _items = [
     {
       'id': 'n-1',
-      'title': 'Catering request approved',
-      'message': 'Your catering request for VIP Lounge (Lunch) was approved.',
-      'kind': 'CATERING',
-      'link': '/catering',
+      'title': 'Task assigned',
+      'message': 'Airport pickup assigned for Amb. Singh — check Tasks.',
+      'kind': 'TASK',
+      'link': '/tasks',
       'isRead': false,
       'createdAt': DateTime.now()
           .subtract(const Duration(minutes: 12))
@@ -16,10 +16,10 @@ class MockNotificationsRepository implements NotificationsRepository {
     },
     {
       'id': 'n-2',
-      'title': 'E-coupons distributed',
-      'message': '5 e-coupons were assigned from your committee pool.',
-      'kind': 'ECOUPON',
-      'link': '/ecoupons',
+      'title': 'Schedule update',
+      'message': 'Delegate itinerary changed for VIP Lounge briefing.',
+      'kind': 'SCHEDULE',
+      'link': '/delegates',
       'isRead': false,
       'createdAt': DateTime.now()
           .subtract(const Duration(hours: 1))
@@ -28,10 +28,10 @@ class MockNotificationsRepository implements NotificationsRepository {
     },
     {
       'id': 'n-3',
-      'title': 'LO profile submitted',
-      'message': 'Demo Liaison submitted a profile for review.',
-      'kind': 'LO_PROFILE',
-      'link': '/los',
+      'title': 'B2B meeting request',
+      'message': 'A B2B meeting was requested for your assigned delegate.',
+      'kind': 'B2B',
+      'link': '/delegates',
       'isRead': true,
       'createdAt': DateTime.now()
           .subtract(const Duration(hours: 5))

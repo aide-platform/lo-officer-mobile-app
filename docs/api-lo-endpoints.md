@@ -1,4 +1,4 @@
-# CAP LO API endpoints (Committee Automation Portal)
+# CAP API endpoints — Liaison Officer app
 
 Base URL: `http://35.244.48.209:8080`  
 OpenAPI: `http://35.244.48.209:8080/v3/api-docs`  
@@ -9,14 +9,12 @@ Corporate networks: set `NO_PROXY=35.244.48.209` (or `*`) so the proxy does not 
 Envelope: `{ success, message, data, errorCode, timestamp }`  
 Auth header: `Authorization: Bearer <accessToken>`
 
-## Coverage matrix (Flutter app)
+## Coverage
 
 | Status | Meaning |
 |--------|---------|
 | **Wired** | Dio repository calls this path when `USE_MOCK_API=false` |
-| **Unused** | In OpenAPI / `ApiConfig` but not required by current shells |
-| **Speculative** | Tried then soft-fails to client/local fallback (not in public OpenAPI) |
-| **Out of scope** | CAP module for other products (IC Nodal Embassy DO, FSD, meeting notices, …) |
+| **Speculative** | Tried then soft-fails to local Hive (not in public OpenAPI) |
 
 ### Authentication — wired
 
@@ -28,85 +26,34 @@ Auth header: `Authorization: Bearer <accessToken>`
 | POST | `/api/auth/resend-otp` | `{ email }` |
 | POST | `/api/auth/verify-otp` | `{ email, otp }` → JWT |
 
-JWT: `accessToken`, `expiresInMs`, `userId`, `email`, `role`
-
-### Session
-
-| Method | Path | Status |
-|--------|------|--------|
-| GET | `/app/me` | Unused (optional post-OTP session refresh) |
-
-### My LO (LO.5 / LO.9) — wired
+### My LO portal — wired
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET/PUT | `/app/my-lo/me` | |
+| GET/PUT | `/app/my-lo/me` | Profile |
 | POST | `/app/my-lo/me/photo`, `signature`, `org-badge-front/back`, `aadhaar-front/back` | |
 | GET/POST | `/app/my-lo/me/experiences` | |
 | DELETE | `/app/my-lo/me/experiences/{id}` | |
 | GET/POST | `/app/my-lo/me/languages` | |
-| DELETE | `/app/my-lo/me/languages/{rowId}` | Replace-set: delete removed names, then POST new |
+| DELETE | `/app/my-lo/me/languages/{rowId}` | Replace-set |
 | GET | `/app/my-lo/me/delegates` | |
 | GET | `/app/my-lo/me/tasks` | |
 | PUT | `/app/my-lo/me/tasks/{taskId}/status?statusCode=` | |
 | PUT | `/app/my-lo/me/assignments/{assignmentId}/travel` | |
-| PUT | `/app/my-lo/me/assignments/{assignmentId}/arrival-flight` | Called with travel save (actual arrival) |
+| PUT | `/app/my-lo/me/assignments/{assignmentId}/arrival-flight` | |
 | GET | `/app/my-lo/me/assignments/{assignmentId}/vehicles` | |
 | GET | `/app/my-lo/me/assignments/{assignmentId}/nominations` | |
+| POST | `/app/my-lo/me/issues` | **Speculative** — soft-fails to on-device Hive + Share |
+| GET | `/app/committee/bv-quota/badge/{passId}/download` | LO badge PDF |
 
-### Organisation representative (LO.4) — wired
-
-| Method | Path |
-|--------|------|
-| GET | `/app/my-organisation/me` |
-| GET/POST | `/app/my-organisation/me/los` |
-| POST | `/app/my-organisation/me/los/{rejectedLoId}/re-nominate` |
-| GET | `/app/my-organisation/me/los/import-template` |
-| POST | `/app/my-organisation/me/los/bulk-import` |
-| POST | `/app/my-organisation/me/los/{loId}/reminder` |
-| POST | `/app/my-organisation/me/reminders/pending` |
-| CRUD | `/app/org-sub-nodal-officers` (+ `/mine`) |
-
-LO detail: OpenAPI has **no** `GET …/los/{loId}`. The app loads detail by filtering `listLos()`.
-
-### Nodal officer (LO.2–LO.8) — wired
+### Notifications — wired
 
 | Method | Path |
 |--------|------|
-| CRUD | `/app/lo-org-types` (incl. activate/deactivate) |
-| CRUD | `/app/lo-organisations` |
-| CRUD | `/app/email-templates` |
-| CRUD | `/app/do-letter-templates` (+ `/{id}/file` download/upload) |
-| CRUD | `/app/lo-activities` |
-| CRUD | `/app/liaison-officers` (+ `/{id}` PUT/DELETE, experiences, languages, reminder, pending reminders, active) |
-| CRUD | `/app/lo-assignments`, `/app/lo-assignments/delegates` |
-| CRUD | `/app/lo-tasks` |
-| GET | `/app/files/{id}` | LO document preview |
-| GET | `/app/committee/bv-quota/mine` |
-| POST | `/app/committee/bv-quota/assign-badge` (`personIds[]`) |
-| GET | `/app/committee/bv-quota/badge/{passId}/download` |
-
-Unused OpenAPI (skip unless product asks): `GET /app/lo-tasks/me`.
-
-### Speculative — LO org DO letter / nomination
-
-Public OpenAPI does **not** document:
-
-- `/app/lo-organisations/{id}/do-letter/preview`
-- `/app/lo-organisations/{id}/do-letter/signed`
-- `/app/lo-organisations/{id}/send-nomination`
-
-The Flutter client:
-
-1. Uses `/app/do-letter-templates` for template CRUD + PDF.
-2. Resolves an org’s DO download from the template matching its org type.
-3. Attempts the speculative LO-org paths above when live; on **404** or empty bytes, **client-generates** a filled PDF via `DoLetterPdfBuilder` (org name, head, designation, address, signing authority). AcroForm merge of arbitrary uploaded PDFs is not supported client-side.
-4. On nomination send, templates tagged **DO Letter Communication** auto-attach the locally stored signed DO PDF when available.
-5. Does **not** wire generic `/app/organisations/{id}/do-letter/*` or `send-do-letter` (IC Nodal / Embassy — different ID space).
-
-### Out of scope (examples)
-
-Other CAP modules in the same Swagger: foreign/domestic invitee DO letters, CEOs, ARTC, Heads of Mission, FSD templates, meeting notices, security templates.
+| GET | `/app/notifications/mine` |
+| POST | `/app/notifications/mine/{id}/read` |
+| POST | `/app/notifications/mine/read-all` |
+| GET | `/app/notifications/mine/unread-count` |
 
 ## Flutter dart-defines
 
@@ -116,22 +63,9 @@ flutter run \
   --dart-define=USE_MOCK_API=false
 ```
 
-Offline demo:
+Mock: `liaison@test.com` — OTP `123456`
 
-```bash
-flutter run --dart-define=USE_MOCK_API=true
-```
+## Related docs
 
-Mock emails: `liaison@test.com`, `org@test.com`, `admin@aeroindia.gov.in` — OTP `123456`
-
-## LO requirements + live seed
-
-- Requirements coverage (LO.1–LO.9): [`lo-committee-requirements-matrix.md`](lo-committee-requirements-matrix.md)
+- Requirements: [`lo-requirements-matrix.md`](lo-requirements-matrix.md)
 - Web ↔ mobile inventory: [`web-mobile-feature-inventory.md`](web-mobile-feature-inventory.md)
-- Live CAP seed (idempotent org types / orgs / LOs / assignments / tasks):
-
-```bash
-dart run scripts/seed_cap_lo.dart --email=<nodal-cap-email>
-```
-
-Requires a CAP User for the Nodal email (interactive CAPTCHA + OTP). Optional `--token=<JWT>` skips OTP when you already have a Nodal access token.

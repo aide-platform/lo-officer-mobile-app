@@ -2,13 +2,9 @@ import '../../domain/auth_repository.dart';
 
 class MockAuthRepository implements AuthRepository {
   static const String loEmail = 'liaison@test.com';
-  static const String orgEmail = 'org@test.com';
-  static const String adminEmail = 'admin@aeroindia.gov.in';
   static const String loPassword = 'liaison123';
   static const String loOtp = '123456';
   static const String loRole = 'Liaison Officer';
-  static const String orgRole = 'Organisation Representative';
-  static const String nodalRole = 'LO Committee Nodal Officer';
 
   String? _captchaId = 'mock-captcha-id';
 
@@ -98,8 +94,6 @@ class MockAuthRepository implements AuthRepository {
   }
 
   String _roleFor(String email) {
-    if (email == adminEmail) return nodalRole;
-    if (email == orgEmail) return orgRole;
     return loRole;
   }
 }

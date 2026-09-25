@@ -122,7 +122,7 @@ class LoNotificationsScreen extends StatelessWidget {
                   ),
                   subtitle: Text(
                     pendingIssues > 0
-                        ? '$pendingIssues pending local sync (CAP GAP)'
+                        ? '$pendingIssues on device — open to share/escalate'
                         : 'Report operational issues',
                   ),
                   trailing: const Icon(Icons.chevron_right),

@@ -4,8 +4,9 @@ import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
+import 'package:share_plus/share_plus.dart';
 
-/// Issue reporting UI. Persists locally — CAP has no LO-scoped create endpoint.
+/// Issue reporting — durable on device; speculative CAP POST when available.
 class LoIssueReportScreen extends StatefulWidget {
   const LoIssueReportScreen({
     super.key,
@@ -30,6 +31,13 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
     });
   }
 
+  Future<void> _shareIssue(LoIssueReport issue) async {
+    await Share.share(
+      issue.toShareText(),
+      subject: 'LO issue: ${issue.title}',
+    );
+  }
+
   Future<void> _openForm() async {
     final title = TextEditingController();
     final details = TextEditingController();
@@ -49,7 +57,8 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
             child: const Padding(
               padding: EdgeInsets.all(10),
               child: Text(
-                'Saved on device only. CAP has no LO issue API yet — marked pending sync.',
+                'Issues are stored on this device. If CAP accepts the report it '
+                'shows as Submitted; otherwise use Share to escalate to organisers.',
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -149,9 +158,26 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
           }
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-            itemCount: state.issues.length,
+            itemCount: state.issues.length + 1,
             itemBuilder: (context, i) {
-              final issue = state.issues[i];
+              if (i == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        'Issues stay on this device. Share any report to escalate '
+                        'to organisers when CAP write is unavailable.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final issue = state.issues[i - 1];
               return AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +194,12 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
                           ),
                         ),
                         AppStatusChip(
-                          label: issue.synced ? 'Synced' : 'Pending sync',
+                          label: issue.synced ? 'Submitted' : 'On device',
+                        ),
+                        IconButton(
+                          tooltip: 'Share / escalate',
+                          icon: const Icon(Icons.share_outlined),
+                          onPressed: () => _shareIssue(issue),
                         ),
                       ],
                     ),

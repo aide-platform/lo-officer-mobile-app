@@ -311,8 +311,30 @@ class DioLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<LoIssueReport> reportIssue(LoIssueReport issue) async {
-    // CAP GAP: no LO-scoped issue create endpoint. Persist locally for sync.
-    return LoOfflineStore.saveIssue(issue);
+    // Speculative CAP create; soft-fail to durable on-device store.
+    try {
+      final res = await _dio.post(
+        ApiConfig.myLoIssuesPath,
+        data: issue.toApiBody(),
+      );
+      final aide = AideResponse.unwrap(res.data);
+      String? remoteId;
+      try {
+        if (aide.data != null) {
+          remoteId = AideResponse.asMap(aide.data)['id']?.toString();
+        }
+      } catch (_) {}
+      final submitted = issue.copyWith(
+        id: (remoteId != null && remoteId.isNotEmpty) ? remoteId : issue.id,
+        synced: true,
+        status: 'submitted',
+      );
+      return LoOfflineStore.saveIssue(submitted);
+    } catch (_) {
+      // Expected while CAP has no LO issue write — keep local.
+    }
+    final local = issue.copyWith(synced: false, status: 'on_device');
+    return LoOfflineStore.saveIssue(local);
   }
 
   @override

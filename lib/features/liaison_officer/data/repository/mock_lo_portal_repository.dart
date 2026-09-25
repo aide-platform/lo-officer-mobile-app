@@ -364,8 +364,9 @@ class MockLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<LoIssueReport> reportIssue(LoIssueReport issue) async {
-    _issues.insert(0, issue);
-    return issue;
+    final submitted = issue.copyWith(synced: true, status: 'submitted');
+    _issues.insert(0, submitted);
+    return submitted;
   }
 
   @override

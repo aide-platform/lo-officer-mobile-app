@@ -132,7 +132,7 @@ void main() {
       );
     });
 
-    test('issue report persists in repository', () async {
+    test('issue report persists in repository as submitted (mock)', () async {
       final issue = LoIssueReport(
         id: 't1',
         title: 'Vehicle delayed',
@@ -149,6 +149,9 @@ void main() {
       );
       expect(state.issues, isNotEmpty);
       expect(state.issues.first.title, 'Vehicle delayed');
+      expect(state.issues.first.synced, isTrue);
+      expect(state.issues.first.status, 'submitted');
+      expect(state.infoMessage, contains('submitted'));
     });
   });
 

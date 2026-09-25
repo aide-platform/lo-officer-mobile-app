@@ -5,152 +5,87 @@ import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Help & Support — CAP LO Committee walkthrough (Quick Overview + §§1–18).
+/// Help & Support — Liaison Officer mobile walkthrough.
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
   static const _overview = <(String, String)>[
     (
-      '1 · Access Setup',
-      'Hospitality creates the LO Committee Nodal. Sub Nodals share the work via Email OTP (no passwords).',
+      '1 · Secure login',
+      'Sign in with your registered email. Complete CAPTCHA, then enter the OTP sent to you.',
     ),
     (
-      '2 · Configure Masters',
-      'Organisation Types from Manage Organisations; Activity Master from Task Management.',
+      '2 · Assigned delegates',
+      'Delegates tab lists VIPs assigned to you. Pull to refresh.',
     ),
     (
-      '3 · Register Organisations',
-      'Capture head, address, Org Rep contact — invitation email fires on save.',
+      '3–5 · Profile, itinerary & transport',
+      'Open a delegate for profile details, itinerary timeline, and assigned vehicle / driver info.',
     ),
     (
-      '4 · Org Rep Nominates LOs',
-      'Single nominate or Excel import; Remind Pending skips Completed profiles.',
+      '6 · Tasks',
+      'Tasks tab shows organiser assignments. Update status: Pending → In Progress → Completed.',
     ),
     (
-      '5 · LO Submits Profile',
-      'Identity fields flip status to Completed; documents support but do not gate.',
+      '7 · Movement updates',
+      'On delegate detail, log arrival, transfer, venue entry, or departure (travel editor).',
     ),
     (
-      '6 · Review Profiles',
-      'Filter by org type / name / language / status; Assign Badge and Download Badges.',
+      '8 · Issues & alerts',
+      'Report operational issues from delegate detail or Alerts. Notifications cover schedule and task updates.',
     ),
     (
-      '7 · Badge / Vehicle Quota',
-      'Issued by Invitation Committee — LO Nodal view is read-only Total/Assigned/Available.',
-    ),
-    (
-      '8 · Assign Badges',
-      'Select LOs → Assign Badge category from available quota pool.',
-    ),
-    (
-      '9 · Assign LOs to Delegates',
-      'RSVP Attending only; many-to-many; filters include experience and language.',
-    ),
-    (
-      '10 · Assign & Monitor Tasks',
-      'Activity Master or custom; LO → Delegate cascade; Pending / In Progress / Completed.',
-    ),
-    (
-      '11–14 · LO Portal',
-      'Delegates, travel, task status updates, and notifications (email + in-app).',
-    ),
-    (
-      '15–16 · Catering & E-Coupons',
-      'Submit meal quotas; distribute on approved rows; review/download coupons separately.',
-    ),
-    (
-      '17–18 · Sub Nodals & Dashboard',
-      'Add helpers (two-level hierarchy). Dashboard is a live read-only snapshot with shortcuts.',
+      '9 · Profile, Help & Theme',
+      'Avatar menu: My Profile wizard, Help & Support, light/dark theme, Logout.',
     ),
   ];
 
   static const _topics = <(String, String)>[
     (
-      '1. Access Setup',
-      'Purpose: Bring the LO Committee online. Fields: Name, Email, Mobile, Designation (required). '
-          'NOTE: Email OTP only; Sub Nodals cannot create further Sub Nodals.',
+      '1. Secure OTP login',
+      'Email + CAPTCHA + OTP. Session stays valid until expiry or logout.',
     ),
     (
-      '2. Configure Masters',
-      'Organisation Types dialog on Organisations (no delete — dependents rely on master). '
-          'Activity Master on Tasks (Add / Edit / soft Remove).',
+      '2. Assigned delegate list',
+      'Delegates tab. Search/filter as available. Tap a row for full detail.',
     ),
     (
-      '3. Register Organisations',
-      'Type, Head, Address, Org Rep email & contact required. Invitation fires on save; email can be re-invited later.',
+      '3. Delegate profile',
+      'Name, designation, organisation, country, and other CAP assignment fields.',
     ),
     (
-      '4. Org Rep — Nominate LOs',
-      'Add Nomination or Bulk Import Excel. Optional Org Rep Sub Nodals for nomination work.',
+      '4. Delegate itinerary',
+      'Composed timeline from travel fields, nominations, and vehicle pickup times.',
     ),
     (
-      '5. LO — Complete Profile',
-      'Personal, org, identity, contacts, signature, experience, availability, languages, documents. '
-          'Completed when identity fields save.',
+      '5. Transport assignment',
+      'Vehicle number, driver details, and pickup schedule on the transport card.',
     ),
     (
-      '6. Review LO Profiles',
-      'Filters: Organisation Type, Name, Language (master list), Profile Status. '
-          'Remind / Remove (soft-delete). Badges via selection Actions.',
+      '6. Task list & status',
+      'Tasks grouped by delegate. Update status with optional remarks. Offline queue syncs when online.',
     ),
     (
-      '7. Badge & Vehicle Pass Quota',
-      'Read-only KPIs and per-category / parking lines. Ask Invitation Committee for top-ups.',
+      '7. Delegate movement',
+      'Log arrival / transfer / venue entry / departure via travel and arrival-flight updates.',
     ),
     (
-      '8. Assign Badges to LOs',
-      'Select rows → Assign Badge (category with available quota) or Download Badges. '
-          'QUOTA_EXHAUSTED rejects without partial assign.',
+      '8. Issue reporting',
+      'Report exceptions during coordination. Stored on device; Submitted if CAP accepts, otherwise Share to escalate.',
     ),
     (
-      '9. Assign LOs to Delegates',
-      'Attending RSVP only. Filters: Type, Country, Assigned LO, Arrival/Departure, Experience, Language, Event. '
-          'Many-to-many; LO emailed on assign/unassign.',
+      '9. Notifications',
+      'Alerts tab for local notices. AppBar bell opens CAP inbox (schedule, tasks, B2B-related updates).',
     ),
     (
-      '10. Assign and Monitor Tasks',
-      'LO required → Delegate filtered to that LO. Title, description, date-time, venue, remarks, status. '
-          'Update Status dialog; soft-delete supported.',
-    ),
-    (
-      '11. LO — View Delegates',
-      'Personal, designation, org/ministry, contacts, nominations, schedules, transport & accommodation.',
-    ),
-    (
-      '12. LO — Travel Details',
-      'Flight, terminal, arrival/departure, optional connecting flight (CAP may not persist connecting legs).',
-    ),
-    (
-      '13. LO — Update Task Status',
-      'Tasks grouped by delegate; status badge + Update Status (Pending / In Progress / Completed + remarks).',
-    ),
-    (
-      '14. Notifications',
-      'New tasks, updates/reassign, delegate/travel/event changes, upcoming scheduled tasks — portal + email.',
-    ),
-    (
-      '15. Catering Requirements',
-      'Dining Area, Date, Meal, Persons. Irreversible submit. Distribute on approved; Resubmit on rejected. '
-          'Hidden from Sub Nodals.',
-    ),
-    (
-      '16. E-Coupons',
-      'Read-only committee coupons. QR view, per-coupon PDF, Download All. Distribution lives on Catering.',
-    ),
-    (
-      '17. Manage Sub Nodal Officers',
-      'Add / Edit / Remove (soft-delete). Same sidebar minus this page and Catering. Two-level hierarchy only.',
-    ),
-    (
-      '18. Dashboard',
-      'Live KPIs and charts (profile / assignment / task coverage, orgs by type, top orgs by VIP). '
-          'Read-only — cards shortcut into underlying pages.',
+      '10. My Profile',
+      'Complete identity and contact fields so organisers can reach you. Forced wizard if incomplete.',
     ),
   ];
 
   Future<void> _shareManual(BuildContext context) async {
     final buf = StringBuffer()
-      ..writeln('LO Committee — Aero India 2027')
+      ..writeln('Liaison Officer — Aero India')
       ..writeln('User Manual (mobile)')
       ..writeln('=' * 40)
       ..writeln()
@@ -171,15 +106,15 @@ class HelpSupportScreen extends StatelessWidget {
         ..writeln();
     }
     buf.writeln(
-      'Made for LO Committee — Aero India 2027 · Content mirrors the live application.',
+      'Liaison Officer app — Aero India · Content mirrors the live LO portal.',
     );
     try {
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/lo-committee-user-manual.md');
+      final file = File('${dir.path}/lo-officer-user-manual.md');
       await file.writeAsString(buf.toString());
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'LO Committee user manual',
+        text: 'Liaison Officer user manual',
       );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,7 +155,7 @@ class HelpSupportScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'End-to-end LO Committee flow. Each step links to detail below.',
+                  'Liaison Officer features only. Accommodation is out of scope.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 8),
@@ -280,8 +215,8 @@ class HelpSupportScreen extends StatelessWidget {
           ),
           AppCard(
             child: Text(
-              'NOTE: Sub Nodal Officers cannot create further Sub Nodals. '
-              'Dashboard is read-only — every stat card is a shortcut into the underlying page.',
+              'NOTE: This app is for Liaison Officers only. '
+              'Use Delegates · Tasks · Alerts, plus Profile, Help, and Theme from the account menu.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

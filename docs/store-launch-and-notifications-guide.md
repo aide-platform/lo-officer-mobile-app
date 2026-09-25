@@ -834,10 +834,9 @@ This section covers **every practical notification method** for LO.9.4, the **cu
 
 | Component | File | Behavior |
 |-----------|------|----------|
-| In-portal feed | `lib/features/liaison_officer/presentation/screens/lo_notifications_screen.dart` | `LoNotificationStore` singleton; unread badge; filters by type |
-| Mock email | `lib/core/notifications/mock_email_notifier.dart` | Writes to local outbox (`email_outbox` key); debug print only |
-| Triggers | Travel save, task status change, assignment seed | Portal notification + mock email to nodal officer |
-| Upcoming task timer | `lib/features/liaison_officer/data/services/upcoming_task_reminder_service.dart` | Checks every 60s; fires 60 min before `scheduledDate` |
+| In-portal feed | `lib/features/liaison_officer/presentation/screens/lo/lo_notifications_screen.dart` | Local alerts + entry to CAP inbox |
+| CAP inbox | `lib/features/liaison_officer/presentation/screens/notifications_inbox_screen.dart` | `/app/notifications/mine*` |
+| Push (optional) | `lib/core/services/push_notification_service.dart` | FCM hook for production |
 
 ### LO.9.4 requirements vs current state
 
@@ -1021,7 +1020,7 @@ POST /api/notifications/send  (internal/admin)
 
 **How it works:** Backend sends real email via SMTP or provider API when events occur.
 
-**Replace:** `MockEmailNotifier` in `lib/core/notifications/mock_email_notifier.dart`
+**App:** CAP in-app notifications via `/app/notifications/mine*`; email is a backend concern (no local mock notifier in this app).
 
 **Providers:** SendGrid, Amazon SES, Mailgun, Microsoft Graph (org email)
 
@@ -1148,7 +1147,7 @@ POST /internal/notifications/email
    - Shows system notification via `flutter_local_notifications`
 3. **Add** FCM + device token registration on login (`AuthBloc` success).
 4. **Schedule** local notifications for upcoming tasks (60 min lead) as backup.
-5. **Replace** `MockEmailNotifier` with `POST /api/notifications/email` on backend.
+5. **Backend** email (optional) via SMTP / provider when domain events fire.
 6. **Backend** fan-out service:
    - Subscribes to domain events: `TaskAssigned`, `TravelUpdated`, `TaskDueSoon`
    - Sends FCM + email (and optional SMS for urgent)

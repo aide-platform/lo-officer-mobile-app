@@ -298,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen>
                             TextButton.icon(
                               onPressed: () {
                                 _showSnack(
-                                  'Contact LO Committee support via your nodal officer.',
+                                  'Contact Liaison Officer support for login help.',
                                 );
                               },
                               icon: Icon(
@@ -318,7 +318,7 @@ class _LoginScreenState extends State<LoginScreen>
                               const SizedBox(height: AppSpacing.sm),
                               Text(
                                 ApiConfig.useMockApi
-                                    ? 'Mock: liaison@test.com / org@test.com / admin@aeroindia.gov.in · OTP 123456'
+                                    ? 'Mock: liaison@test.com · OTP 123456'
                                     : 'CAP: ${ApiConfig.baseUrl}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(

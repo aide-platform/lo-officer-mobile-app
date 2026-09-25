@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
 import 'app_semantic_colors.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 

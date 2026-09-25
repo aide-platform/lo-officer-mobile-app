@@ -4,14 +4,10 @@ import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/session/app_role.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/shells/lo_portal_shell.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/shells/nodal_officer_shell.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/shells/org_rep_shell.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/bloc/nodal_lo_bloc.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/bloc/org_rep_bloc.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/shells/lo_portal_shell.dart';
 
-/// Routes authenticated users to the correct role shell.
+/// Routes authenticated users to the LO portal (LO-only app).
 class RoleHomeRouter extends StatelessWidget {
   const RoleHomeRouter({
     super.key,
@@ -24,38 +20,15 @@ class RoleHomeRouter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appRole = resolveAppRole(role);
     final deps = AppDependencies.instance;
-
-    switch (appRole) {
-      case AppRole.organisationRepresentative:
-        return BlocProvider(
-          create: (_) => OrgRepBloc(repository: deps.orgRepRepository)
-            ..add(OrgRepLoadRequested()),
-          child: OrgRepShell(email: email, roleLabel: appRole.label),
-        );
-      case AppRole.nodalOfficer:
-      case AppRole.subNodalOfficer:
-        return BlocProvider(
-          create: (_) => NodalLoBloc(repository: deps.nodalLoRepository)
-            ..add(NodalLoLoadRequested()),
-          child: NodalOfficerShell(
-            email: email,
-            roleLabel: appRole.label,
-            isSubNodal: appRole == AppRole.subNodalOfficer,
-          ),
-        );
-      case AppRole.liaisonOfficer:
-      case AppRole.unknown:
-        return BlocProvider(
-          create: (_) => LoPortalBloc(repository: deps.loPortalRepository)
-            ..add(LoPortalLoadRequested()),
-          child: LoPortalShell(
-            email: email,
-            roleLabel: AppRole.liaisonOfficer.label,
-          ),
-        );
-    }
+    return BlocProvider(
+      create: (_) => LoPortalBloc(repository: deps.loPortalRepository)
+        ..add(LoPortalLoadRequested()),
+      child: LoPortalShell(
+        email: email,
+        roleLabel: AppRole.liaisonOfficer.label,
+      ),
+    );
   }
 }
 
