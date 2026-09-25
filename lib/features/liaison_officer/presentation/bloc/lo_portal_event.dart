@@ -29,6 +29,22 @@ class LoPortalTravelUpdated extends LoPortalEvent {
   final Map<String, dynamic> body;
 }
 
+class LoPortalMovementUpdated extends LoPortalEvent {
+  LoPortalMovementUpdated({
+    required this.assignmentId,
+    required this.movement,
+  });
+  final String assignmentId;
+  final LoMovementUpdate movement;
+}
+
+class LoPortalIssueReported extends LoPortalEvent {
+  LoPortalIssueReported(this.issue);
+  final LoIssueReport issue;
+}
+
+class LoPortalIssuesRefreshRequested extends LoPortalEvent {}
+
 class LoPortalAlertsRefreshRequested extends LoPortalEvent {}
 
 class LoPortalUploadRequested extends LoPortalEvent {

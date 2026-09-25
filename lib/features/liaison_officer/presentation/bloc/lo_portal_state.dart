@@ -12,9 +12,11 @@ class LoPortalState {
   final List<String> languages;
   final Map<String, List<Map<String, dynamic>>> vehiclesByAssignment;
   final Map<String, List<Map<String, dynamic>>> nominationsByAssignment;
+  final Map<String, List<LoItineraryItem>> itineraryByAssignment;
   final Map<String, List<ConnectingFlightDraft>> arrivalConnectingByAssignment;
   final Map<String, List<ConnectingFlightDraft>>
       departureConnectingByAssignment;
+  final List<LoIssueReport> issues;
   final int alertLeadMinutes;
   final String? errorMessage;
   final String? infoMessage;
@@ -31,8 +33,10 @@ class LoPortalState {
     this.languages = const [],
     this.vehiclesByAssignment = const {},
     this.nominationsByAssignment = const {},
+    this.itineraryByAssignment = const {},
     this.arrivalConnectingByAssignment = const {},
     this.departureConnectingByAssignment = const {},
+    this.issues = const [],
     this.alertLeadMinutes = 60,
     this.errorMessage,
     this.infoMessage,
@@ -50,8 +54,10 @@ class LoPortalState {
     List<String>? languages,
     Map<String, List<Map<String, dynamic>>>? vehiclesByAssignment,
     Map<String, List<Map<String, dynamic>>>? nominationsByAssignment,
+    Map<String, List<LoItineraryItem>>? itineraryByAssignment,
     Map<String, List<ConnectingFlightDraft>>? arrivalConnectingByAssignment,
     Map<String, List<ConnectingFlightDraft>>? departureConnectingByAssignment,
+    List<LoIssueReport>? issues,
     int? alertLeadMinutes,
     String? errorMessage,
     String? infoMessage,
@@ -73,10 +79,13 @@ class LoPortalState {
           vehiclesByAssignment ?? this.vehiclesByAssignment,
       nominationsByAssignment:
           nominationsByAssignment ?? this.nominationsByAssignment,
+      itineraryByAssignment:
+          itineraryByAssignment ?? this.itineraryByAssignment,
       arrivalConnectingByAssignment: arrivalConnectingByAssignment ??
           this.arrivalConnectingByAssignment,
       departureConnectingByAssignment: departureConnectingByAssignment ??
           this.departureConnectingByAssignment,
+      issues: issues ?? this.issues,
       alertLeadMinutes: alertLeadMinutes ?? this.alertLeadMinutes,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       infoMessage: clearInfo ? null : (infoMessage ?? this.infoMessage),

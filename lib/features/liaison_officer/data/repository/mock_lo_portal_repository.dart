@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/lo_portal_repository.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_itinerary.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_movement.dart';
 
 class MockLoPortalRepository implements LoPortalRepository {
   final List<MyLoAssignmentDto> _delegates = [
@@ -16,6 +19,7 @@ class MockLoPortalRepository implements LoPortalRepository {
       organisation: 'IAF',
       ministry: 'Ministry of Defence',
       gender: 'Male',
+      countryName: 'India',
       protocolEquiv: 'Secretary',
       email: 'vip@example.com',
       mobileNumber: '+911234567890',
@@ -331,6 +335,42 @@ class MockLoPortalRepository implements LoPortalRepository {
           'venue': 'Main Arena',
         },
       ];
+
+  final List<LoIssueReport> _issues = [];
+
+  @override
+  Future<MyLoAssignmentDto> updateMovement({
+    required String assignmentId,
+    required LoMovementUpdate movement,
+  }) async {
+    return updateTravel(
+      assignmentId: assignmentId,
+      body: movement.toTravelBody(),
+    );
+  }
+
+  @override
+  Future<List<LoItineraryItem>> getItinerary(String assignmentId) async {
+    final assignment = _delegates.firstWhere(
+      (d) => d.assignmentId == assignmentId,
+      orElse: () => MyLoAssignmentDto(assignmentId: assignmentId),
+    );
+    return LoItineraryItem.compose(
+      assignment: assignment,
+      nominations: await getNominations(assignmentId),
+      vehicles: await getVehicles(assignmentId),
+    );
+  }
+
+  @override
+  Future<LoIssueReport> reportIssue(LoIssueReport issue) async {
+    _issues.insert(0, issue);
+    return issue;
+  }
+
+  @override
+  Future<List<LoIssueReport>> listReportedIssues() async =>
+      List.unmodifiable(_issues);
 
   @override
   Future<List<int>> downloadBadge(String passId) async =>

@@ -43,6 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.kotlin/
+/android/build/
 
 # Local/corporate build secrets (proxy auth, truststores)
 /android/cacerts
@@ -50,6 +52,11 @@ app.*.map.json
 /android/local.properties
 .cursor/
 
-# Accidental npm tooling (Flutter project ó not used)
+# Accidental npm tooling (Flutter project ù not used)
 node_modules/
+
+# Temp OpenAPI / scrape artifacts
+.tmp_*
+.tmp_openapi.json
+**/.tmp_*/
 

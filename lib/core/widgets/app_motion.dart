@@ -6,6 +6,7 @@ class AppMotion {
 
   static const Duration page = Duration(milliseconds: 320);
   static const Duration tab = Duration(milliseconds: 280);
+  static const Duration medium = Duration(milliseconds: 300);
   static const Duration listItem = Duration(milliseconds: 280);
   static const int listStaggerMs = 40;
   static const int listStaggerCapMs = 240;

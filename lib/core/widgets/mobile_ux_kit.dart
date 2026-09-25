@@ -12,25 +12,37 @@ class AppStatusPalette {
 
   static Color forLabel(String? raw) {
     final s = (raw ?? '').trim().toUpperCase().replaceAll(' ', '_');
-    if (s.contains('REJECT') || s.contains('INACTIVE') || s.contains('FAIL')) {
+    if (s.contains('REJECT') ||
+        s.contains('INACTIVE') ||
+        s.contains('FAIL') ||
+        s.contains('CRITICAL') ||
+        s.contains('HIGH')) {
       return AppTheme.pinkAccent;
     }
     if (s.contains('COMPLETE') ||
         s.contains('APPROV') ||
         s.contains('SUBMIT') ||
         s.contains('ACTIVE') ||
-        s == 'DONE') {
+        s.contains('ARRIVAL') ||
+        s == 'DONE' ||
+        s.contains('SYNCED')) {
       return AppTheme.indiaGreen;
     }
     if (s.contains('PROGRESS') ||
         s.contains('ASSIGN') ||
         s.contains('DISTRIBUT') ||
-        s.contains('IN_REVIEW')) {
+        s.contains('IN_REVIEW') ||
+        s.contains('TRANSFER') ||
+        s.contains('VENUE') ||
+        s.contains('EVENT') ||
+        s.contains('TRANSPORT')) {
       return AppTheme.royalBlue;
     }
     if (s.contains('PENDING') ||
         s.contains('DRAFT') ||
         s.contains('INCOMPLETE') ||
+        s.contains('DEPARTURE') ||
+        s.contains('MEDIUM') ||
         s.isEmpty) {
       return AppTheme.saffron;
     }

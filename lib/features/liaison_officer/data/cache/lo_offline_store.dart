@@ -3,13 +3,16 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
 
-/// Hive-backed offline snapshot + queued task status updates for LO field use.
+/// Hive-backed offline snapshot + queued writes for LO field use.
 class LoOfflineStore {
   LoOfflineStore._();
 
   static const _boxName = 'lo_offline';
   static const _queueKey = 'task_status_queue';
+  static const _movementQueueKey = 'movement_queue';
+  static const _issuesKey = 'issues_json';
   static const _delegatesKey = 'delegates_json';
   static const _tasksKey = 'tasks_json';
 
@@ -70,11 +73,9 @@ class LoOfflineStore {
     String? remarks,
   }) async {
     try {
-      final raw = box.get(_queueKey);
-      final list = raw is String
-          ? List<dynamic>.from(jsonDecode(raw) as List)
-          : <dynamic>[];
+      final list = await peekQueue();
       list.add({
+        'type': 'task_status',
         'taskId': taskId,
         'statusCode': statusCode,
         'remarks': remarks,
@@ -84,16 +85,48 @@ class LoOfflineStore {
     } catch (_) {}
   }
 
+  static Future<void> enqueueMovement({
+    required String assignmentId,
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final raw = box.get(_movementQueueKey);
+      final list = raw is String
+          ? List<dynamic>.from(jsonDecode(raw) as List)
+          : <dynamic>[];
+      list.add({
+        'type': 'movement',
+        'assignmentId': assignmentId,
+        'body': body,
+        'queuedAt': DateTime.now().toIso8601String(),
+      });
+      await box.put(_movementQueueKey, jsonEncode(list));
+    } catch (_) {}
+  }
+
   static Future<List<Map<String, dynamic>>> peekQueue() async {
     try {
       final raw = box.get(_queueKey);
-      if (raw is! String) return const [];
+      if (raw is! String) return [];
       return (jsonDecode(raw) as List)
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
     } catch (_) {
-      return const [];
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> peekMovementQueue() async {
+    try {
+      final raw = box.get(_movementQueueKey);
+      if (raw is! String) return [];
+      return (jsonDecode(raw) as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (_) {
+      return [];
     }
   }
 
@@ -111,5 +144,43 @@ class LoOfflineStore {
       }
       await box.put(_queueKey, jsonEncode(items));
     } catch (_) {}
+  }
+
+  static Future<void> replaceMovementQueue(
+    List<Map<String, dynamic>> items,
+  ) async {
+    try {
+      if (items.isEmpty) {
+        await box.delete(_movementQueueKey);
+        return;
+      }
+      await box.put(_movementQueueKey, jsonEncode(items));
+    } catch (_) {}
+  }
+
+  static Future<LoIssueReport> saveIssue(LoIssueReport issue) async {
+    final all = await listIssues();
+    final next = [
+      issue,
+      ...all.where((e) => e.id != issue.id),
+    ];
+    await box.put(
+      _issuesKey,
+      jsonEncode(next.map((e) => e.toJson()).toList()),
+    );
+    return issue;
+  }
+
+  static Future<List<LoIssueReport>> listIssues() async {
+    try {
+      final raw = box.get(_issuesKey);
+      if (raw is! String) return const [];
+      return (jsonDecode(raw) as List)
+          .whereType<Map>()
+          .map((e) => LoIssueReport.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 }

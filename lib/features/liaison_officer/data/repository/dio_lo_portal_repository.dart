@@ -5,8 +5,12 @@ import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/network/aide_response.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
 import 'package:liaison_officer/core/network/dio_provider.dart';
+import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/lo_portal_repository.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_itinerary.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_movement.dart';
 
 class DioLoPortalRepository implements LoPortalRepository {
   DioLoPortalRepository({Dio? dio}) : _dio = dio ?? createDio();
@@ -267,6 +271,53 @@ class DioLoPortalRepository implements LoPortalRepository {
       parseData: AideResponse.asMapList,
     );
     return aide.data ?? const [];
+  }
+
+  @override
+  Future<MyLoAssignmentDto> updateMovement({
+    required String assignmentId,
+    required LoMovementUpdate movement,
+  }) async {
+    final body = movement.toTravelBody();
+    var updated = await updateTravel(assignmentId: assignmentId, body: body);
+    if (movement.usesArrivalFlightEndpoint) {
+      updated = await updateArrivalFlight(
+        assignmentId: assignmentId,
+        body: body,
+      );
+    }
+    return updated;
+  }
+
+  @override
+  Future<List<LoItineraryItem>> getItinerary(String assignmentId) async {
+    final delegates = await getMyDelegates();
+    MyLoAssignmentDto? assignment;
+    for (final d in delegates) {
+      if (d.assignmentId == assignmentId) {
+        assignment = d;
+        break;
+      }
+    }
+    assignment ??= MyLoAssignmentDto(assignmentId: assignmentId);
+    final vehicles = await getVehicles(assignmentId);
+    final nominations = await getNominations(assignmentId);
+    return LoItineraryItem.compose(
+      assignment: assignment,
+      nominations: nominations,
+      vehicles: vehicles,
+    );
+  }
+
+  @override
+  Future<LoIssueReport> reportIssue(LoIssueReport issue) async {
+    // CAP GAP: no LO-scoped issue create endpoint. Persist locally for sync.
+    return LoOfflineStore.saveIssue(issue);
+  }
+
+  @override
+  Future<List<LoIssueReport>> listReportedIssues() async {
+    return LoOfflineStore.listIssues();
   }
 
   @override

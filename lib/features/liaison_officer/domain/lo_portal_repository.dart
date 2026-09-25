@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_itinerary.dart';
+import 'package:liaison_officer/features/liaison_officer/domain/models/lo_movement.dart';
 
 abstract class LoPortalRepository {
   Future<LiaisonOfficerDto?> getMyProfile();
@@ -23,6 +26,12 @@ abstract class LoPortalRepository {
     required Map<String, dynamic> body,
   });
 
+  /// First-class movement update (arrival / transfer / venue / departure).
+  Future<MyLoAssignmentDto> updateMovement({
+    required String assignmentId,
+    required LoMovementUpdate movement,
+  });
+
   Future<void> uploadPhoto(Uint8List bytes, String filename);
   Future<void> uploadSignature(Uint8List bytes, String filename);
   Future<void> uploadOrgBadgeFront(Uint8List bytes, String filename);
@@ -39,6 +48,14 @@ abstract class LoPortalRepository {
 
   Future<List<Map<String, dynamic>>> getVehicles(String assignmentId);
   Future<List<Map<String, dynamic>>> getNominations(String assignmentId);
+
+  /// Composed itinerary from travel + nominations + vehicles (no CAP endpoint).
+  Future<List<LoItineraryItem>> getItinerary(String assignmentId);
+
+  /// Persist operational issue locally (CAP GAP — no LO-scoped create).
+  Future<LoIssueReport> reportIssue(LoIssueReport issue);
+
+  Future<List<LoIssueReport>> listReportedIssues();
 
   Future<List<int>> downloadBadge(String passId);
 }
