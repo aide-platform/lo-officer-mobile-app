@@ -36,7 +36,6 @@ class LoPortalShell extends StatefulWidget {
 class _LoPortalShellState extends State<LoPortalShell> {
   int _index = 0;
   int _unread = 0;
-  bool _wizardPrompted = false;
 
   @override
   void initState() {
@@ -88,12 +87,84 @@ class _LoPortalShellState extends State<LoPortalShell> {
 
   @override
   Widget build(BuildContext context) {
+    return BlocConsumer<LoPortalBloc, LoPortalState>(
+      listener: (context, state) async {
+        final bloc = context.read<LoPortalBloc>();
+        if (state.lastDownloadBytes != null &&
+            state.lastDownloadBytes!.isNotEmpty) {
+          final bytes = state.lastDownloadBytes!;
+          final name = state.lastDownloadFilename ?? 'badge.pdf';
+          final dir = await getTemporaryDirectory();
+          final file = File('${dir.path}/$name');
+          await file.writeAsBytes(bytes);
+          await Share.shareXFiles([XFile(file.path)], text: name);
+        }
+        if (!context.mounted) return;
+        if (state.infoMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text(state.infoMessage!),
+            ),
+          );
+        }
+        if (state.errorMessage != null &&
+            state.status == LoPortalStatus.failure &&
+            state.profile?.profileComplete == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text(state.errorMessage!),
+            ),
+          );
+        }
+        if (state.infoMessage != null || state.lastDownloadBytes != null) {
+          bloc.add(LoPortalClearMessages());
+        }
+      },
+      builder: (context, state) {
+        if (state.status == LoPortalStatus.loading ||
+            state.status == LoPortalStatus.initial) {
+          return const Scaffold(
+            body: AppLoading(label: 'Loading portal…'),
+          );
+        }
+        if (state.status == LoPortalStatus.failure &&
+            state.delegates.isEmpty &&
+            state.profile == null) {
+          return Scaffold(
+            body: AppErrorView(
+              message: state.errorMessage ?? 'Failed to load',
+              onRetry: () =>
+                  context.read<LoPortalBloc>().add(LoPortalLoadRequested()),
+            ),
+          );
+        }
+
+        // Web parity: finish My Profile before Delegates / Tasks / Alerts.
+        if (state.profile?.profileComplete != true) {
+          return LoProfileScreen(
+            email: widget.email,
+            readOnly: false,
+          );
+        }
+
+        return _buildMainShell(context, state);
+      },
+    );
+  }
+
+  Widget _buildMainShell(BuildContext context, LoPortalState state) {
     final titles = ['Delegates', 'Tasks', 'Alerts'];
     final pages = [
       const LoDelegatesScreen(),
       const LoTasksScreen(),
       LoNotificationsScreen(onOpenInbox: () => _openInbox(context)),
     ];
+    final showCacheBanner = state.status == LoPortalStatus.ready &&
+        state.errorMessage != null &&
+        state.errorMessage!.toLowerCase().contains('cached');
+    final pending = state.pendingSyncCount;
 
     return AnimatedTheme(
       data: Theme.of(context),
@@ -173,155 +244,89 @@ class _LoPortalShellState extends State<LoPortalShell> {
             ],
           ),
         ],
-        body: BlocConsumer<LoPortalBloc, LoPortalState>(
-          listener: (context, state) async {
-            final bloc = context.read<LoPortalBloc>();
-            if (!_wizardPrompted &&
-                state.status == LoPortalStatus.ready &&
-                state.profile?.profileComplete != true) {
-              _wizardPrompted = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _openProfile(context, forceWizard: true);
-              });
-            }
-            if (state.lastDownloadBytes != null &&
-                state.lastDownloadBytes!.isNotEmpty) {
-              final bytes = state.lastDownloadBytes!;
-              final name = state.lastDownloadFilename ?? 'badge.pdf';
-              final dir = await getTemporaryDirectory();
-              final file = File('${dir.path}/$name');
-              await file.writeAsBytes(bytes);
-              await Share.shareXFiles([XFile(file.path)], text: name);
-            }
-            if (!context.mounted) return;
-            if (state.infoMessage != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text(state.infoMessage!),
-                ),
-              );
-            }
-            if (state.errorMessage != null &&
-                state.status == LoPortalStatus.failure &&
-                state.delegates.isNotEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text(state.errorMessage!),
-                ),
-              );
-            }
-            if (state.infoMessage != null ||
-                state.lastDownloadBytes != null) {
-              bloc.add(LoPortalClearMessages());
-            }
-          },
-          builder: (context, state) {
-            if (state.status == LoPortalStatus.loading ||
-                state.status == LoPortalStatus.initial) {
-              return const AppLoading(label: 'Loading portal…');
-            }
-            if (state.status == LoPortalStatus.failure &&
-                state.delegates.isEmpty &&
-                state.profile == null) {
-              return AppErrorView(
-                message: state.errorMessage ?? 'Failed to load',
-                onRetry: () =>
-                    context.read<LoPortalBloc>().add(LoPortalLoadRequested()),
-              );
-            }
-            final showCacheBanner = state.status == LoPortalStatus.ready &&
-                state.errorMessage != null &&
-                state.errorMessage!.toLowerCase().contains('cached');
-            final pending = state.pendingSyncCount;
-            return Column(
-              children: [
-                if (showCacheBanner)
-                  Material(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+        body: Column(
+          children: [
+            if (showCacheBanner)
+              Material(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 18,
+                        color:
+                            Theme.of(context).colorScheme.onSecondaryContainer,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_off_outlined,
-                            size: 18,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          state.errorMessage!,
+                          style: TextStyle(
+                            fontSize: 12,
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSecondaryContainer,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              state.errorMessage!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSecondaryContainer,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => context
-                                .read<LoPortalBloc>()
-                                .add(LoPortalLoadRequested()),
-                            child: const Text('Retry'),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () => context
+                            .read<LoPortalBloc>()
+                            .add(LoPortalLoadRequested()),
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
-                if (pending > 0)
-                  Material(
-                    color: Theme.of(context).colorScheme.tertiaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                ),
+              ),
+            if (pending > 0)
+              Material(
+                color: Theme.of(context).colorScheme.tertiaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.sync_outlined,
+                        size: 18,
+                        color:
+                            Theme.of(context).colorScheme.onTertiaryContainer,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.sync_outlined,
-                            size: 18,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$pending pending sync '
+                          '(tasks, movements, or issues)',
+                          style: TextStyle(
+                            fontSize: 12,
                             color: Theme.of(context)
                                 .colorScheme
                                 .onTertiaryContainer,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '$pending pending sync '
-                              '(tasks, movements, or issues)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onTertiaryContainer,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => context
-                                .read<LoPortalBloc>()
-                                .add(LoPortalLoadRequested()),
-                            child: const Text('Sync now'),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () => context
+                            .read<LoPortalBloc>()
+                            .add(LoPortalLoadRequested()),
+                        child: const Text('Sync now'),
+                      ),
+                    ],
                   ),
-                Expanded(
-                  child: AppTabFade(index: _index, children: pages),
                 ),
-              ],
-            );
-          },
+              ),
+            Expanded(
+              child: AppTabFade(index: _index, children: pages),
+            ),
+          ],
         ),
         destinations: const [
           NavigationDestination(

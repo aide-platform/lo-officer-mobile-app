@@ -50,6 +50,9 @@ app.*.map.json
 /android/cacerts
 /android/bel-truststore.jks
 /android/local.properties
+/android/*.jks
+/android/upload-keystore.jks
+/android/key.properties
 .cursor/
 
 # Accidental npm tooling (Flutter project ù not used)

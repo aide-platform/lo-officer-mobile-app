@@ -28,13 +28,20 @@ flutter run `
 flutter run --dart-define=USE_MOCK_API=true
 ```
 
-Release APK:
+Release APK (live CAP — required for QA / device install):
 
-```bash
+```powershell
+$env:NO_PROXY='35.244.48.209'
 flutter build apk --release `
   --dart-define=USE_MOCK_API=false `
   --dart-define=API_BASE_URL=http://35.244.48.209:8080
 ```
+
+Copy the artifact to `releases/liaison-officer-1.0.1.apk` (see [`releases/README.md`](releases/README.md)).
+
+**Signing:** Release builds use `android/key.properties` + `android/upload-keystore.jks` when present (gitignored). Without them, Gradle falls back to the debug keystore.
+
+**Android notes:** Cleartext HTTP is allowlisted only for `35.244.48.209` until CAP serves TLS. JWT tokens use `flutter_secure_storage`. R8 minify + resource shrink are enabled for release.
 
 Compile-time `USE_MOCK_API` defaults to `true` in code for safe offline tests; **docs for this branch default to `false`**.
 
@@ -65,7 +72,9 @@ Supporting UX: My Profile, Help & Support, Theme toggle.
 
 ## Docs & portals
 
-- [`docs/api-lo-endpoints.md`](docs/api-lo-endpoints.md) — CAP LO endpoints
+- [`docs/lo-help-and-support-manual.md`](docs/lo-help-and-support-manual.md) — Help & Support user manual (portal-aligned)
+- [`docs/lo-help-api-and-requirements.md`](docs/lo-help-api-and-requirements.md) — Help sections ↔ APIs + extra app requirements
+- [`docs/api-lo-endpoints.md`](docs/api-lo-endpoints.md) — CAP LO endpoints (Swagger-verified)
 - [`docs/store-launch-and-notifications-guide.md`](docs/store-launch-and-notifications-guide.md)
 - Portal UI: http://35.244.48.209/
 - Swagger: http://35.244.48.209:8080/swagger-ui/index.html

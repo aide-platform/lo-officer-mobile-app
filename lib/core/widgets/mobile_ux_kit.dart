@@ -66,6 +66,30 @@ class AppStatusChip extends StatelessWidget {
   }
 }
 
+/// Stacked form fields with consistent vertical gap for outlined floating labels.
+class AppFormColumn extends StatelessWidget {
+  const AppFormColumn({
+    super.key,
+    required this.children,
+    this.spacing = AppSpacing.fieldGap,
+    this.mainAxisSize = MainAxisSize.min,
+  });
+
+  final List<Widget> children;
+  final double spacing;
+  final MainAxisSize mainAxisSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: mainAxisSize,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: spacing,
+      children: children,
+    );
+  }
+}
+
 /// Bottom sheet for short forms (≤5 fields / one logical group).
 Future<bool?> showAppFormSheet({
   required BuildContext context,
@@ -203,32 +227,32 @@ Future<Map<String, String?>?> showAppFiltersSheet({
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
                 ),
                 const SizedBox(height: 12),
-                ...filters.map((f) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: values[f.key],
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: f.label,
-                        isDense: true,
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text(f.allLabel),
+                AppFormColumn(
+                  children: [
+                    for (final f in filters)
+                      DropdownButtonFormField<String>(
+                        initialValue: values[f.key],
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: f.label,
+                          isDense: true,
                         ),
-                        ...f.options.map(
-                          (o) => DropdownMenuItem(
-                            value: o,
-                            child: Text(o, overflow: TextOverflow.ellipsis),
+                        items: [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text(f.allLabel),
                           ),
-                        ),
-                      ],
-                      onChanged: (v) => setLocal(() => values[f.key] = v),
-                    ),
-                  );
-                }),
+                          ...f.options.map(
+                            (o) => DropdownMenuItem(
+                              value: o,
+                              child: Text(o, overflow: TextOverflow.ellipsis),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) => setLocal(() => values[f.key] = v),
+                      ),
+                  ],
+                ),
                 Row(
                   children: [
                     TextButton(

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
@@ -75,7 +76,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       final delegates = await repository.getMyDelegates();
       final tasks = await repository.getMyTasks();
       final experiences = await repository.listExperiences();
-      final languages = await repository.listLanguages();
+      final languages = _dedupeLanguages(await repository.listLanguages());
       final issues = await repository.listReportedIssues();
       await LoPortalCache.saveProfile(profile);
       await LoPortalCache.saveDelegates(delegates);
@@ -123,7 +124,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           cachedTasks.isNotEmpty) {
         emit(state.copyWith(
           status: LoPortalStatus.ready,
-          errorMessage: 'Offline — showing cached data. $e',
+          errorMessage: 'Offline — showing cached data. ${apiErrorMessage(e)}',
           issues: cachedIssues,
           alertLeadMinutes: lead,
           pendingSyncCount: await _refreshPendingCount(),
@@ -132,7 +133,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       }
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: apiErrorMessage(e),
         pendingSyncCount: await _refreshPendingCount(),
       ));
     }
@@ -208,16 +209,25 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         body:
             'Your LO profile status is ${profile.profileStatus ?? 'SUBMITTED'}.',
       );
+      // Refresh languages / experiences / documents from CAP after submit.
+      final languages = _dedupeLanguages(await repository.listLanguages());
+      final experiences = await repository.listExperiences();
       final alerts = await LoPortalCache.loadAlerts();
       emit(state.copyWith(
         status: LoPortalStatus.ready,
         profile: profile,
+        languages: languages,
+        experiences: experiences,
         alerts: alerts,
+        clearError: true,
+        infoMessage: 'Profile saved',
       ));
+      // Full portal reload so shell gate + delegates stay in sync.
+      add(LoPortalLoadRequested());
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: apiErrorMessage(e),
       ));
     }
   }
@@ -253,7 +263,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       );
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: 'Offline — status queued for sync: ${e.toString()}',
+        errorMessage: 'Offline — status queued for sync: ${apiErrorMessage(e)}',
         pendingSyncCount: await _refreshPendingCount(),
       ));
     }
@@ -312,7 +322,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: apiErrorMessage(e),
       ));
     }
   }
@@ -350,7 +360,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       );
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: 'Offline — movement queued for sync: $e',
+        errorMessage: 'Offline — movement queued for sync: ${apiErrorMessage(e)}',
         pendingSyncCount: await _refreshPendingCount(),
       ));
     }
@@ -383,7 +393,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: apiErrorMessage(e),
         pendingSyncCount: await _refreshPendingCount(),
       ));
     }
@@ -416,7 +426,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: 'Sync failed: $e',
+        errorMessage: 'Sync failed: ${apiErrorMessage(e)}',
         pendingSyncCount: await _refreshPendingCount(),
       ));
     }
@@ -474,7 +484,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: apiErrorMessage(e),
       ));
     }
   }
@@ -483,18 +493,36 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     LoPortalExperienceAdded event,
     Emitter<LoPortalState> emit,
   ) async {
-    final exp = await repository.addExperience(event.body);
-    emit(state.copyWith(experiences: [...state.experiences, exp]));
+    try {
+      final exp = await repository.addExperience(event.body);
+      emit(state.copyWith(
+        experiences: [...state.experiences, exp],
+        clearError: true,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: LoPortalStatus.failure,
+        errorMessage: apiErrorMessage(e),
+      ));
+    }
   }
 
   Future<void> _onExpDel(
     LoPortalExperienceDeleted event,
     Emitter<LoPortalState> emit,
   ) async {
-    await repository.deleteExperience(event.id);
-    emit(state.copyWith(
-      experiences: state.experiences.where((e) => e.id != event.id).toList(),
-    ));
+    try {
+      await repository.deleteExperience(event.id);
+      emit(state.copyWith(
+        experiences: state.experiences.where((e) => e.id != event.id).toList(),
+        clearError: true,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: LoPortalStatus.failure,
+        errorMessage: apiErrorMessage(e),
+      ));
+    }
   }
 
   Future<void> _onLangs(
@@ -502,7 +530,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     Emitter<LoPortalState> emit,
   ) async {
     await repository.setLanguages(event.languages);
-    emit(state.copyWith(languages: event.languages));
+    emit(state.copyWith(languages: LoPortalBloc._dedupeLanguages(event.languages)));
   }
 
   Future<void> _onExtras(
@@ -569,7 +597,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     } catch (e) {
       emit(state.copyWith(
         status: LoPortalStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: apiErrorMessage(e),
       ));
     }
   }
@@ -583,6 +611,20 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       clearError: true,
       clearDownload: true,
     ));
+  }
+
+  static List<String> _dedupeLanguages(List<String> raw) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final lang in raw) {
+      final t = lang.trim();
+      if (t.isEmpty) continue;
+      final key = t.toLowerCase();
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      out.add(t);
+    }
+    return out;
   }
 }
 

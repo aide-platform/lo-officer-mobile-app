@@ -38,6 +38,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   static const _languageOptions = [
     'English',
     'Hindi',
+    'Odia',
     'Kannada',
     'Tamil',
     'Telugu',
@@ -60,12 +61,17 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
 
   String _salutation = 'Mr';
   String _gender = 'Male';
+  String? _genderId;
+  final Map<String, String> _genderIdByName = {};
   DateTime? _dob;
   /// null = custom WhatsApp; 'official' or 'personal' = mirror that contact.
   String? _whatsappSameAs;
   bool _hasPrevLoExp = false;
   bool _seeded = false;
   int _step = 0; // 0 Personal, 1 Documents, 2 Prior Experience
+  List<String> _draftLanguages = [];
+  String? _languagePick;
+  bool _languagesSeeded = false;
 
   final Map<LoUploadKind, String> _uploadNames = {};
   Uint8List? _pendingPhotoBytes;
@@ -105,6 +111,12 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     }
     if (p.genderName != null && _genders.contains(p.genderName)) {
       _gender = p.genderName!;
+    }
+    if ((p.genderId ?? '').trim().isNotEmpty) {
+      _genderId = p.genderId!.trim();
+      if ((p.genderName ?? '').trim().isNotEmpty) {
+        _genderIdByName[p.genderName!.trim()] = _genderId!;
+      }
     }
     if (p.dateOfBirth != null && p.dateOfBirth!.isNotEmpty) {
       _dob = DateTime.tryParse(p.dateOfBirth!);
@@ -190,46 +202,67 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     final year = TextEditingController();
     final role = TextEditingController();
     final delegateDetails = TextEditingController();
+    String? eventError;
+    String? roleError;
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add experience'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: eventName,
-                decoration: const InputDecoration(labelText: 'Event name'),
-              ),
-              TextField(
-                controller: year,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Year'),
-              ),
-              TextField(
-                controller: role,
-                decoration: const InputDecoration(labelText: 'Role'),
-              ),
-              TextField(
-                controller: delegateDetails,
-                decoration:
-                    const InputDecoration(labelText: 'Delegate details'),
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Add experience'),
+          content: SingleChildScrollView(
+            child: AppFormColumn(
+              children: [
+                TextField(
+                  controller: eventName,
+                  decoration: InputDecoration(
+                    labelText: 'Event name *',
+                    errorText: eventError,
+                  ),
+                ),
+                TextField(
+                  controller: year,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Year'),
+                ),
+                TextField(
+                  controller: role,
+                  decoration: InputDecoration(
+                    labelText: 'Role / responsibilities *',
+                    errorText: roleError,
+                  ),
+                ),
+                TextField(
+                  controller: delegateDetails,
+                  decoration: const InputDecoration(
+                    labelText: 'Delegate details (optional)',
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = eventName.text.trim();
+                final roleText = role.text.trim();
+                setLocal(() {
+                  eventError =
+                      name.isEmpty ? 'Event name is required.' : null;
+                  roleError =
+                      roleText.isEmpty ? 'Role is required.' : null;
+                });
+                if (name.isEmpty || roleText.isEmpty) return;
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Add'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
 
@@ -250,20 +283,92 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     delegateDetails.dispose();
   }
 
-  void _saveLanguages(List<String> selected) {
-    context.read<LoPortalBloc>().add(LoPortalLanguagesSaved(selected));
+  void _seedDraftLanguages(List<String> fromState) {
+    if (_languagesSeeded) return;
+    _draftLanguages = List<String>.from(fromState);
+    _languagesSeeded = true;
+  }
+
+  void _addLanguage() {
+    final pick = _languagePick;
+    if (pick == null || pick.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('Pick a language first.'),
+        ),
+      );
+      return;
+    }
+    final exists = _draftLanguages.any(
+      (l) => l.toLowerCase() == pick.toLowerCase(),
+    );
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('You have already added this language.'),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _draftLanguages = [..._draftLanguages, pick];
+      _languagePick = null;
+    });
+  }
+
+  void _removeLanguage(String lang) {
+    setState(() {
+      _draftLanguages = _draftLanguages
+          .where((l) => l.toLowerCase() != lang.toLowerCase())
+          .toList();
+    });
+  }
+
+  String? _validateProfile() {
+    if (_first.text.trim().isEmpty) return 'First name is required.';
+    if (_last.text.trim().isEmpty) return 'Last name is required.';
+    if ((_genderId ?? '').trim().isEmpty) {
+      return 'Gender is required. Re-select gender or reload your profile.';
+    }
+    if (_dob == null) return 'Date of birth is required.';
+    if (_designation.text.trim().isEmpty) return 'Designation is required.';
+    if (_orgId.text.trim().isEmpty) {
+      return 'Organisation ID number is required.';
+    }
+    if (_aadhaar.text.trim().isEmpty) return 'Aadhaar number is required.';
+    if (_personalEmail.text.trim().isEmpty) {
+      return 'Personal email is required.';
+    }
+    if (_personalContact.text.trim().isEmpty) {
+      return 'Personal contact is required.';
+    }
+    return null;
   }
 
   void _submit(LoPortalState state) {
-    final selected = List<String>.from(state.languages);
-    _saveLanguages(selected);
+    final validationError = _validateProfile();
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(validationError),
+        ),
+      );
+      return;
+    }
+    context.read<LoPortalBloc>().add(
+          LoPortalLanguagesSaved(List<String>.from(_draftLanguages)),
+        );
     context.read<LoPortalBloc>().add(
           LoPortalProfileSaved({
             'salutation': _salutation,
             'firstName': _first.text.trim(),
             'lastName': _last.text.trim(),
+            'genderId': _genderId,
             'genderName': _gender,
-            'dateOfBirth': _dob == null ? null : _dobLabel(),
+            'dateOfBirth': _dobLabel(),
             'rank': _rank.text.trim(),
             'designation': _designation.text.trim(),
             'orgIdNumber': _orgId.text.trim(),
@@ -285,15 +390,18 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     return BlocConsumer<LoPortalBloc, LoPortalState>(
       listener: (context, state) {
         if (state.status == LoPortalStatus.ready &&
-            state.profile?.profileComplete == true &&
+            state.infoMessage == 'Profile saved' &&
             !widget.readOnly) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              behavior: SnackBarBehavior.floating,
-              content: Text('Profile saved'),
-            ),
-          );
-          Navigator.of(context).maybePop();
+          // Shell already toasts infoMessage when gating; avoid duplicate when embedded.
+          if (Navigator.of(context).canPop()) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                behavior: SnackBarBehavior.floating,
+                content: Text('Profile saved'),
+              ),
+            );
+            Navigator.of(context).maybePop();
+          }
         }
         if (state.status == LoPortalStatus.failure &&
             state.errorMessage != null) {
@@ -307,6 +415,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
       },
       builder: (context, state) {
         _seed(state.profile);
+        _seedDraftLanguages(state.languages);
         final p = state.profile;
         final age = _dob == null ? null : LoProfileScreen.calcAge(_dob!);
 
@@ -315,9 +424,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
             appBar: AppBar(
               title: const Text('My Profile'),
               actions: [
-                IconButton(
-                  tooltip: 'Edit',
-                  icon: const Icon(Icons.edit_outlined),
+                TextButton.icon(
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
@@ -332,10 +439,16 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                       ),
                     );
                   },
+                  icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                  label: const Text(
+                    'Update Details',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
-            body: ListView(
+            body: SafeArea(
+              child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 AppCard(
@@ -374,21 +487,34 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Personal',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                      _detailKv('Designation', p?.designation ?? _designation.text),
-                      _detailKv('Rank', p?.rank ?? _rank.text),
+                      const Text(
+                        'Personal details',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This is what your organisation, the LO Committee and '
+                        'downstream committees see about you.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      _detailKv('Salutation', _salutation),
+                      _detailKv(
+                        'Full name',
+                        p?.fullName ?? '${_first.text} ${_last.text}'.trim(),
+                      ),
                       _detailKv('Gender', p?.genderName ?? _gender),
-                      _detailKv('DOB', p?.dateOfBirth ?? _dobLabel()),
-                    ],
-                  ),
-                ),
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Contact',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
+                      _detailKv('Date of birth', p?.dateOfBirth ?? _dobLabel()),
+                      if (age != null) _detailKv('Age', '$age'),
+                      _detailKv('Organisation name', p?.orgName),
+                      _detailKv('Organisation type', p?.orgTypeName),
+                      _detailKv('Rank', p?.rank ?? _rank.text),
+                      _detailKv(
+                        'Designation',
+                        p?.designation ?? _designation.text,
+                      ),
+                      _detailKv('Org ID number', p?.orgIdNumber ?? _orgId.text),
+                      _detailKv('Aadhaar', p?.aadhaarNumber ?? _aadhaar.text),
                       _detailKv('Official email', p?.officialEmail),
                       _detailKv('Personal email', p?.personalEmail),
                       _detailKv('Official contact', p?.officialContact),
@@ -401,13 +527,65 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Languages',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                      Wrap(
-                        spacing: 8,
-                        children: state.languages
-                            .map((l) => AppStatusChip(label: l))
-                            .toList(),
+                      const Text(
+                        'Languages known',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      if (state.languages.isEmpty)
+                        Text(
+                          'No languages added. Tap Update Details to add languages.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      else
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: state.languages
+                              .map((l) => Chip(label: Text(l)))
+                              .toList(),
+                        ),
+                    ],
+                  ),
+                ),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Document uploads',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      _docStatusRow(
+                        'Photograph',
+                        p?.photoFileName,
+                        p?.photoFileId,
+                      ),
+                      _docStatusRow(
+                        'Signature',
+                        p?.signatureFileName,
+                        p?.signatureFileId,
+                      ),
+                      _docStatusRow(
+                        'Aadhaar (Front)',
+                        p?.aadhaarFrontFileName,
+                        p?.aadhaarFrontId,
+                      ),
+                      _docStatusRow(
+                        'Aadhaar (Back)',
+                        p?.aadhaarBackFileName,
+                        p?.aadhaarBackId,
+                      ),
+                      _docStatusRow(
+                        'Org Badge (Front)',
+                        p?.orgBadgeFrontFileName,
+                        p?.orgBadgeFrontId,
+                      ),
+                      _docStatusRow(
+                        'Org Badge (Back)',
+                        p?.orgBadgeBackFileName,
+                        p?.orgBadgeBackId,
                       ),
                     ],
                   ),
@@ -416,21 +594,70 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Documents',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: _uploadNames.entries
-                            .map((e) => Chip(label: Text(e.value)))
-                            .toList(),
+                      const Text(
+                        'Prior LO experience',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      if (_uploadNames.isEmpty)
-                        const Text('No documents uploaded yet.'),
+                      const SizedBox(height: 8),
+                      _detailKv(
+                        'Has LO experience',
+                        (p?.hasPrevLoExp ?? _hasPrevLoExp) ? 'Yes' : 'No',
+                      ),
+                      if (state.experiences.isEmpty)
+                        Text(
+                          (p?.hasPrevLoExp ?? _hasPrevLoExp)
+                              ? 'No experience rows yet. Tap Update Details to add them.'
+                              : 'No prior LO experience recorded.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      else
+                        ...state.experiences.map(
+                          (e) => Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).dividerColor,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          e.eventName ?? 'Event',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      if (e.year != null)
+                                        Chip(
+                                          label: Text('${e.year}'),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                    ],
+                                  ),
+                                  if ((e.roleResponsibilities ?? '')
+                                      .isNotEmpty)
+                                    Text('Role: ${e.roleResponsibilities}'),
+                                  if ((e.delegateDetails ?? '').isNotEmpty)
+                                    Text('Delegates: ${e.delegateDetails}'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ],
+            ),
             ),
           );
         }
@@ -438,8 +665,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
         Widget stepBody;
         if (_step == 0) {
           stepBody = AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: AppFormColumn(
               children: [
                 DropdownButtonFormField<String>(
                   key: ValueKey('salutation-$_salutation'),
@@ -464,15 +690,34 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                 DropdownButtonFormField<String>(
                   key: ValueKey('gender-$_gender'),
                   initialValue: _gender,
-                  decoration: const InputDecoration(labelText: 'Gender'),
+                  decoration: const InputDecoration(labelText: 'Gender *'),
                   items: _genders
                       .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                       .toList(),
                   onChanged: (v) {
                     if (v == null) return;
-                    setState(() => _gender = v);
+                    setState(() {
+                      _gender = v;
+                      _genderId = _genderIdByName[v];
+                    });
                   },
                 ),
+                if ((p?.orgName ?? '').isNotEmpty)
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Organisation name',
+                      helperText: 'From your parent organisation record.',
+                    ),
+                    child: Text(p!.orgName!),
+                  ),
+                if ((p?.orgTypeName ?? '').isNotEmpty)
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Organisation type',
+                      helperText: 'From your parent organisation record.',
+                    ),
+                    child: Text(p!.orgTypeName!),
+                  ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date of birth'),
@@ -525,27 +770,61 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   decoration:
                       const InputDecoration(labelText: 'WhatsApp number'),
                 ),
-                const SizedBox(height: 8),
-                const Text('Languages',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                Wrap(
-                  spacing: 8,
-                  children: _languageOptions.map((lang) {
-                    final selected = state.languages.contains(lang);
-                    return FilterChip(
-                      label: Text(lang),
-                      selected: selected,
-                      onSelected: (on) {
-                        final next = List<String>.from(state.languages);
-                        if (on) {
-                          if (!next.contains(lang)) next.add(lang);
-                        } else {
-                          next.remove(lang);
-                        }
-                        _saveLanguages(next);
-                      },
-                    );
-                  }).toList(),
+                const Text(
+                  'Languages known',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                if (_draftLanguages.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _draftLanguages
+                        .map(
+                          (lang) => InputChip(
+                            label: Text(lang),
+                            onDeleted: () => _removeLanguage(lang),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey(
+                          'lang-pick-$_languagePick-${_draftLanguages.length}',
+                        ),
+                        initialValue: _languagePick,
+                        decoration: const InputDecoration(
+                          labelText: 'Pick a language',
+                        ),
+                        items: _languageOptions
+                            .where(
+                              (o) => !_draftLanguages.any(
+                                (l) => l.toLowerCase() == o.toLowerCase(),
+                              ),
+                            )
+                            .map(
+                              (o) => DropdownMenuItem(
+                                value: o,
+                                child: Text(o),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _languagePick = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _addLanguage,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add'),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Added languages are saved when you Submit on the final step.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
@@ -588,11 +867,15 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                 if (_hasPrevLoExp) ...[
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton.icon(
+                    child: FilledButton.icon(
                       onPressed: _addExperience,
                       icon: const Icon(Icons.add),
-                      label: const Text('Add'),
+                      label: const Text('Add Experience'),
                     ),
+                  ),
+                  Text(
+                    'New rows are saved when you Submit below.',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                   ...state.experiences.map(
                     (e) => ListTile(
@@ -602,14 +885,30 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                         [
                           if (e.year != null) '${e.year}',
                           e.roleResponsibilities,
+                          e.delegateDetails,
                         ]
                             .whereType<String>()
                             .where((s) => s.isNotEmpty)
                             .join(' · '),
                       ),
+                      trailing: e.id == null
+                          ? null
+                          : IconButton(
+                              tooltip: 'Remove',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => context.read<LoPortalBloc>().add(
+                                    LoPortalExperienceDeleted(e.id!),
+                                  ),
+                            ),
                     ),
                   ),
-                ],
+                ] else
+                  Text(
+                    'Any recorded event rows will be removed when you Submit.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFFEF6C00),
+                        ),
+                  ),
               ],
             ),
           );
@@ -617,7 +916,8 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
 
         return Scaffold(
           appBar: AppBar(title: const Text('My Profile')),
-          body: Column(
+          body: SafeArea(
+            child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -673,6 +973,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
               ),
             ],
           ),
+          ),
         );
       },
     );
@@ -690,6 +991,42 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
             child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
           Expanded(child: Text(v)),
+        ],
+      ),
+    );
+  }
+
+  Widget _docStatusRow(String label, String? fileName, String? fileId) {
+    final uploaded =
+        (fileId ?? '').trim().isNotEmpty || (fileName ?? '').trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  uploaded
+                      ? (fileName?.trim().isNotEmpty == true
+                          ? fileName!
+                          : 'Uploaded')
+                      : 'Not uploaded',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppStatusChip(
+            label: uploaded
+                ? 'Uploaded'
+                : (widget.readOnly ? 'Missing — tap Update Details' : 'Missing'),
+          ),
         ],
       ),
     );

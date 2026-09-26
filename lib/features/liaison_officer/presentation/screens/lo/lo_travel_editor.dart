@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 
@@ -71,50 +72,57 @@ class LoTravelEditor {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: arrivalFlight,
-                    decoration:
-                        const InputDecoration(labelText: 'Arrival flight'),
-                  ),
-                  TextField(
-                    controller: arrivalTerminal,
-                    decoration:
-                        const InputDecoration(labelText: 'Arrival terminal'),
-                  ),
-                  _dateTimeField(
-                    context: ctx,
-                    controller: arrivalDate,
-                    label: 'Arrival date',
-                    isDate: true,
-                  ),
-                  _dateTimeField(
-                    context: ctx,
-                    controller: arrivalTime,
-                    label: 'Arrival time',
-                    isDate: false,
-                  ),
-                  TextField(
-                    controller: departureFlight,
-                    decoration:
-                        const InputDecoration(labelText: 'Departure flight'),
-                  ),
-                  TextField(
-                    controller: departureTerminal,
-                    decoration: const InputDecoration(
-                      labelText: 'Departure terminal',
-                    ),
-                  ),
-                  _dateTimeField(
-                    context: ctx,
-                    controller: departureDate,
-                    label: 'Departure date',
-                    isDate: true,
-                  ),
-                  _dateTimeField(
-                    context: ctx,
-                    controller: departureTime,
-                    label: 'Departure time',
-                    isDate: false,
+                  AppFormColumn(
+                    children: [
+                      TextField(
+                        controller: arrivalFlight,
+                        decoration: const InputDecoration(
+                          labelText: 'Arrival flight',
+                        ),
+                      ),
+                      TextField(
+                        controller: arrivalTerminal,
+                        decoration: const InputDecoration(
+                          labelText: 'Arrival terminal',
+                        ),
+                      ),
+                      _dateTimeField(
+                        context: ctx,
+                        controller: arrivalDate,
+                        label: 'Arrival date',
+                        isDate: true,
+                      ),
+                      _dateTimeField(
+                        context: ctx,
+                        controller: arrivalTime,
+                        label: 'Arrival time',
+                        isDate: false,
+                      ),
+                      TextField(
+                        controller: departureFlight,
+                        decoration: const InputDecoration(
+                          labelText: 'Departure flight',
+                        ),
+                      ),
+                      TextField(
+                        controller: departureTerminal,
+                        decoration: const InputDecoration(
+                          labelText: 'Departure terminal',
+                        ),
+                      ),
+                      _dateTimeField(
+                        context: ctx,
+                        controller: departureDate,
+                        label: 'Departure date',
+                        isDate: true,
+                      ),
+                      _dateTimeField(
+                        context: ctx,
+                        controller: departureTime,
+                        label: 'Departure time',
+                        isDate: false,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   _connectingSection(
@@ -305,34 +313,40 @@ class LoTravelEditor {
                       ),
                     ],
                   ),
-                  TextFormField(
-                    initialValue: f.flightNumber,
-                    decoration:
-                        const InputDecoration(labelText: 'Flight number'),
-                    onChanged: (v) {
-                      final next = [...flights];
-                      next[i] = ConnectingFlightDraft(
-                        flightNumber: v,
-                        terminal: flights[i].terminal,
-                        date: flights[i].date,
-                        time: flights[i].time,
-                      );
-                      onChanged(next);
-                    },
-                  ),
-                  TextFormField(
-                    initialValue: f.terminal,
-                    decoration: const InputDecoration(labelText: 'Terminal'),
-                    onChanged: (v) {
-                      final next = [...flights];
-                      next[i] = ConnectingFlightDraft(
-                        flightNumber: flights[i].flightNumber,
-                        terminal: v,
-                        date: flights[i].date,
-                        time: flights[i].time,
-                      );
-                      onChanged(next);
-                    },
+                  AppFormColumn(
+                    children: [
+                      TextFormField(
+                        initialValue: f.flightNumber,
+                        decoration: const InputDecoration(
+                          labelText: 'Flight number',
+                        ),
+                        onChanged: (v) {
+                          final next = [...flights];
+                          next[i] = ConnectingFlightDraft(
+                            flightNumber: v,
+                            terminal: flights[i].terminal,
+                            date: flights[i].date,
+                            time: flights[i].time,
+                          );
+                          onChanged(next);
+                        },
+                      ),
+                      TextFormField(
+                        initialValue: f.terminal,
+                        decoration:
+                            const InputDecoration(labelText: 'Terminal'),
+                        onChanged: (v) {
+                          final next = [...flights];
+                          next[i] = ConnectingFlightDraft(
+                            flightNumber: flights[i].flightNumber,
+                            terminal: v,
+                            date: flights[i].date,
+                            time: flights[i].time,
+                          );
+                          onChanged(next);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

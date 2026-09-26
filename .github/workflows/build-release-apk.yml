@@ -1,0 +1,56 @@
+name: Build release APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create testing upload keystore
+        working-directory: android
+        run: |
+          keytool -genkey -v \
+            -keystore upload-keystore.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias upload \
+            -storepass ciTestOnly \
+            -keypass ciTestOnly \
+            -dname "CN=LO CI, OU=CAP, O=BEL, L=Bengaluru, ST=Karnataka, C=IN"
+          printf '%s\n' \
+            'storePassword=ciTestOnly' \
+            'keyPassword=ciTestOnly' \
+            'keyAlias=upload' \
+            'storeFile=upload-keystore.jks' \
+            > key.properties
+
+      - name: Build release APK (live CAP)
+        run: |
+          flutter pub get
+          flutter build apk --release \
+            --dart-define=USE_MOCK_API=false \
+            --dart-define=API_BASE_URL=http://35.244.48.209:8080
+
+      - name: Stage APK under releases/
+        run: |
+          mkdir -p releases
+          cp build/app/outputs/flutter-apk/app-release.apk releases/liaison-officer-1.0.1.apk
+          ls -lh releases/liaison-officer-1.0.1.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: liaison-officer-1.0.1-apk
+          path: releases/liaison-officer-1.0.1.apk
+          if-no-files-found: error

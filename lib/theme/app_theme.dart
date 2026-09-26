@@ -277,6 +277,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: cardBgColor,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: text.bodyMedium?.copyWith(color: textMuted),
         labelStyle: text.bodyMedium?.copyWith(color: textSecondary),
         border: OutlineInputBorder(
@@ -396,6 +397,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: lightInputBg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: text.bodyMedium?.copyWith(color: lightTextMuted),
         labelStyle: text.bodyMedium?.copyWith(color: lightTextSecondary),
         border: OutlineInputBorder(

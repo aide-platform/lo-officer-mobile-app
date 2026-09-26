@@ -12,10 +12,60 @@ import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
-class LoDelegateDetailScreen extends StatelessWidget {
-  const LoDelegateDetailScreen({super.key, required this.delegate});
+/// Optional section to scroll into view when opening delegate detail.
+enum LoDelegateFocusSection { profile, itinerary, transport, travel }
+
+class LoDelegateDetailScreen extends StatefulWidget {
+  const LoDelegateDetailScreen({
+    super.key,
+    required this.delegate,
+    this.focusSection,
+  });
 
   final MyLoAssignmentDto delegate;
+  final LoDelegateFocusSection? focusSection;
+
+  @override
+  State<LoDelegateDetailScreen> createState() => _LoDelegateDetailScreenState();
+}
+
+class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
+  final _itineraryKey = GlobalKey();
+  final _transportKey = GlobalKey();
+  final _travelKey = GlobalKey();
+  bool _didScrollToFocus = false;
+
+  MyLoAssignmentDto get delegate => widget.delegate;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleFocusScroll();
+  }
+
+  void _scheduleFocusScroll() {
+    final focus = widget.focusSection;
+    if (_didScrollToFocus || focus == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _didScrollToFocus) return;
+      final key = switch (focus) {
+        LoDelegateFocusSection.itinerary => _itineraryKey,
+        LoDelegateFocusSection.transport => _transportKey,
+        LoDelegateFocusSection.travel => _travelKey,
+        LoDelegateFocusSection.profile => null,
+      };
+      final ctx = key?.currentContext;
+      if (ctx != null) {
+        _didScrollToFocus = true;
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          alignment: 0.05,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +96,7 @@ class LoDelegateDetailScreen extends StatelessWidget {
       ),
       body: BlocBuilder<LoPortalBloc, LoPortalState>(
         builder: (context, state) {
+          _scheduleFocusScroll();
           final live = () {
             if (assignmentId == null) return delegate;
             for (final e in state.delegates) {
@@ -163,56 +214,80 @@ class LoDelegateDetailScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
-                _sectionTitle(context, 'Itinerary'),
-                if (itinerary.isEmpty)
-                  const Text('No itinerary items yet.')
-                else
-                  ...itinerary.map((item) => _ItineraryTile(item: item)),
-                const SizedBox(height: 16),
-                _sectionTitle(context, 'Transport'),
-                if (vehicles.isEmpty)
-                  const Text('No vehicles assigned.')
-                else
-                  ...vehicles.map((v) => _TransportCard(vehicle: v)),
-                const SizedBox(height: 16),
-                _sectionTitle(context, 'Travel & movement'),
-                Text(
-                  'Arrival: ${live.arrivalFlight ?? '—'} · ${live.arrivalDate ?? ''} ${live.arrivalTime ?? ''}',
-                ),
-                Text(
-                  'Departure: ${live.departureFlight ?? '—'} · ${live.departureDate ?? ''} ${live.departureTime ?? ''}',
-                ),
-                if (arrivalConnecting.isNotEmpty)
-                  Text(
-                    'Arrival connecting: ${arrivalConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
+                KeyedSubtree(
+                  key: _itineraryKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(context, 'Itinerary'),
+                      if (itinerary.isEmpty)
+                        const Text('No itinerary items yet.')
+                      else
+                        ...itinerary.map((item) => _ItineraryTile(item: item)),
+                    ],
                   ),
-                if (departureConnecting.isNotEmpty)
-                  Text(
-                    'Departure connecting: ${departureConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
+                ),
+                const SizedBox(height: 16),
+                KeyedSubtree(
+                  key: _transportKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(context, 'Transport'),
+                      if (vehicles.isEmpty)
+                        const Text('No vehicles assigned.')
+                      else
+                        ...vehicles.map((v) => _TransportCard(vehicle: v)),
+                    ],
                   ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: () => LoTravelEditor.open(
-                        context,
-                        live,
-                        arrivalConnecting,
-                        departureConnecting,
+                ),
+                const SizedBox(height: 16),
+                KeyedSubtree(
+                  key: _travelKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(context, 'Travel & movement'),
+                      Text(
+                        'Arrival: ${live.arrivalFlight ?? '—'} · ${live.arrivalDate ?? ''} ${live.arrivalTime ?? ''}',
                       ),
-                      icon: const Icon(Icons.flight_takeoff_outlined),
-                      label: const Text('Update travel'),
-                    ),
-                    FilledButton.icon(
-                      onPressed: assignmentId == null
-                          ? null
-                          : () => _openMovementSheet(context, live),
-                      icon: const Icon(Icons.directions_walk_outlined),
-                      label: const Text('Log movement'),
-                    ),
-                  ],
+                      Text(
+                        'Departure: ${live.departureFlight ?? '—'} · ${live.departureDate ?? ''} ${live.departureTime ?? ''}',
+                      ),
+                      if (arrivalConnecting.isNotEmpty)
+                        Text(
+                          'Arrival connecting: ${arrivalConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
+                        ),
+                      if (departureConnecting.isNotEmpty)
+                        Text(
+                          'Departure connecting: ${departureConnecting.map((c) => c.flightNumber).where((e) => e.isNotEmpty).join(', ')}',
+                        ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.tonalIcon(
+                            onPressed: () => LoTravelEditor.open(
+                              context,
+                              live,
+                              arrivalConnecting,
+                              departureConnecting,
+                            ),
+                            icon: const Icon(Icons.flight_takeoff_outlined),
+                            label: const Text('Update travel'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: assignmentId == null
+                                ? null
+                                : () => _openMovementSheet(context, live),
+                            icon: const Icon(Icons.directions_walk_outlined),
+                            label: const Text('Log movement'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -255,8 +330,7 @@ class LoDelegateDetailScreen extends StatelessWidget {
       context: context,
       title: 'Delegate movement',
       confirmLabel: 'Save movement',
-      builder: (ctx, setLocal) => Column(
-        mainAxisSize: MainAxisSize.min,
+      builder: (ctx, setLocal) => AppFormColumn(
         children: [
           DropdownButtonFormField<LoMovementKind>(
             initialValue: kind,

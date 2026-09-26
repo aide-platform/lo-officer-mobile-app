@@ -51,8 +51,7 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
       context: context,
       title: 'Report issue',
       confirmLabel: 'Submit',
-      builder: (ctx, setLocal) => Column(
-        mainAxisSize: MainAxisSize.min,
+      builder: (ctx, setLocal) => AppFormColumn(
         children: [
           Material(
             color: Theme.of(ctx).colorScheme.secondaryContainer,
@@ -66,7 +65,6 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
           TextField(
             controller: title,
             decoration: const InputDecoration(labelText: 'Title *'),
@@ -112,12 +110,9 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
           if (widget.delegateName != null)
             Align(
               alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Delegate: ${widget.delegateName}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
+              child: Text(
+                'Delegate: ${widget.delegateName}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
         ],

@@ -11,6 +11,9 @@ class AppSpacing {
 
   static const double pagePadding = lg;
   static const double sectionGap = xl;
+
+  /// Vertical gap between stacked outlined form fields (floating labels).
+  static const double fieldGap = lg;
 }
 
 class AppRadii {

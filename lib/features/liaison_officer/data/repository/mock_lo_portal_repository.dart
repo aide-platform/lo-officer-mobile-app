@@ -79,6 +79,9 @@ class MockLoPortalRepository implements LoPortalRepository {
     officialEmail: 'liaison@test.com',
     profileStatus: 'DRAFT',
     profileComplete: false,
+    genderName: 'Male',
+    genderId: 'gender-male',
+    salutationName: 'Mr',
     currentPassId: 'pass-lo-1',
     currentPassNumber: 'L-2001',
   );

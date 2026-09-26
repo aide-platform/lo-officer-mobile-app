@@ -1,7 +1,7 @@
 name: liaison_officer
 description: "Liaison Officer mobile app for bel.com"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.2
@@ -15,6 +15,7 @@ dependencies:
   sqflite: ^2.4.2
   path: ^1.9.1
   shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
   dio: ^5.8.0+1
   image_picker: ^1.1.2
   file_picker: ^10.3.2
@@ -47,3 +48,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/docs/lo-help-and-support-manual.md
