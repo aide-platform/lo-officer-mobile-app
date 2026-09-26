@@ -22,6 +22,14 @@ Copy-Item -Force `
 
 Signing uses `android/key.properties` and `android/upload-keystore.jks` (gitignored, not in this repo).
 
+### CI (when local Gradle is blocked by corporate proxy)
+
+1. Open [Build release APK](https://github.com/aide-platform/lo-officer-mobile-app/actions/workflows/build-release-apk.yml) → **Run workflow** → branch `feature/lo-mobile-production`.
+2. Download the `liaison-officer-1.0.1-apk` artifact when the run finishes.
+3. Optionally commit it under `releases/liaison-officer-1.0.1.apk` for the testing team.
+
+Local builds fail with **HTTP 407** if `%USERPROFILE%\.gradle\gradle.properties` proxy credentials are expired — update them or use a hotspot / CI.
+
 ## Install on Android
 
 1. Copy `liaison-officer-1.0.1.apk` to the device (USB, email, MDM, etc.).
