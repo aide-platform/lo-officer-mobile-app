@@ -26,5 +26,13 @@
 # Flutter optional Play Store deferred components (not used; R8 needs these
 # when minify is on — classes live in Play Core which we do not ship).
 -dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
--dontwarn com.google.android.play.core.splitinstall.**
--dontwarn com.google.android.play.core.tasks.**
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallException
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallManager
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallManagerFactory
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallRequest$Builder
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallRequest
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallSessionState
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallStateUpdatedListener
+-dontwarn com.google.android.play.core.tasks.OnFailureListener
+-dontwarn com.google.android.play.core.tasks.OnSuccessListener
+-dontwarn com.google.android.play.core.tasks.Task
