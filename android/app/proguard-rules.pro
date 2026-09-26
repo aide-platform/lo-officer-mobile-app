@@ -22,3 +22,9 @@
 
 # flutter_secure_storage
 -keep class com.it_nomads.fluttersecurestorage.** { *; }
+
+# Flutter optional Play Store deferred components (not used; R8 needs these
+# when minify is on — classes live in Play Core which we do not ship).
+-dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
