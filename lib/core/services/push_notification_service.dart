@@ -1,18 +1,25 @@
-import 'dart:io';
+import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+/// Background isolate entry. Notification payloads are shown by the OS.
+@pragma('vm:entry-point')
+Future<void> loFirebaseBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
+
 /// Push + local notification facade.
 ///
 /// - Always schedules **local** task lead-time reminders via
 ///   `flutter_local_notifications` (no Firebase required).
-/// - Real FCM stays opt-in with `--dart-define=ENABLE_FCM=true` after adding
-///   Firebase configs and packages.
+/// - Remote FCM starts when `--dart-define=ENABLE_FCM=true` and
+///   `android/app/google-services.json` was present at build time.
 class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
@@ -25,20 +32,27 @@ class PushNotificationService {
   static const _channelId = 'lo_task_reminders';
   static const _channelName = 'Task reminders';
   static const _channelDesc = 'Lead-time alerts for assigned LO tasks';
+  static const _pushChannelId = 'lo_push';
+  static const _pushChannelName = 'CAP alerts';
+  static const _pushChannelDesc = 'Schedule, task, and meeting alerts from CAP';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
   void Function(String link)? onDeepLink;
+  void Function(String token)? onToken;
+  String? pendingDeepLink;
   bool _fcmReady = false;
   bool _localReady = false;
+  String? _token;
+  StreamSubscription<String>? _tokenSub;
 
   bool get isFcmEnabled => _enableFcm && _fcmReady;
   bool get isLocalReady => _localReady;
 
   Future<void> initialize() async {
     await _initLocal();
-    await _initFcmStub();
+    await _initFcm();
   }
 
   Future<void> _initLocal() async {
@@ -62,7 +76,7 @@ class PushNotificationService {
         onDidReceiveNotificationResponse: (response) {
           final payload = response.payload;
           if (payload != null && payload.isNotEmpty) {
-            onDeepLink?.call(payload);
+            _dispatchLink(payload);
           }
         },
       );
@@ -78,6 +92,14 @@ class PushNotificationService {
           importance: Importance.high,
         ),
       );
+      await androidPlugin?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _pushChannelId,
+          _pushChannelName,
+          description: _pushChannelDesc,
+          importance: Importance.high,
+        ),
+      );
 
       _localReady = true;
       debugPrint('PushNotificationService: local notifications ready.');
@@ -87,43 +109,122 @@ class PushNotificationService {
     }
   }
 
-  Future<void> _initFcmStub() async {
+  Future<void> _initFcm() async {
     if (!_enableFcm) {
       debugPrint(
-        'PushNotificationService: FCM stub '
-        '(add Firebase configs + --dart-define=ENABLE_FCM=true).',
+        'PushNotificationService: FCM off. '
+        'Build with --dart-define=ENABLE_FCM=true after adding '
+        'android/app/google-services.json.',
       );
       return;
     }
 
-    final hasAndroidConfig = await _assetOrFileExists(
-      'android/app/google-services.json',
-    );
-    final hasIosConfig = await _assetOrFileExists(
-      'ios/Runner/GoogleService-Info.plist',
-    );
-    if (!hasAndroidConfig && !hasIosConfig) {
+    try {
+      FirebaseMessaging.onBackgroundMessage(loFirebaseBackgroundHandler);
+      await Firebase.initializeApp();
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+      FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        final link = _linkOf(message);
+        if (link != null) _dispatchLink(link);
+      });
+      final initial = await messaging.getInitialMessage();
+      final initialLink = initial == null ? null : _linkOf(initial);
+      if (initialLink != null) _dispatchLink(initialLink);
+
+      _token = await messaging.getToken();
+      await _tokenSub?.cancel();
+      _tokenSub = messaging.onTokenRefresh.listen((token) {
+        _token = token;
+        onToken?.call(token);
+      });
+      _fcmReady = true;
+      if (_token != null && _token!.isNotEmpty) {
+        onToken?.call(_token!);
+      }
+      debugPrint('PushNotificationService: FCM ready.');
+    } catch (e) {
+      _fcmReady = false;
+      _token = null;
       debugPrint(
-        'PushNotificationService: ENABLE_FCM set but no Firebase config '
-        'files found — FCM stays stub.',
+        'PushNotificationService: FCM init failed '
+        '(missing google-services.json at build time?): $e',
       );
-      return;
     }
-
-    debugPrint(
-      'PushNotificationService: Firebase configs detected. Add '
-      'firebase_core + firebase_messaging and call Firebase.initializeApp '
-      'here to complete FCM.',
-    );
-    _fcmReady = false;
   }
 
-  Future<String?> getToken() async => null;
+  Future<String?> getToken() async {
+    if (_token != null && _token!.isNotEmpty) return _token;
+    if (!_fcmReady) return null;
+    try {
+      _token = await FirebaseMessaging.instance.getToken();
+    } catch (e) {
+      debugPrint('PushNotificationService: getToken failed: $e');
+    }
+    return _token;
+  }
+
+  /// Drops the in-memory token. The device token on CAP is left as-is.
+  void clearCachedToken() {
+    _token = null;
+  }
+
+  void _onForegroundMessage(RemoteMessage message) {
+    final link = _linkOf(message);
+    final title = message.notification?.title ??
+        message.data['title']?.toString() ??
+        'Liaison Officer';
+    final body = message.notification?.body ??
+        message.data['body']?.toString() ??
+        '';
+    final id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    _showNow(
+      id: id,
+      title: title,
+      body: body,
+      payload: link,
+      channelId: _pushChannelId,
+      channelName: _pushChannelName,
+      channelDesc: _pushChannelDesc,
+    );
+  }
+
+  String? _linkOf(RemoteMessage message) {
+    final link = message.data['link']?.toString().trim();
+    if (link == null || link.isEmpty) return null;
+    return link;
+  }
+
+  void _dispatchLink(String link) {
+    final handler = onDeepLink;
+    if (handler != null) {
+      handler(link);
+    } else {
+      pendingDeepLink = link;
+    }
+  }
+
+  /// Shell binds this after login so a tap can switch Delegates / Tasks.
+  void bindDeepLink(void Function(String link)? handler) {
+    onDeepLink = handler;
+    final pending = pendingDeepLink;
+    if (handler != null && pending != null && pending.isNotEmpty) {
+      pendingDeepLink = null;
+      handler(pending);
+    }
+  }
 
   /// Simulate an incoming push for QA of deep-link handling.
   void debugInject(String link) {
     debugPrint('PushNotificationService.debugInject: $link');
-    onDeepLink?.call(link);
+    _dispatchLink(link);
   }
 
   /// Cancel prior task reminders and schedule new ones at
@@ -174,6 +275,9 @@ class PushNotificationService {
     required String title,
     required String body,
     String? payload,
+    String channelId = _channelId,
+    String channelName = _channelName,
+    String channelDesc = _channelDesc,
   }) async {
     await _plugin.show(
       id: id,
@@ -181,9 +285,9 @@ class PushNotificationService {
       body: body,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDesc,
+          channelId,
+          channelName,
+          channelDescription: channelDesc,
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -227,18 +331,5 @@ class PushNotificationService {
     final parsed = DateTime.tryParse('${d}T$t');
     if (parsed == null) return null;
     return tz.TZDateTime.from(parsed, tz.local);
-  }
-
-  Future<bool> _assetOrFileExists(String relativePath) async {
-    try {
-      final file = File(relativePath);
-      if (await file.exists()) return true;
-    } catch (_) {}
-    try {
-      await rootBundle.load(relativePath);
-      return true;
-    } catch (_) {
-      return false;
-    }
   }
 }

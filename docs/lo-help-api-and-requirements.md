@@ -15,7 +15,7 @@ Base URL: `http://35.244.48.209:8080` · Endpoint catalog: [`api-lo-endpoints.md
 | **3. View Delegates** | `GET /app/my-lo/me/delegates`; `GET …/assignments/{id}/nominations`; `GET …/assignments/{id}/vehicles`; arrival via `PUT …/arrival-flight` / `travel` | Web Actions: eye, family, nominations, vehicle, arrival. Nominations/vehicles/arrival are Swagger My LO; **family** has no `/app/my-lo/me/**` path. Mobile: list icons → detail/sheets |
 | **4. Update Travel** | `PUT …/arrival-flight`; `PUT …/travel` | Offline queue on travel writes; movement kinds: arrival / transfer / venue_entry / departure |
 | **5. Manage Tasks** | `GET /app/my-lo/me/tasks`; `PUT …/tasks/{taskId}/status` | Grouped by delegate; web Actions uses a sync-style status control (opens picker); optional remarks; offline status queue |
-| **6. Notifications** | `GET /app/notifications/mine`; `POST …/read`, `…/read-all`; `GET …/unread-count` | AppBar CAP inbox + Alerts tab; local OS reminders; optional FCM (`ENABLE_FCM`) |
+| **6. Notifications** | `GET /app/notifications/mine`; `POST …/read`, `…/read-all`; `GET …/unread-count` | AppBar CAP inbox + Alerts tab; local OS reminders. FCM: app `POST /api/devices/register`; CAP sends with the Admin SDK (`ENABLE_FCM` + `google-services.json`) |
 | **7. Help & Support** | None | Avatar → Help; Download/share user manual is **client-only** (no PDF API) |
 
 ---
@@ -40,7 +40,7 @@ Path constants: [`lib/core/config/api_config.dart`](../lib/core/config/api_confi
 | Issue reporting | Report exceptions during coordination | Done locally; CAP POST not in OpenAPI |
 | Offline durability | Queue task status + travel (+ issues) | Hive flush on portal load |
 | Theme | Light / dark | Avatar menu |
-| Push (FCM) | Background push when killed | Opt-in `ENABLE_FCM`; see store/notifications guide |
+| Push (FCM) | Background push when killed | App registers token; CAP Admin SDK sends. Opt-in `ENABLE_FCM` plus `google-services.json` |
 | Mock mode | Offline UI without CAP | `USE_MOCK_API=true`; demo OTP `123456` |
 | Network | Corporate proxy bypass for CAP host | `NO_PROXY=35.244.48.209` |
 

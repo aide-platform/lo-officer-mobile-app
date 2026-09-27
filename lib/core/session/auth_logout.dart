@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 
 /// Clears persisted session via [AuthBloc] then navigates to login.
 Future<void> performLogout(BuildContext context) async {
+  PushNotificationService.instance.clearCachedToken();
   context.read<AuthBloc>().add(AuthLogoutRequested());
   // Wait until prefs clear completes (bloc handler awaits SessionStore.clear).
   await SessionStore.clear();

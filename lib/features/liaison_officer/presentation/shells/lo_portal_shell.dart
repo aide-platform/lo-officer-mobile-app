@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
@@ -41,6 +42,23 @@ class _LoPortalShellState extends State<LoPortalShell> {
   void initState() {
     super.initState();
     _refreshUnread();
+    PushNotificationService.instance.bindDeepLink(_openPushLink);
+  }
+
+  @override
+  void dispose() {
+    PushNotificationService.instance.bindDeepLink(null);
+    super.dispose();
+  }
+
+  void _openPushLink(String link) {
+    if (!mounted) return;
+    final lower = link.toLowerCase();
+    if (lower.contains('task')) {
+      setState(() => _index = 1);
+    } else if (lower.contains('delegate')) {
+      setState(() => _index = 0);
+    }
   }
 
   Future<void> _refreshUnread() async {

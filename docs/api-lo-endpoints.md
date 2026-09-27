@@ -32,7 +32,7 @@ Auth header: `Authorization: Bearer <accessToken>`
 | 6. Notifications | `/app/notifications/mine*` |
 | 7. Help & Support | None (client-generated manual) |
 
-Full crosswalk + mobile extras: [`lo-help-api-and-requirements.md`](lo-help-api-and-requirements.md). User manual: [`lo-help-and-support-manual.md`](lo-help-and-support-manual.md).
+Full crosswalk + mobile extras: [`lo-help-api-and-requirements.md`](lo-help-api-and-requirements.md). User manual: [`lo-help-and-support-manual.md`](lo-help-and-support-manual.md). Notification status (shipped vs still needed): [`notifications-implementation.md`](notifications-implementation.md).
 
 ---
 
@@ -84,6 +84,14 @@ Itinerary has **no dedicated API** — mobile composes travel fields + nominatio
 | POST | `/app/notifications/mine/read-all` | Mark all read |
 | GET | `/app/notifications/mine/unread-count` | Badge count |
 
+### Device push — mobile registers, CAP sends
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/api/devices/register` | `{ email, fcmToken, platform }`. Called after OTP login and on token refresh when `ENABLE_FCM=true`. **Not in Swagger** — 404 is logged and ignored. |
+
+CAP (not this app) looks up the stored token and sends with the **Firebase Admin SDK** (HTTP v1). Suggested data keys: `title`, `body`, `link` (`task:<id>` or `delegate:<id>`). Do not put the Admin SDK private key in the Flutter app. Local lead-time reminders do not use FCM.
+
 ### Other wired (Swagger-confirmed, supporting)
 
 | Method | Path | Notes |
@@ -95,6 +103,7 @@ Itinerary has **no dedicated API** — mobile composes travel fields + nominatio
 | Method | Path | App behaviour | Notes |
 |--------|------|---------------|-------|
 | POST | `/app/my-lo/me/issues` | Wired + Hive offline queue + Share escalate | Soft-fail if backend rejects; **not** listed under My LO in OpenAPI. Do not confuse with `/app/cons-issues` (conservancy). |
+| POST | `/api/devices/register` | FCM token register; 404 ignored | Mobile client only. CAP sends via Firebase Admin SDK. |
 | — | Help / PDF user manual | Client-only | No `/app/help` or manual download API. Web PDF / mobile markdown share. |
 | — | LO family-members CRUD under `/app/my-lo/me/**` | N/A | Web “family” action is outside My LO OpenAPI surface. |
 

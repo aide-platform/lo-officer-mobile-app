@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/services/fcm_device_registrar.dart';
 import 'package:liaison_officer/core/session/app_role.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
@@ -35,6 +36,7 @@ class RoleHomeRouter extends StatelessWidget {
 void navigateToRoleHome(BuildContext context, AuthBlocState authState) {
   final email = authState.email ?? '';
   final role = authState.role ?? 'Liaison Officer';
+  FcmDeviceRegistrar.registerIfSignedIn();
   Navigator.pushReplacement(
     context,
     AppPageFadeRoute(

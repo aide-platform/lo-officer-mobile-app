@@ -10,7 +10,7 @@ Maps Aero India Liaison Officer mobile requirements to the Flutter app and CAP A
 |------|------------|-------|
 | **Liaison Officer** | Delegates · Tasks · Alerts | Profile + Help + Theme off avatar; issue report from detail/alerts; Travel/Movement sheets; CAP inbox + local alerts |
 
-AppBar **bell** opens CAP `NotificationsInboxScreen` (`/app/notifications/mine`).
+AppBar **bell** opens CAP `NotificationsInboxScreen` (`/app/notifications/mine`). What is shipped and what remote push still needs: [`notifications-implementation.md`](notifications-implementation.md).
 
 ## LO mobile requirements
 
@@ -26,7 +26,7 @@ AppBar **bell** opens CAP `NotificationsInboxScreen` (`/app/notifications/mine`)
 | 8 | Task status update | **DONE** | status sheet + offline queue | `PUT …/tasks/{id}/status` | `LoOfflineStore` flush on load |
 | 9 | Delegate movement | **DONE** | Movement sheet on detail | `PUT …/travel`, `PUT …/arrival-flight` | kinds: arrival / transfer / venue_entry / departure |
 | 10 | Issue reporting | **DONE** | `lo_issue_report_screen` + Hive queue + Share | `POST /app/my-lo/me/issues` | Offline queue + tap-to-retry sync |
-| 11 | Notifications | **DONE** | Alerts tab + CAP inbox + local OS reminders | `/app/notifications/mine*` + `flutter_local_notifications` | FCM still opt-in (`ENABLE_FCM`) |
+| 11 | Notifications | **DONE** | Alerts tab + CAP inbox + local OS reminders + FCM client | `/app/notifications/mine*` + `POST /api/devices/register` | App registers the FCM token; CAP sends with the Firebase Admin SDK. Build with `ENABLE_FCM=true` after `google-services.json` is in `android/app/`. |
 
 ## Coverage (this app)
 
@@ -36,7 +36,7 @@ AppBar **bell** opens CAP `NotificationsInboxScreen` (`/app/notifications/mine`)
 | LO.5 | LO profile | Profile | `/app/my-lo/me` | — |
 | LO.9.1–9.2 | Delegates + travel | Delegate detail | delegates / travel | Accommodation SKIP |
 | LO.9.3 | Task status + remarks | Tasks | task status PUT | — |
-| LO.9.4 | Notifications | Alerts + inbox + OS lead reminders | `/app/notifications/mine*` | FCM follow-up when configs land |
+| LO.9.4 | Notifications | Alerts + inbox + OS lead reminders + FCM token register | `/app/notifications/mine*` and `POST /api/devices/register` | CAP Admin SDK sends; mobile does not hold the Admin key |
 
 ## Run
 

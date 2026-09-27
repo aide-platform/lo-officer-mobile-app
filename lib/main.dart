@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
+import 'package:liaison_officer/core/services/fcm_device_registrar.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
@@ -21,10 +22,14 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('LoOfflineStore init skipped: $e');
   }
+  PushNotificationService.instance.onToken = (_) {
+    FcmDeviceRegistrar.registerIfSignedIn();
+  };
   await PushNotificationService.instance.initialize();
   AppDependencies.create();
   final themeCubit = await ThemeCubit.create();
   final session = await SessionStore.load();
+  await FcmDeviceRegistrar.registerIfSignedIn();
   SystemChrome.setSystemUIOverlayStyle(
     themeCubit.state.mode == ThemeMode.light
         ? SystemUiOverlayStyle.dark

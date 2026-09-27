@@ -69,4 +69,8 @@ class ApiConfig {
       '/app/notifications/mine/read-all';
   static const String notificationsUnreadCountPath =
       '/app/notifications/mine/unread-count';
+
+  /// Mobile FCM token registration. CAP sends via Firebase Admin SDK.
+  /// Not in public OpenAPI yet — 404 is logged and ignored.
+  static const String devicesRegisterPath = '/api/devices/register';
 }

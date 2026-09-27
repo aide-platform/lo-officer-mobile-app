@@ -5,6 +5,8 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Applied at the bottom only when android/app/google-services.json exists.
+    id("com.google.gms.google-services") apply false
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -78,4 +80,10 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// Release builds stay valid without a Firebase project. Drop a real
+// google-services.json in this directory to turn the plugin on.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
