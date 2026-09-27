@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
@@ -11,9 +12,10 @@ import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
-/// OTP email login — Aero India portal style (no biometric / SSO).
+/// OTP email login over the Aero India jet photograph.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,8 +23,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _captchaController = TextEditingController();
@@ -33,18 +34,9 @@ class _LoginScreenState extends State<LoginScreen>
   int _resendSeconds = 0;
   Timer? _resendTimer;
 
-  late AnimationController _enter;
-  late Animation<double> _enterFade;
-
   @override
   void initState() {
     super.initState();
-    _enter = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _enterFade = CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic);
-    _enter.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AuthBloc>().add(AuthCaptchaRequested());
     });
@@ -53,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _resendTimer?.cancel();
-    _enter.dispose();
     _emailController.dispose();
     _captchaController.dispose();
     for (final c in _otpDigits) {
@@ -122,12 +113,12 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
     context.read<AuthBloc>().add(
-          AuthOtpRequested(
-            email: _emailController.text.trim(),
-            captchaId: captchaId,
-            captchaAnswer: _captchaController.text.trim(),
-          ),
-        );
+      AuthOtpRequested(
+        email: _emailController.text.trim(),
+        captchaId: captchaId,
+        captchaAnswer: _captchaController.text.trim(),
+      ),
+    );
   }
 
   void _verifyOtp() {
@@ -137,11 +128,8 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
     context.read<AuthBloc>().add(
-          AuthOtpVerified(
-            email: _emailController.text.trim(),
-            otp: otp,
-          ),
-        );
+      AuthOtpVerified(email: _emailController.text.trim(), otp: otp),
+    );
   }
 
   void _onOtpChanged(int index, String value) {
@@ -180,161 +168,198 @@ class _LoginScreenState extends State<LoginScreen>
       },
       builder: (context, authState) {
         return Scaffold(
-          body: FadeTransition(
-            opacity: _enterFade,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                SafeAssetImage(
-                  assetPath: AppAssetManager.mainBg3,
-                  fit: BoxFit.cover,
-                  fallback: const ColoredBox(color: AppTheme.navy),
-                ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.35),
-                        Colors.black.withValues(alpha: 0.20),
-                        Colors.black.withValues(alpha: 0.55),
-                      ],
-                    ),
+          backgroundColor: const Color(0xFF071433),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              const _LoginBackdrop(),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x66071433),
+                      Color(0x22071433),
+                      Color(0xCC071433),
+                    ],
+                    stops: [0, 0.42, 1],
                   ),
                 ),
-                SafeArea(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
-                        child: Column(
-                          children: [
-                            SafeAssetImage(
-                              assetPath: AppAssetManager.aeroIndiaLogo,
-                              width: 112,
-                              height: 112,
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.xl),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.navy
-                                        .withValues(alpha: 0.12),
-                                    blurRadius: 28,
-                                    offset: const Offset(0, 12),
+              ),
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        children: [
+                          const SafeAssetImage(
+                                assetPath: AppAssetManager.aeroIndiaLogo,
+                                width: 112,
+                                height: 112,
+                              )
+                              .animate()
+                              .fadeIn(
+                                duration: AppMotion.page,
+                                curve: Curves.easeOutCubic,
+                              )
+                              .slideY(
+                                begin: 0.18,
+                                end: 0,
+                                duration: AppMotion.page,
+                                curve: Curves.easeOutCubic,
+                              ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.xl,
                                   ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.xl,
-                                AppSpacing.xl,
-                                AppSpacing.xl,
-                                AppSpacing.xl,
-                              ),
-                              child: Form(
-                                key: _formKey,
-                                child: AnimatedSwitcher(
-                                  duration: AppMotion.tab,
-                                  switchInCurve: Curves.easeOutCubic,
-                                  switchOutCurve: Curves.easeInCubic,
-                                  child: _otpSent
-                                      ? _OtpStep(
-                                          key: const ValueKey('otp'),
-                                          email: _maskedEmail(
-                                            _emailController.text.trim(),
-                                          ),
-                                          digitControllers: _otpDigits,
-                                          focusNodes: _otpFocus,
-                                          loading: authState.isLoading,
-                                          resendSeconds: _resendSeconds,
-                                          onOtpChanged: _onOtpChanged,
-                                          onBack: _goBackToEmail,
-                                          onVerify: _verifyOtp,
-                                          onResend: () {
-                                            context.read<AuthBloc>().add(
-                                                  AuthOtpResendRequested(
-                                                    email: _emailController
-                                                        .text
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppTheme.navy.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      blurRadius: 28,
+                                      offset: const Offset(0, 12),
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppSpacing.xl,
+                                        AppSpacing.xl,
+                                        AppSpacing.xl,
+                                        AppSpacing.lg,
+                                      ),
+                                      child: Form(
+                                        key: _formKey,
+                                        child: AnimatedSwitcher(
+                                          duration: AppMotion.tab,
+                                          switchInCurve: Curves.easeOutCubic,
+                                          switchOutCurve: Curves.easeInCubic,
+                                          child: _otpSent
+                                              ? _OtpStep(
+                                                  key: const ValueKey('otp'),
+                                                  email: _maskedEmail(
+                                                    _emailController.text
                                                         .trim(),
                                                   ),
-                                                );
-                                            _startResendCountdown();
-                                          },
-                                        )
-                                      : _EmailStep(
-                                          key: const ValueKey('email'),
-                                          emailController: _emailController,
-                                          captchaController:
-                                              _captchaController,
-                                          captchaImageBase64:
-                                              authState.captchaImageBase64,
-                                          loading: authState.isLoading,
-                                          failureMessage:
-                                              authState.status ==
-                                                      AuthStatus.failure
-                                                  ? authState.errorMessage
-                                                  : null,
-                                          onRefreshCaptcha: () => context
-                                              .read<AuthBloc>()
-                                              .add(AuthCaptchaRequested()),
-                                          onSend: () => _sendOtp(authState),
+                                                  digitControllers: _otpDigits,
+                                                  focusNodes: _otpFocus,
+                                                  loading: authState.isLoading,
+                                                  resendSeconds: _resendSeconds,
+                                                  onOtpChanged: _onOtpChanged,
+                                                  onBack: _goBackToEmail,
+                                                  onVerify: _verifyOtp,
+                                                  onResend: () {
+                                                    context.read<AuthBloc>().add(
+                                                      AuthOtpResendRequested(
+                                                        email: _emailController
+                                                            .text
+                                                            .trim(),
+                                                      ),
+                                                    );
+                                                    _startResendCountdown();
+                                                  },
+                                                )
+                                              : _EmailStep(
+                                                  key: const ValueKey('email'),
+                                                  emailController:
+                                                      _emailController,
+                                                  captchaController:
+                                                      _captchaController,
+                                                  captchaImageBase64: authState
+                                                      .captchaImageBase64,
+                                                  loading: authState.isLoading,
+                                                  failureMessage:
+                                                      authState.status ==
+                                                          AuthStatus.failure
+                                                      ? authState.errorMessage
+                                                      : null,
+                                                  onRefreshCaptcha: () => context
+                                                      .read<AuthBloc>()
+                                                      .add(
+                                                        AuthCaptchaRequested(),
+                                                      ),
+                                                  onSend: () =>
+                                                      _sendOtp(authState),
+                                                ),
                                         ),
+                                      ),
+                                    ),
+                                    const _TricolorBar(),
+                                  ],
                                 ),
+                              )
+                              .animate()
+                              .fadeIn(
+                                delay: 80.ms,
+                                duration: AppMotion.page,
+                                curve: Curves.easeOutCubic,
+                              )
+                              .slideY(
+                                begin: 0.16,
+                                end: 0,
+                                delay: 80.ms,
+                                duration: 480.ms,
+                                curve: Curves.easeOutCubic,
+                              ),
+                          const SizedBox(height: AppSpacing.md),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const HelpSupportScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.headset_mic_outlined,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Need Help? Contact Support',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.lg),
-                            TextButton.icon(
-                              onPressed: () {
-                                _showSnack(
-                                  'Contact Liaison Officer support for login help.',
-                                );
-                              },
-                              icon: Icon(
-                                Icons.headset_mic_outlined,
-                                size: 18,
-                                color: Colors.white.withValues(alpha: 0.95),
-                              ),
-                              label: Text(
-                                'Need Help? Contact Support',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.95),
-                                  fontWeight: FontWeight.w600,
-                                ),
+                          ),
+                          if (kDebugMode || ApiConfig.useMockApi) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              ApiConfig.useMockApi
+                                  ? 'Mock: liaison@test.com · OTP 123456'
+                                  : 'CAP: ${ApiConfig.baseUrl}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.navy.withValues(alpha: 0.55),
                               ),
                             ),
-                            if (kDebugMode || ApiConfig.useMockApi) ...[
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                ApiConfig.useMockApi
-                                    ? 'Mock: liaison@test.com · OTP 123456'
-                                    : 'CAP: ${ApiConfig.baseUrl}',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                ),
-                              ),
-                            ],
                           ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -370,7 +395,8 @@ class _EmailStep extends StatelessWidget {
       children: [
         Text(
           'WELCOME BACK',
-          style: textTheme.labelSmall?.copyWith(
+          style:
+              textTheme.labelSmall?.copyWith(
                 letterSpacing: 1.4,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.royalBlue,
@@ -385,7 +411,8 @@ class _EmailStep extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Verify your identity',
-          style: textTheme.headlineSmall?.copyWith(
+          style:
+              textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: AppTheme.navy,
               ) ??
@@ -417,9 +444,7 @@ class _EmailStep extends StatelessWidget {
                 Expanded(
                   child: Text(
                     failureMessage!,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: AppTheme.navy,
-                    ),
+                    style: textTheme.bodySmall?.copyWith(color: AppTheme.navy),
                   ),
                 ),
                 TextButton(
@@ -581,8 +606,10 @@ class _OtpStep extends StatelessWidget {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: AppTheme.royalBlue, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppTheme.royalBlue,
+                      width: 2,
+                    ),
                   ),
                 ),
                 onChanged: (v) {
@@ -607,7 +634,10 @@ class _OtpStep extends StatelessWidget {
           child: resendSeconds > 0
               ? Text(
                   "Resend OTP in ${resendSeconds}s",
-                  style: TextStyle(fontSize: 13, color: AppTheme.lightTextMuted),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.lightTextMuted,
+                  ),
                 )
               : TextButton(
                   onPressed: loading ? null : onResend,
@@ -627,7 +657,8 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+      style:
+          Theme.of(context).textTheme.labelSmall?.copyWith(
             letterSpacing: 0.8,
             fontWeight: FontWeight.w700,
             color: AppTheme.lightTextMuted,
@@ -648,9 +679,7 @@ InputDecoration _inputDecoration({
 }) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(
-      color: AppTheme.lightTextMuted.withValues(alpha: 0.7),
-    ),
+    hintStyle: TextStyle(color: AppTheme.lightTextMuted.withValues(alpha: 0.7)),
     prefixIcon: Icon(prefix, color: AppTheme.lightTextMuted, size: 20),
     filled: true,
     fillColor: AppTheme.lightInputBg,
@@ -731,6 +760,77 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
+class _LoginBackdrop extends StatefulWidget {
+  const _LoginBackdrop();
+
+  @override
+  State<_LoginBackdrop> createState() => _LoginBackdropState();
+}
+
+class _LoginBackdropState extends State<_LoginBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _drift;
+
+  @override
+  void initState() {
+    super.initState();
+    _drift = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 16),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _drift.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final motion = CurvedAnimation(parent: _drift, curve: Curves.easeInOut);
+    return ClipRect(
+      child: AnimatedBuilder(
+        animation: motion,
+        builder: (context, child) {
+          final t = motion.value;
+          return Transform.translate(
+            offset: Offset(-18 * t, 12 * t),
+            child: Transform.scale(scale: 1.06 + (0.06 * t), child: child),
+          );
+        },
+        child: Image.asset(
+          AppAssetManager.mainBg3,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF0E2A66)),
+        ),
+      ),
+    ).animate().fadeIn(duration: AppMotion.page, curve: Curves.easeOutCubic);
+  }
+}
+
+class _TricolorBar extends StatelessWidget {
+  const _TricolorBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 8,
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppTheme.saffron, Colors.white, AppTheme.indiaGreen],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CaptchaBlock extends StatelessWidget {
   const _CaptchaBlock({
     required this.imageBase64,
@@ -763,7 +863,7 @@ class _CaptchaBlock extends StatelessWidget {
             ? imageBase64!.split(',').last
             : imageBase64!;
         final bytes = base64Decode(raw);
-        image = Image.memory(bytes, height: 52, fit: BoxFit.contain);
+        image = Image.memory(bytes, height: 56, fit: BoxFit.contain);
       } catch (_) {
         image = const Text(
           'CAPTCHA unavailable — tap refresh',
@@ -780,19 +880,24 @@ class _CaptchaBlock extends StatelessWidget {
           children: [
             Expanded(
               child: Container(
-                height: 72,
-                padding: const EdgeInsets.all(AppSpacing.sm),
+                height: 64,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECEFF3),
                   borderRadius: BorderRadius.circular(AppRadii.md),
                   border: Border.all(color: AppTheme.lightBorder),
                 ),
+                alignment: Alignment.center,
                 child: image,
               ),
             ),
-            SizedBox(
-              width: 48,
-              height: 48,
+            const SizedBox(width: 8),
+            Material(
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                side: const BorderSide(color: AppTheme.lightBorder),
+              ),
               child: IconButton(
                 onPressed: onRefresh,
                 tooltip: 'Refresh CAPTCHA',
@@ -807,10 +912,15 @@ class _CaptchaBlock extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
           controller: controller,
-          style: const TextStyle(color: AppTheme.navy),
+          textCapitalization: TextCapitalization.characters,
+          style: const TextStyle(
+            color: AppTheme.navy,
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
           decoration: _inputDecoration(
             hint: 'ENTER CAPTCHA',
-            prefix: Icons.security_outlined,
+            prefix: Icons.shield_outlined,
           ),
           validator: (v) =>
               v == null || v.trim().isEmpty ? 'CAPTCHA required' : null,

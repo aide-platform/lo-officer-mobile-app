@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -77,31 +79,34 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
           onRefresh: () async {
             context.read<LoPortalBloc>().add(LoPortalLoadRequested());
             await context.read<LoPortalBloc>().stream.firstWhere(
-                  (s) =>
-                      s.status == LoPortalStatus.ready ||
-                      s.status == LoPortalStatus.failure,
-                );
+              (s) =>
+                  s.status == LoPortalStatus.ready ||
+                  s.status == LoPortalStatus.failure,
+            );
           },
           child: state.tasks.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: const [
-                    SizedBox(height: 120),
+                    SizedBox(height: 80),
+                    AppSectionHeader(
+                      title: 'Tasks',
+                      asset: AppAssetManager.iconTask,
+                    ),
                     AppEmptyState(
                       message: 'No tasks assigned.',
-                      icon: Icons.task_alt_outlined,
+                      imageAsset: AppAssetManager.iconTask,
                     ),
                   ],
                 )
               : Builder(
                   builder: (context) {
                     final filtered = _filtered(state.tasks);
-                    final pendingAll =
-                        state.tasks.where(_isPending).length;
-                    final inProgressAll =
-                        state.tasks.where(_isInProgress).length;
-                    final completedAll =
-                        state.tasks.where(_isCompleted).length;
+                    final pendingAll = state.tasks.where(_isPending).length;
+                    final inProgressAll = state.tasks
+                        .where(_isInProgress)
+                        .length;
+                    final completedAll = state.tasks.where(_isCompleted).length;
 
                     final grouped = <String, List<LoTaskDto>>{};
                     for (final t in filtered) {
@@ -116,10 +121,19 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
                       itemCount: keys.isEmpty ? 3 : keys.length + 2,
                       itemBuilder: (context, i) {
                         if (i == 0) {
-                          return _TaskStatusSummary(
-                            pending: pendingAll,
-                            inProgress: inProgressAll,
-                            completed: completedAll,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const AppSectionHeader(
+                                title: 'Tasks',
+                                asset: AppAssetManager.iconTask,
+                              ),
+                              _TaskStatusSummary(
+                                pending: pendingAll,
+                                inProgress: inProgressAll,
+                                completed: completedAll,
+                              ),
+                            ],
                           );
                         }
                         if (i == 1) {
@@ -155,7 +169,7 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
                             padding: EdgeInsets.only(top: 48),
                             child: AppEmptyState(
                               message: 'No tasks match your search.',
-                              icon: Icons.search_off_outlined,
+                              imageAsset: AppAssetManager.iconTask,
                             ),
                           );
                         }
@@ -165,31 +179,36 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
                         final pending = tasks.where(_isPending).length;
                         final inProgress = tasks.where(_isInProgress).length;
                         final completed = tasks.where(_isCompleted).length;
-                        return AppCard(
-                          child: ExpansionTile(
-                            initiallyExpanded: i == 2,
-                            tilePadding: EdgeInsets.zero,
-                            childrenPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              Icons.person_outline,
-                              color: AppTheme.activeAccent,
-                            ),
-                            title: Text(
-                              '$delegate ($total)',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+                        return AppStagger(
+                          index: i - 2,
+                          child: AppCard(
+                            child: ExpansionTile(
+                              initiallyExpanded: i == 2,
+                              tilePadding: EdgeInsets.zero,
+                              childrenPadding: EdgeInsets.zero,
+                              leading: const SafeAssetImage(
+                                assetPath: AppAssetManager.iconDelegate,
+                                width: 28,
+                                height: 28,
+                                fit: BoxFit.contain,
                               ),
-                            ),
-                            subtitle: Text(
-                              '$total tasks · $pending pending · '
-                              '$inProgress in progress · $completed completed',
-                            ),
-                            children: [
-                              for (final t in tasks) ...[
-                                const Divider(height: 1),
-                                _TaskTile(task: t),
+                              title: Text(
+                                '$delegate ($total)',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '$total tasks · $pending pending · '
+                                '$inProgress in progress · $completed completed',
+                              ),
+                              children: [
+                                for (final t in tasks) ...[
+                                  const Divider(height: 1),
+                                  _TaskTile(task: t),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         );
                       },
@@ -291,9 +310,9 @@ class _SummaryCard extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -323,10 +342,7 @@ class _TaskTile extends StatelessWidget {
                 value: 'IN_PROGRESS',
                 child: Text('In Progress'),
               ),
-              DropdownMenuItem(
-                value: 'COMPLETED',
-                child: Text('Completed'),
-              ),
+              DropdownMenuItem(value: 'COMPLETED', child: Text('Completed')),
             ],
             onChanged: (v) {
               if (v != null) setLocal(() => status = v);
@@ -349,12 +365,12 @@ class _TaskTile extends StatelessWidget {
     }
     final note = remarks.text.trim();
     context.read<LoPortalBloc>().add(
-          LoPortalTaskStatusUpdated(
-            taskId: task.id!,
-            statusCode: status,
-            remarks: note.isEmpty ? null : note,
-          ),
-        );
+      LoPortalTaskStatusUpdated(
+        taskId: task.id!,
+        statusCode: status,
+        remarks: note.isEmpty ? null : note,
+      ),
+    );
     remarks.dispose();
   }
 
@@ -407,10 +423,7 @@ class _TaskTile extends StatelessWidget {
           IconButton(
             tooltip: 'Update status',
             onPressed: () => _updateStatus(context),
-            icon: Icon(
-              Icons.sync_outlined,
-              color: AppTheme.activeAccent,
-            ),
+            icon: Icon(Icons.sync_outlined, color: AppTheme.activeAccent),
           ),
         ],
       ),

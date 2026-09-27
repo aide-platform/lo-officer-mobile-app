@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 /// Shared motion primitives for Aero India LO.
 class AppMotion {
@@ -15,36 +16,32 @@ class AppMotion {
 /// Fade page route used for auth → shell and shell push targets.
 class AppPageFadeRoute<T> extends PageRouteBuilder<T> {
   AppPageFadeRoute({required Widget page, Duration? duration})
-      : super(
-          pageBuilder: (context, animation, secondaryAnimation) => page,
-          transitionDuration: duration ?? AppMotion.page,
-          reverseTransitionDuration: duration ?? AppMotion.page,
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            );
-            return FadeTransition(
-              opacity: curved,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.02),
-                  end: Offset.zero,
-                ).animate(curved),
-                child: child,
-              ),
-            );
-          },
-        );
+    : super(
+        pageBuilder: (context, animation, secondaryAnimation) => page,
+        transitionDuration: duration ?? AppMotion.page,
+        reverseTransitionDuration: duration ?? AppMotion.page,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      );
 }
 
 /// Cross-fades tab bodies while keeping offscreen children mounted.
 class AppTabFade extends StatelessWidget {
-  const AppTabFade({
-    super.key,
-    required this.index,
-    required this.children,
-  });
+  const AppTabFade({super.key, required this.index, required this.children});
 
   final int index;
   final List<Widget> children;
@@ -63,10 +60,7 @@ class AppTabFade extends StatelessWidget {
               opacity: i == safeIndex ? 1 : 0,
               duration: AppMotion.tab,
               curve: Curves.easeOutCubic,
-              child: TickerMode(
-                enabled: i == safeIndex,
-                child: children[i],
-              ),
+              child: TickerMode(enabled: i == safeIndex, child: children[i]),
             ),
           ),
       ],
@@ -74,13 +68,34 @@ class AppTabFade extends StatelessWidget {
   }
 }
 
+/// Fades and lifts a list row using [AppMotion.listStaggerMs].
+class AppStagger extends StatelessWidget {
+  const AppStagger({super.key, required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final delayMs = (index * AppMotion.listStaggerMs).clamp(
+      0,
+      AppMotion.listStaggerCapMs,
+    );
+    return child
+        .animate(delay: Duration(milliseconds: delayMs))
+        .fadeIn(duration: AppMotion.listItem, curve: Curves.easeOutCubic)
+        .slideY(
+          begin: 0.08,
+          end: 0,
+          duration: AppMotion.listItem,
+          curve: Curves.easeOutCubic,
+        );
+  }
+}
+
 /// Subtle press scale for primary CTAs.
 class AppPressScale extends StatefulWidget {
-  const AppPressScale({
-    super.key,
-    required this.child,
-    this.enabled = true,
-  });
+  const AppPressScale({super.key, required this.child, this.enabled = true});
 
   final Widget child;
   final bool enabled;

@@ -71,7 +71,7 @@ void main() {
     );
     await tester.pump();
     await tester.pumpAndSettle();
-    expect(find.textContaining('Liaison Officer Portal'), findsOneWidget);
+    expect(find.textContaining('Aero India 2027'), findsOneWidget);
     await tester.tap(find.text('Continue to Sign In'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Verify your identity'), findsOneWidget);

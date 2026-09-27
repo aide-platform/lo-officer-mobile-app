@@ -7,12 +7,19 @@ class AppAssetManager {
   static const String aeroIndiaLogo = 'assets/images/aero-india-logo.png';
   static const String modLogoWhite = 'assets/images/mod-logo-white.png';
   static const String defaultVipAvatar = 'assets/images/aero-ind1.png';
+
   /// Splash / landing screen image.
   static const String splash = 'assets/images/aero-india-logo.png';
   static const String landingHero = 'assets/images/mainBackground_3.png';
+
   /// Login (email / captcha) full-bleed background.
   static const String mainBg3 = 'assets/images/mainBackground_3.png';
   static const String aeroIndiaHero = 'assets/images/aero-india-hero.png';
+  static const String aeroIndiaJet = 'assets/images/aero-india-jet.png';
+  static const String iconDelegate = 'assets/images/icon-delegate.png';
+  static const String iconTask = 'assets/images/icon-task.png';
+  static const String iconAlert = 'assets/images/icon-alert.png';
+  static const String iconTransport = 'assets/images/icon-transport.png';
 }
 
 class SafeAssetImage extends StatelessWidget {

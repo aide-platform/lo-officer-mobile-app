@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
@@ -124,8 +125,9 @@ class GradientHeader extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        gradient:
-            isDark ? AppTheme.brandHeaderGradient : AppTheme.lightPurpleGradient,
+        gradient: isDark
+            ? AppTheme.brandHeaderGradient
+            : AppTheme.lightPurpleGradient,
         boxShadow: AppTheme.glowShadow(AppTheme.royalBlue, opacity: 0.18),
       ),
       child: Row(
@@ -208,11 +210,7 @@ class AppCard extends StatelessWidget {
 }
 
 class StatusChip extends StatelessWidget {
-  const StatusChip({
-    super.key,
-    required this.label,
-    this.color,
-  });
+  const StatusChip({super.key, required this.label, this.color});
 
   final String label;
   final Color? color;
@@ -229,11 +227,7 @@ class StatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: c,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }
@@ -244,11 +238,13 @@ class AppEmptyState extends StatelessWidget {
     super.key,
     required this.message,
     this.icon = Icons.inbox_outlined,
+    this.imageAsset,
     this.action,
   });
 
   final String message;
   final IconData icon;
+  final String? imageAsset;
   final Widget? action;
 
   @override
@@ -259,12 +255,53 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: AppTheme.activeAccent),
+            if (imageAsset != null)
+              SafeAssetImage(
+                assetPath: imageAsset!,
+                width: 72,
+                height: 72,
+                fit: BoxFit.contain,
+              )
+            else
+              Icon(icon, size: 48, color: AppTheme.activeAccent),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             if (action != null) ...[const SizedBox(height: 16), action!],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class AppSectionHeader extends StatelessWidget {
+  const AppSectionHeader({super.key, required this.title, required this.asset});
+
+  final String title;
+  final String asset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          SafeAssetImage(
+            assetPath: asset,
+            width: 28,
+            height: 28,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -282,10 +319,7 @@ class AppLoading extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(),
-          if (label != null) ...[
-            const SizedBox(height: 12),
-            Text(label!),
-          ],
+          if (label != null) ...[const SizedBox(height: 12), Text(label!)],
         ],
       ),
     );
@@ -293,11 +327,7 @@ class AppLoading extends StatelessWidget {
 }
 
 class AppErrorView extends StatelessWidget {
-  const AppErrorView({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const AppErrorView({super.key, required this.message, this.onRetry});
 
   final String message;
   final VoidCallback? onRetry;
@@ -381,8 +411,9 @@ class GradientButton extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          gradient:
-              isDark ? AppTheme.purpleGradient : AppTheme.lightPurpleGradient,
+          gradient: isDark
+              ? AppTheme.purpleGradient
+              : AppTheme.lightPurpleGradient,
         ),
         child: Material(
           color: Colors.transparent,

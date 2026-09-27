@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -52,27 +54,30 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<LoPortalBloc, LoPortalState>(
       builder: (context, state) {
-        if (state.status == LoPortalStatus.loading &&
-            state.delegates.isEmpty) {
+        if (state.status == LoPortalStatus.loading && state.delegates.isEmpty) {
           return const AppLoading(label: 'Loading delegates…');
         }
         return RefreshIndicator(
           onRefresh: () async {
             context.read<LoPortalBloc>().add(LoPortalLoadRequested());
             await context.read<LoPortalBloc>().stream.firstWhere(
-                  (s) =>
-                      s.status == LoPortalStatus.ready ||
-                      s.status == LoPortalStatus.failure,
-                );
+              (s) =>
+                  s.status == LoPortalStatus.ready ||
+                  s.status == LoPortalStatus.failure,
+            );
           },
           child: state.delegates.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: const [
-                    SizedBox(height: 120),
+                    SizedBox(height: 80),
+                    AppSectionHeader(
+                      title: 'Delegates',
+                      asset: AppAssetManager.iconDelegate,
+                    ),
                     AppEmptyState(
                       message: 'No delegates assigned yet.',
-                      icon: Icons.person_off_outlined,
+                      imageAsset: AppAssetManager.iconDelegate,
                     ),
                   ],
                 )
@@ -82,35 +87,47 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
                     return ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 24),
-                      itemCount: filtered.isEmpty
-                          ? 2
-                          : filtered.length + 1,
+                      itemCount: filtered.isEmpty ? 2 : filtered.length + 1,
                       itemBuilder: (context, i) {
                         if (i == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                            child: TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: 'Search across all columns…',
-                                prefixIcon: const Icon(Icons.search),
-                                suffixIcon: _query.isEmpty
-                                    ? null
-                                    : IconButton(
-                                        tooltip: 'Clear',
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          setState(() => _query = '');
-                                        },
-                                        icon: const Icon(Icons.clear),
-                                      ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                isDense: true,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const AppSectionHeader(
+                                title: 'Delegates',
+                                asset: AppAssetManager.iconDelegate,
                               ),
-                              onChanged: (v) => setState(() => _query = v),
-                            ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  8,
+                                  16,
+                                  4,
+                                ),
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search across all columns…',
+                                    prefixIcon: const Icon(Icons.search),
+                                    suffixIcon: _query.isEmpty
+                                        ? null
+                                        : IconButton(
+                                            tooltip: 'Clear',
+                                            onPressed: () {
+                                              _searchController.clear();
+                                              setState(() => _query = '');
+                                            },
+                                            icon: const Icon(Icons.clear),
+                                          ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    isDense: true,
+                                  ),
+                                  onChanged: (v) => setState(() => _query = v),
+                                ),
+                              ),
+                            ],
                           );
                         }
                         if (filtered.isEmpty) {
@@ -118,25 +135,29 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
                             padding: EdgeInsets.only(top: 48),
                             child: AppEmptyState(
                               message: 'No delegates match your search.',
-                              icon: Icons.search_off_outlined,
+                              imageAsset: AppAssetManager.iconDelegate,
                             ),
                           );
                         }
                         final d = filtered[i - 1];
-                        return _DelegateCard(
-                          delegate: d,
-                          onOpenDetail: () => _openDetail(context, d),
-                          onOpenEvents: () => _openDetail(
-                            context,
-                            d,
-                            focus: LoDelegateFocusSection.itinerary,
+                        return AppStagger(
+                          index: i - 1,
+                          child: _DelegateCard(
+                            delegate: d,
+                            onOpenDetail: () => _openDetail(context, d),
+                            onOpenEvents: () => _openDetail(
+                              context,
+                              d,
+                              focus: LoDelegateFocusSection.itinerary,
+                            ),
+                            onOpenVehicles: () => _openDetail(
+                              context,
+                              d,
+                              focus: LoDelegateFocusSection.transport,
+                            ),
+                            onOpenArrival: () =>
+                                _openArrival(context, state, d),
                           ),
-                          onOpenVehicles: () => _openDetail(
-                            context,
-                            d,
-                            focus: LoDelegateFocusSection.transport,
-                          ),
-                          onOpenArrival: () => _openArrival(context, state, d),
                         );
                       },
                     );
@@ -161,10 +182,7 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider.value(
           value: bloc,
-          child: LoDelegateDetailScreen(
-            delegate: d,
-            focusSection: focus,
-          ),
+          child: LoDelegateDetailScreen(delegate: d, focusSection: focus),
         ),
       ),
     );
@@ -263,10 +281,7 @@ class _DelegateCard extends StatelessWidget {
           const SizedBox(height: 6),
           if ((d.designation ?? '').isNotEmpty) Text(d.designation!),
           if ((d.organisation ?? '').isNotEmpty)
-            Text(
-              d.organisation!,
-              style: TextStyle(color: muted),
-            ),
+            Text(d.organisation!, style: TextStyle(color: muted)),
           if (countryCategory.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
@@ -313,9 +328,15 @@ class _DelegateCard extends StatelessWidget {
               IconButton(
                 tooltip: 'Vehicles',
                 onPressed: onOpenVehicles,
-                icon: Icon(
-                  Icons.directions_car_outlined,
-                  color: AppTheme.activeAccent,
+                icon: SafeAssetImage(
+                  assetPath: AppAssetManager.iconTransport,
+                  width: 24,
+                  height: 24,
+                  fit: BoxFit.contain,
+                  fallback: Icon(
+                    Icons.directions_car_outlined,
+                    color: AppTheme.activeAccent,
+                  ),
                 ),
               ),
               IconButton(
