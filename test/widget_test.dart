@@ -87,28 +87,53 @@ void main() {
   });
 
   group('CAP models', () {
-    test('LoHelplineDto keeps active numbers in sort order', () {
+    test('LoHelplineDto keeps active labels and contact order', () {
       final visible = LoHelplineDto.visible([
-        const LoHelplineDto(
-          id: '2',
-          label: 'Medical',
-          phone: '08022222222',
-          sortOrder: 2,
-        ),
-        const LoHelplineDto(
-          id: 'off',
-          label: 'Old',
-          phone: '08000000000',
-          active: false,
-        ),
-        const LoHelplineDto(
-          id: '1',
-          label: 'Control room',
-          phone: '08011111111',
-          sortOrder: 1,
-        ),
+        LoHelplineDto.fromJson({
+          'id': '2',
+          'label': 'Medical',
+          'displayOrder': 2,
+          'isActive': true,
+          'contacts': [
+            {
+              'id': 'm2',
+              'contactNumber': '08022222222',
+              'displayOrder': 2,
+            },
+            {
+              'id': 'm1',
+              'contactNumber': '08022222221',
+              'displayOrder': 1,
+            },
+          ],
+        }),
+        LoHelplineDto.fromJson({
+          'id': 'off',
+          'label': 'Old',
+          'isActive': false,
+          'contacts': [
+            {'contactNumber': '08000000000'},
+          ],
+        }),
+        LoHelplineDto.fromJson({
+          'id': '1',
+          'label': 'Control room',
+          'displayOrder': 1,
+          'isActive': true,
+          'contacts': [
+            {
+              'id': 'c1',
+              'contactNumber': '08011111111',
+              'displayOrder': 1,
+            },
+          ],
+        }),
       ]);
       expect(visible.map((e) => e.id).toList(), ['1', '2']);
+      expect(
+        visible[1].contacts.map((c) => c.contactNumber).toList(),
+        ['08022222221', '08022222222'],
+      );
     });
 
     test('JwtSession.expiresAt prefers the JWT exp claim', () {

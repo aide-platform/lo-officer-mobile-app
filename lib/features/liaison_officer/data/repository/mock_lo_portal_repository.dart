@@ -389,14 +389,31 @@ class MockLoPortalRepository implements LoPortalRepository {
     LoHelplineDto(
       id: 'hl-1',
       label: 'Control room',
-      phone: '+918012345678',
-      sortOrder: 1,
+      displayOrder: 1,
+      contacts: [
+        LoHelplineContactDto(
+          id: 'c1',
+          contactNumber: '+918012345678',
+          displayOrder: 1,
+        ),
+        LoHelplineContactDto(
+          id: 'c2',
+          contactNumber: '+918012345679',
+          displayOrder: 2,
+        ),
+      ],
     ),
     LoHelplineDto(
       id: 'hl-2',
       label: 'Medical',
-      phone: '+918087654321',
-      sortOrder: 2,
+      displayOrder: 2,
+      contacts: [
+        LoHelplineContactDto(
+          id: 'c3',
+          contactNumber: '+918087654321',
+          displayOrder: 1,
+        ),
+      ],
     ),
   ];
 }

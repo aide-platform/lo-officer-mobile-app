@@ -348,7 +348,7 @@ class DioLoPortalRepository implements LoPortalRepository {
   @override
   Future<List<LoHelplineDto>> getHelplines() async {
     try {
-      final res = await _dio.get(ApiConfig.myLoHelplinesPath);
+      final res = await _dio.get(ApiConfig.loHelpLinesActivePath);
       final aide = AideResponse.unwrap(
         res.data,
         parseData: (raw) =>

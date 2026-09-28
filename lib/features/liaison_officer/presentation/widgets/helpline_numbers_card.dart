@@ -5,7 +5,7 @@ import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 
-/// Label, phone icon, then number. Tapping the row dials via the phone app.
+/// One label, then each contact with a phone icon before the number.
 class HelplineNumbersCard extends StatelessWidget {
   const HelplineNumbersCard({super.key, required this.helplines});
 
@@ -25,29 +25,30 @@ class HelplineNumbersCard extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          for (final line in visible)
-            InkWell(
-              onTap: () => _call(context, line.phone),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    if (line.label.trim().isNotEmpty) ...[
-                      Flexible(
-                        child: Text(
-                          line.label.trim(),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    Icon(Icons.phone, size: 20, color: iconColor),
-                    const SizedBox(width: 6),
-                    Flexible(child: Text(line.phone.trim())),
-                  ],
+          for (final line in visible) ...[
+            if (line.label.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 2),
+                child: Text(
+                  line.label.trim(),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-            ),
+            for (final contact in line.contacts)
+              InkWell(
+                onTap: () => _call(context, contact.contactNumber),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Icon(Icons.phone, size: 20, color: iconColor),
+                      const SizedBox(width: 6),
+                      Flexible(child: Text(contact.contactNumber.trim())),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );

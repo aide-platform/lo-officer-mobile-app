@@ -59,6 +59,6 @@ abstract class LoPortalRepository {
 
   Future<List<int>> downloadBadge(String passId);
 
-  /// Helpline numbers published by the LO nodal officer. Empty when none or 404.
+  /// Active helplines from `GET /app/lo-help-lines/active`. Empty when none or 404.
   Future<List<LoHelplineDto>> getHelplines();
 }

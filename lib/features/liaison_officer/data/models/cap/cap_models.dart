@@ -498,50 +498,119 @@ class ConnectingFlightDraft {
       );
 }
 
-/// Nodal-officer helpline row from `GET /app/my-lo/me/helplines`.
-class LoHelplineDto {
+/// One phone number under a help-line label (`contacts[]` on the directory).
+class LoHelplineContactDto {
   final String id;
-  final String label;
-  final String phone;
-  final int sortOrder;
-  final bool active;
+  final String contactNumber;
+  final int displayOrder;
 
-  const LoHelplineDto({
+  const LoHelplineContactDto({
     this.id = '',
-    this.label = '',
-    required this.phone,
-    this.sortOrder = 0,
-    this.active = true,
+    required this.contactNumber,
+    this.displayOrder = 0,
   });
 
-  factory LoHelplineDto.fromJson(Map<String, dynamic> json) {
-    final activeRaw = json['active'];
-    final active = activeRaw is bool
-        ? activeRaw
-        : activeRaw == null || activeRaw.toString().toLowerCase() != 'false';
-    return LoHelplineDto(
+  factory LoHelplineContactDto.fromJson(Map<String, dynamic> json) {
+    return LoHelplineContactDto(
       id: json['id']?.toString() ?? '',
-      label: json['label']?.toString() ?? '',
-      phone: json['phone']?.toString() ?? '',
-      sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
-      active: active,
+      contactNumber: (json['contactNumber'] ?? json['phone'] ?? '').toString(),
+      displayOrder:
+          (json['displayOrder'] as num?)?.toInt() ??
+          (json['sortOrder'] as num?)?.toInt() ??
+          0,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'contactNumber': contactNumber,
+    'displayOrder': displayOrder,
+  };
+}
+
+/// Help-line label from `GET /app/lo-help-lines/active`.
+class LoHelplineDto {
+  final String id;
+  final String label;
+  final int displayOrder;
+  final bool isActive;
+  final List<LoHelplineContactDto> contacts;
+
+  const LoHelplineDto({
+    this.id = '',
+    this.label = '',
+    this.displayOrder = 0,
+    this.isActive = true,
+    this.contacts = const [],
+  });
+
+  factory LoHelplineDto.fromJson(Map<String, dynamic> json) {
+    final activeRaw = json['isActive'] ?? json['active'];
+    final isActive = activeRaw is bool
+        ? activeRaw
+        : activeRaw == null || activeRaw.toString().toLowerCase() != 'false';
+    final displayOrder =
+        (json['displayOrder'] as num?)?.toInt() ??
+        (json['sortOrder'] as num?)?.toInt() ??
+        0;
+    final rawContacts = json['contacts'];
+    final contacts = rawContacts is List
+        ? rawContacts
+              .whereType<Map>()
+              .map(
+                (e) =>
+                    LoHelplineContactDto.fromJson(Map<String, dynamic>.from(e)),
+              )
+              .toList()
+        : _legacyContact(json, displayOrder);
+    return LoHelplineDto(
+      id: json['id']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
+      displayOrder: displayOrder,
+      isActive: isActive,
+      contacts: contacts,
+    );
+  }
+
+  static List<LoHelplineContactDto> _legacyContact(
+    Map<String, dynamic> json,
+    int displayOrder,
+  ) {
+    final phone = (json['phone'] ?? json['contactNumber'] ?? '').toString();
+    if (phone.trim().isEmpty) return const [];
+    return [
+      LoHelplineContactDto(contactNumber: phone, displayOrder: displayOrder),
+    ];
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
     'label': label,
-    'phone': phone,
-    'sortOrder': sortOrder,
-    'active': active,
+    'displayOrder': displayOrder,
+    'isActive': isActive,
+    'contacts': contacts.map((c) => c.toJson()).toList(),
   };
 
-  /// Active rows with a number, in nodal-officer order.
+  /// Active labels that still have a number, in nodal-officer order.
   static List<LoHelplineDto> visible(List<LoHelplineDto> items) {
-    final list = items
-        .where((h) => h.active && h.phone.trim().isNotEmpty)
-        .toList();
-    list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final list = <LoHelplineDto>[];
+    for (final line in items) {
+      if (!line.isActive) continue;
+      final numbers =
+          line.contacts.where((c) => c.contactNumber.trim().isNotEmpty).toList()
+            ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+      if (numbers.isEmpty) continue;
+      list.add(
+        LoHelplineDto(
+          id: line.id,
+          label: line.label,
+          displayOrder: line.displayOrder,
+          isActive: true,
+          contacts: numbers,
+        ),
+      );
+    }
+    list.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
     return list;
   }
 }
