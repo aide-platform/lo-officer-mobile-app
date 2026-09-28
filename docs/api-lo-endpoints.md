@@ -103,6 +103,7 @@ CAP (not this app) looks up the stored token and sends with the **Firebase Admin
 | Method | Path | App behaviour | Notes |
 |--------|------|---------------|-------|
 | POST | `/app/my-lo/me/issues` | Wired + Hive offline queue + Share escalate | Soft-fail if backend rejects; **not** listed under My LO in OpenAPI. Do not confuse with `/app/cons-issues` (conservancy). |
+| GET | `/app/my-lo/me/helplines` | Wired; 404 or empty hides the card | `{ id, label, phone, sortOrder, active }`. Last good list is cached for offline. |
 | POST | `/api/devices/register` | FCM token register; 404 ignored | Mobile client only. CAP sends via Firebase Admin SDK. |
 | — | Help / PDF user manual | Client-only | No `/app/help` or manual download API. Web PDF / mobile markdown share. |
 | — | LO family-members CRUD under `/app/my-lo/me/**` | N/A | Web “family” action is outside My LO OpenAPI surface. |

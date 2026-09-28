@@ -11,6 +11,7 @@ class LoPortalCache {
   static const _delegatesKey = 'cap_lo_delegates';
   static const _tasksKey = 'cap_lo_tasks';
   static const _alertsKey = 'cap_lo_alerts';
+  static const _helplinesKey = 'cap_lo_helplines';
 
   static Future<void> saveProfile(LiaisonOfficerDto? profile) async {
     final prefs = await SharedPreferences.getInstance();
@@ -108,6 +109,27 @@ class LoPortalCache {
     await prefs.setString(_alertsKey, jsonEncode(list.take(50).toList()));
   }
 
+  static Future<void> saveHelplines(List<LoHelplineDto> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _helplinesKey,
+      jsonEncode(items.map((h) => h.toJson()).toList()),
+    );
+  }
+
+  static Future<List<LoHelplineDto>> loadHelplines() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_helplinesKey);
+    if (raw == null) return const [];
+    final list = jsonDecode(raw) as List;
+    return LoHelplineDto.visible(
+      list
+          .whereType<Map>()
+          .map((e) => LoHelplineDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
+
   static Future<List<Map<String, dynamic>>> loadAlerts() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_alertsKey);
@@ -119,49 +141,51 @@ class LoPortalCache {
   }
 
   static Map<String, dynamic> _delegateToMap(MyLoAssignmentDto d) => {
-        'assignmentId': d.assignmentId,
-        'fullName': d.fullName,
-        'salutation': d.salutation,
-        'designation': d.designation,
-        'organisation': d.organisation,
-        'protocolEquiv': d.protocolEquiv,
-        'email': d.email,
-        'mobileNumber': d.mobileNumber,
-        'arrivalFlight': d.arrivalFlight,
-        'arrivalTerminal': d.arrivalTerminal,
-        'arrivalDate': d.arrivalDate,
-        'arrivalTime': d.arrivalTime,
-        'departureFlight': d.departureFlight,
-        'departureTerminal': d.departureTerminal,
-        'departureDate': d.departureDate,
-        'departureTime': d.departureTime,
-        'family': d.family
-            .map((f) => {
-                  'id': f.id,
-                  'salutation': f.salutation,
-                  'fullName': f.fullName,
-                  'gender': f.gender,
-                  'relation': f.relation,
-                  'passportNumber': f.passportNumber,
-                  'passportValidity': f.passportValidity,
-                })
-            .toList(),
-      };
+    'assignmentId': d.assignmentId,
+    'fullName': d.fullName,
+    'salutation': d.salutation,
+    'designation': d.designation,
+    'organisation': d.organisation,
+    'protocolEquiv': d.protocolEquiv,
+    'email': d.email,
+    'mobileNumber': d.mobileNumber,
+    'arrivalFlight': d.arrivalFlight,
+    'arrivalTerminal': d.arrivalTerminal,
+    'arrivalDate': d.arrivalDate,
+    'arrivalTime': d.arrivalTime,
+    'departureFlight': d.departureFlight,
+    'departureTerminal': d.departureTerminal,
+    'departureDate': d.departureDate,
+    'departureTime': d.departureTime,
+    'family': d.family
+        .map(
+          (f) => {
+            'id': f.id,
+            'salutation': f.salutation,
+            'fullName': f.fullName,
+            'gender': f.gender,
+            'relation': f.relation,
+            'passportNumber': f.passportNumber,
+            'passportValidity': f.passportValidity,
+          },
+        )
+        .toList(),
+  };
 
   static Map<String, dynamic> _taskToMap(LoTaskDto t) => {
-        'id': t.id,
-        'loId': t.loId,
-        'loFullName': t.loFullName,
-        'loAssignId': t.loAssignId,
-        'delegateName': t.delegateName,
-        'taskSource': t.taskSource,
-        'taskTitle': t.taskTitle,
-        'taskDescription': t.taskDescription,
-        'scheduledDate': t.scheduledDate,
-        'scheduledTime': t.scheduledTime,
-        'locationVenue': t.locationVenue,
-        'remarks': t.remarks,
-        'statusCode': t.statusCode,
-        'statusName': t.statusName,
-      };
+    'id': t.id,
+    'loId': t.loId,
+    'loFullName': t.loFullName,
+    'loAssignId': t.loAssignId,
+    'delegateName': t.delegateName,
+    'taskSource': t.taskSource,
+    'taskTitle': t.taskTitle,
+    'taskDescription': t.taskDescription,
+    'scheduledDate': t.scheduledDate,
+    'scheduledTime': t.scheduledTime,
+    'locationVenue': t.locationVenue,
+    'remarks': t.remarks,
+    'statusCode': t.statusCode,
+    'statusName': t.statusName,
+  };
 }

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -63,8 +63,8 @@ class _LoPortalShellState extends State<LoPortalShell> {
 
   Future<void> _refreshUnread() async {
     try {
-      final n =
-          await AppDependencies.instance.notificationsRepository.unreadCount();
+      final n = await AppDependencies.instance.notificationsRepository
+          .unreadCount();
       if (mounted) setState(() => _unread = n);
     } catch (_) {}
   }
@@ -88,18 +88,18 @@ class _LoPortalShellState extends State<LoPortalShell> {
   void _openInbox(BuildContext context) {
     Navigator.of(context)
         .push(
-      MaterialPageRoute<void>(
-        builder: (_) => NotificationsInboxScreen(
-          onOpenDeepLink: (link) {
-            if (link.toLowerCase().contains('task')) {
-              setState(() => _index = 1);
-            } else if (link.toLowerCase().contains('delegate')) {
-              setState(() => _index = 0);
-            }
-          },
-        ),
-      ),
-    )
+          MaterialPageRoute<void>(
+            builder: (_) => NotificationsInboxScreen(
+              onOpenDeepLink: (link) {
+                if (link.toLowerCase().contains('task')) {
+                  setState(() => _index = 1);
+                } else if (link.toLowerCase().contains('delegate')) {
+                  setState(() => _index = 0);
+                }
+              },
+            ),
+          ),
+        )
         .then((_) => _refreshUnread());
   }
 
@@ -143,9 +143,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
       builder: (context, state) {
         if (state.status == LoPortalStatus.loading ||
             state.status == LoPortalStatus.initial) {
-          return const Scaffold(
-            body: AppLoading(label: 'Loading portal…'),
-          );
+          return const Scaffold(body: AppLoading(label: 'Loading portal…'));
         }
         if (state.status == LoPortalStatus.failure &&
             state.delegates.isEmpty &&
@@ -161,10 +159,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
 
         // Web parity: finish My Profile before Delegates / Tasks / Alerts.
         if (state.profile?.profileComplete != true) {
-          return LoProfileScreen(
-            email: widget.email,
-            readOnly: false,
-          );
+          return LoProfileScreen(email: widget.email, readOnly: false);
         }
 
         return _buildMainShell(context, state);
@@ -179,7 +174,8 @@ class _LoPortalShellState extends State<LoPortalShell> {
       const LoTasksScreen(),
       LoNotificationsScreen(onOpenInbox: () => _openInbox(context)),
     ];
-    final showCacheBanner = state.status == LoPortalStatus.ready &&
+    final showCacheBanner =
+        state.status == LoPortalStatus.ready &&
         state.errorMessage != null &&
         state.errorMessage!.toLowerCase().contains('cached');
     final pending = state.pendingSyncCount;
@@ -243,11 +239,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
                 case 'profile':
                   _openProfile(context, forceWizard: false);
                 case 'help':
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const HelpSupportScreen(),
-                    ),
-                  );
+                  openHelpSupport(context);
                 case 'theme':
                   context.read<ThemeCubit>().toggle();
                 case 'logout':
@@ -277,8 +269,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
                       Icon(
                         Icons.cloud_off_outlined,
                         size: 18,
-                        color:
-                            Theme.of(context).colorScheme.onSecondaryContainer,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSecondaryContainer,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -286,16 +279,16 @@ class _LoPortalShellState extends State<LoPortalShell> {
                           state.errorMessage!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSecondaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSecondaryContainer,
                           ),
                         ),
                       ),
                       TextButton(
-                        onPressed: () => context
-                            .read<LoPortalBloc>()
-                            .add(LoPortalLoadRequested()),
+                        onPressed: () => context.read<LoPortalBloc>().add(
+                          LoPortalLoadRequested(),
+                        ),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -315,8 +308,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
                       Icon(
                         Icons.sync_outlined,
                         size: 18,
-                        color:
-                            Theme.of(context).colorScheme.onTertiaryContainer,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onTertiaryContainer,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -325,16 +319,16 @@ class _LoPortalShellState extends State<LoPortalShell> {
                           '(tasks, movements, or issues)',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onTertiaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onTertiaryContainer,
                           ),
                         ),
                       ),
                       TextButton(
-                        onPressed: () => context
-                            .read<LoPortalBloc>()
-                            .add(LoPortalLoadRequested()),
+                        onPressed: () => context.read<LoPortalBloc>().add(
+                          LoPortalLoadRequested(),
+                        ),
                         child: const Text('Sync now'),
                       ),
                     ],

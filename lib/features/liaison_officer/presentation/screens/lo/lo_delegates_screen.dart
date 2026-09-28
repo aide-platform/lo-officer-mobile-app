@@ -8,6 +8,7 @@ import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_mod
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegate_detail_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/widgets/helpline_numbers_card.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
 class LoDelegatesScreen extends StatefulWidget {
@@ -69,13 +70,14 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
           child: state.delegates.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    SizedBox(height: 80),
-                    AppSectionHeader(
+                  children: [
+                    HelplineNumbersCard(helplines: state.helplines),
+                    const SizedBox(height: 80),
+                    const AppSectionHeader(
                       title: 'Delegates',
                       asset: AppAssetManager.iconDelegate,
                     ),
-                    AppEmptyState(
+                    const AppEmptyState(
                       message: 'No delegates assigned yet.',
                       imageAsset: AppAssetManager.iconDelegate,
                     ),
@@ -93,6 +95,7 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              HelplineNumbersCard(helplines: state.helplines),
                               const AppSectionHeader(
                                 title: 'Delegates',
                                 asset: AppAssetManager.iconDelegate,

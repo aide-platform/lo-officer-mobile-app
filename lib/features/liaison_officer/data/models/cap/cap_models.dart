@@ -1,4 +1,6 @@
-﻿// CAP DTO models for Liaison Officer app.
+import 'package:liaison_officer/core/session/jwt_expiry.dart';
+
+// CAP DTO models for Liaison Officer app.
 
 class LiaisonOfficerDto {
   final String? id;
@@ -94,26 +96,26 @@ class LiaisonOfficerDto {
   });
 
   factory LiaisonOfficerDto.fromJson(Map<String, dynamic> json) {
-    final langs = json['languages'] ??
-        json['languagesKnown'] ??
-        json['languageNames'];
+    final langs =
+        json['languages'] ?? json['languagesKnown'] ?? json['languageNames'];
     return LiaisonOfficerDto(
       id: json['id']?.toString(),
       personId: json['personId']?.toString(),
       orgId: json['orgId']?.toString(),
       orgName: json['orgName']?.toString(),
       orgTypeName: json['orgTypeName']?.toString(),
-      salutationName: json['salutationName']?.toString() ??
-          json['salutation']?.toString(),
+      salutationName:
+          json['salutationName']?.toString() ?? json['salutation']?.toString(),
       firstName: json['firstName']?.toString(),
       lastName: json['lastName']?.toString(),
       fullName: json['fullName']?.toString(),
       rank: json['rank']?.toString(),
       designation: json['designation']?.toString(),
-      officialEmail: json['officialEmail']?.toString() ??
-          json['primaryEmail']?.toString(),
+      officialEmail:
+          json['officialEmail']?.toString() ?? json['primaryEmail']?.toString(),
       personalEmail: json['personalEmail']?.toString(),
-      officialContact: json['officialContact']?.toString() ??
+      officialContact:
+          json['officialContact']?.toString() ??
           json['primaryMobile']?.toString(),
       personalContact: json['personalContact']?.toString(),
       whatsappNumber: json['whatsappNumber']?.toString(),
@@ -134,7 +136,8 @@ class LiaisonOfficerDto {
       languages: langs is List
           ? langs.map((e) => e.toString()).toList()
           : const [],
-      availabilityStatus: json['availabilityStatus']?.toString() ??
+      availabilityStatus:
+          json['availabilityStatus']?.toString() ??
           json['availability']?.toString(),
       photoFileId: json['photoFileId']?.toString(),
       photoFileName: json['photoFileName']?.toString(),
@@ -169,10 +172,11 @@ class LiaisonOfficerDto {
 
   String get displayName {
     if (fullName != null && fullName!.trim().isNotEmpty) return fullName!;
-    return [salutationName, firstName, lastName]
-        .whereType<String>()
-        .where((e) => e.trim().isNotEmpty)
-        .join(' ');
+    return [
+      salutationName,
+      firstName,
+      lastName,
+    ].whereType<String>().where((e) => e.trim().isNotEmpty).join(' ');
   }
 }
 
@@ -196,14 +200,14 @@ class MyLoFamilyDto {
   });
 
   factory MyLoFamilyDto.fromJson(Map<String, dynamic> json) => MyLoFamilyDto(
-        id: json['id']?.toString(),
-        salutation: json['salutation']?.toString(),
-        fullName: json['fullName']?.toString(),
-        gender: json['gender']?.toString(),
-        relation: json['relation']?.toString(),
-        passportNumber: json['passportNumber']?.toString(),
-        passportValidity: json['passportValidity']?.toString(),
-      );
+    id: json['id']?.toString(),
+    salutation: json['salutation']?.toString(),
+    fullName: json['fullName']?.toString(),
+    gender: json['gender']?.toString(),
+    relation: json['relation']?.toString(),
+    passportNumber: json['passportNumber']?.toString(),
+    passportValidity: json['passportValidity']?.toString(),
+  );
 }
 
 class MyLoAssignmentDto {
@@ -271,8 +275,9 @@ class MyLoAssignmentDto {
     final familyRaw = json['family'];
     final decorationsRaw = json['decorations'] ?? json['awards'];
     final profile = json['profile'];
-    final profileMap =
-        profile is Map ? Map<String, dynamic>.from(profile) : null;
+    final profileMap = profile is Map
+        ? Map<String, dynamic>.from(profile)
+        : null;
     return MyLoAssignmentDto(
       assignmentId: json['assignmentId']?.toString(),
       delegateType: json['delegateType']?.toString(),
@@ -282,12 +287,13 @@ class MyLoAssignmentDto {
       fullName: json['fullName']?.toString(),
       designation: json['designation']?.toString(),
       organisation: json['organisation']?.toString(),
-      ministry: json['ministry']?.toString() ??
-          profileMap?['ministry']?.toString(),
+      ministry:
+          json['ministry']?.toString() ?? profileMap?['ministry']?.toString(),
       countryName: json['countryName']?.toString(),
       protocolEquiv: json['protocolEquiv']?.toString(),
       vipCategory: json['vipCategory']?.toString(),
-      gender: json['gender']?.toString() ??
+      gender:
+          json['gender']?.toString() ??
           json['genderName']?.toString() ??
           profileMap?['gender']?.toString(),
       email: json['email']?.toString(),
@@ -300,20 +306,25 @@ class MyLoAssignmentDto {
       departureTerminal: json['departureTerminal']?.toString(),
       departureDate: json['departureDate']?.toString(),
       departureTime: json['departureTime']?.toString(),
-      passportNumber: json['passportNumber']?.toString() ??
+      passportNumber:
+          json['passportNumber']?.toString() ??
           profileMap?['passportNumber']?.toString(),
-      passportExpiry: json['passportExpiry']?.toString() ??
+      passportExpiry:
+          json['passportExpiry']?.toString() ??
           profileMap?['passportExpiry']?.toString(),
-      passportNationality: json['passportNationality']?.toString() ??
+      passportNationality:
+          json['passportNationality']?.toString() ??
           profileMap?['nationality']?.toString(),
       decorations: decorationsRaw is List
           ? decorationsRaw.map((e) => e.toString()).toList()
           : const [],
       family: familyRaw is List
           ? familyRaw
-              .whereType<Map>()
-              .map((e) => MyLoFamilyDto.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
+                .whereType<Map>()
+                .map(
+                  (e) => MyLoFamilyDto.fromJson(Map<String, dynamic>.from(e)),
+                )
+                .toList()
           : const [],
     );
   }
@@ -357,33 +368,30 @@ class LoTaskDto {
   });
 
   factory LoTaskDto.fromJson(Map<String, dynamic> json) => LoTaskDto(
-        id: json['id']?.toString(),
-        loId: json['loId']?.toString(),
-        loFullName: json['loFullName']?.toString(),
-        loAssignId: json['loAssignId']?.toString(),
-        delegatePersonId: json['delegatePersonId']?.toString(),
-        delegateName: json['delegateName']?.toString(),
-        taskSource: json['taskSource']?.toString(),
-        activityId: json['activityId']?.toString(),
-        taskTitle: json['taskTitle']?.toString(),
-        taskDescription: json['taskDescription']?.toString(),
-        scheduledDate: json['scheduledDate']?.toString(),
-        scheduledTime: json['scheduledTime']?.toString(),
-        locationVenue: json['locationVenue']?.toString(),
-        remarks: json['remarks']?.toString(),
-        statusCode: json['statusCode']?.toString(),
-        statusName: json['statusName']?.toString(),
-      );
+    id: json['id']?.toString(),
+    loId: json['loId']?.toString(),
+    loFullName: json['loFullName']?.toString(),
+    loAssignId: json['loAssignId']?.toString(),
+    delegatePersonId: json['delegatePersonId']?.toString(),
+    delegateName: json['delegateName']?.toString(),
+    taskSource: json['taskSource']?.toString(),
+    activityId: json['activityId']?.toString(),
+    taskTitle: json['taskTitle']?.toString(),
+    taskDescription: json['taskDescription']?.toString(),
+    scheduledDate: json['scheduledDate']?.toString(),
+    scheduledTime: json['scheduledTime']?.toString(),
+    locationVenue: json['locationVenue']?.toString(),
+    remarks: json['remarks']?.toString(),
+    statusCode: json['statusCode']?.toString(),
+    statusName: json['statusName']?.toString(),
+  );
 }
 
 class CaptchaChallenge {
   final String captchaId;
   final String imageBase64;
 
-  const CaptchaChallenge({
-    required this.captchaId,
-    required this.imageBase64,
-  });
+  const CaptchaChallenge({required this.captchaId, required this.imageBase64});
 
   factory CaptchaChallenge.fromJson(Map<String, dynamic> json) =>
       CaptchaChallenge(
@@ -410,15 +418,17 @@ class JwtSession {
   });
 
   factory JwtSession.fromJson(Map<String, dynamic> json) => JwtSession(
-        accessToken: json['accessToken']?.toString() ?? '',
-        tokenType: json['tokenType']?.toString(),
-        expiresInMs: (json['expiresInMs'] as num?)?.toInt(),
-        userId: json['userId']?.toString(),
-        email: json['email']?.toString() ?? '',
-        role: json['role']?.toString() ?? '',
-      );
+    accessToken: json['accessToken']?.toString() ?? '',
+    tokenType: json['tokenType']?.toString(),
+    expiresInMs: (json['expiresInMs'] as num?)?.toInt(),
+    userId: json['userId']?.toString(),
+    email: json['email']?.toString() ?? '',
+    role: json['role']?.toString() ?? '',
+  );
 
   DateTime get expiresAt {
+    final fromJwt = jwtExpiresAt(accessToken);
+    if (fromJwt != null) return fromJwt;
     final ms = expiresInMs ?? const Duration(hours: 8).inMilliseconds;
     return DateTime.now().add(Duration(milliseconds: ms));
   }
@@ -444,18 +454,19 @@ class LoExperienceDto {
         id: json['id']?.toString(),
         eventName: json['eventName']?.toString() ?? json['event']?.toString(),
         year: (json['year'] as num?)?.toInt(),
-        roleResponsibilities: json['roleResponsibilities']?.toString() ??
+        roleResponsibilities:
+            json['roleResponsibilities']?.toString() ??
             json['role']?.toString(),
         delegateDetails: json['delegateDetails']?.toString(),
       );
 
   Map<String, dynamic> toJson() => {
-        if (eventName != null) 'eventName': eventName,
-        if (year != null) 'year': year,
-        if (roleResponsibilities != null)
-          'roleResponsibilities': roleResponsibilities,
-        if (delegateDetails != null) 'delegateDetails': delegateDetails,
-      };
+    if (eventName != null) 'eventName': eventName,
+    if (year != null) 'year': year,
+    if (roleResponsibilities != null)
+      'roleResponsibilities': roleResponsibilities,
+    if (delegateDetails != null) 'delegateDetails': delegateDetails,
+  };
 }
 
 class ConnectingFlightDraft {
@@ -472,11 +483,11 @@ class ConnectingFlightDraft {
   });
 
   Map<String, dynamic> toJson() => {
-        'flightNumber': flightNumber,
-        'terminal': terminal,
-        'date': date,
-        'time': time,
-      };
+    'flightNumber': flightNumber,
+    'terminal': terminal,
+    'date': date,
+    'time': time,
+  };
 
   factory ConnectingFlightDraft.fromJson(Map<String, dynamic> json) =>
       ConnectingFlightDraft(
@@ -485,4 +496,52 @@ class ConnectingFlightDraft {
         date: json['date']?.toString() ?? '',
         time: json['time']?.toString() ?? '',
       );
+}
+
+/// Nodal-officer helpline row from `GET /app/my-lo/me/helplines`.
+class LoHelplineDto {
+  final String id;
+  final String label;
+  final String phone;
+  final int sortOrder;
+  final bool active;
+
+  const LoHelplineDto({
+    this.id = '',
+    this.label = '',
+    required this.phone,
+    this.sortOrder = 0,
+    this.active = true,
+  });
+
+  factory LoHelplineDto.fromJson(Map<String, dynamic> json) {
+    final activeRaw = json['active'];
+    final active = activeRaw is bool
+        ? activeRaw
+        : activeRaw == null || activeRaw.toString().toLowerCase() != 'false';
+    return LoHelplineDto(
+      id: json['id']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      active: active,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'label': label,
+    'phone': phone,
+    'sortOrder': sortOrder,
+    'active': active,
+  };
+
+  /// Active rows with a number, in nodal-officer order.
+  static List<LoHelplineDto> visible(List<LoHelplineDto> items) {
+    final list = items
+        .where((h) => h.active && h.phone.trim().isNotEmpty)
+        .toList();
+    list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return list;
+  }
 }

@@ -15,6 +15,7 @@ class LoOfflineStore {
   static const _issuesKey = 'issues_json';
   static const _delegatesKey = 'delegates_json';
   static const _tasksKey = 'tasks_json';
+  static const _helplinesKey = 'helplines_json';
 
   static Box<dynamic>? _box;
 
@@ -36,15 +37,21 @@ class LoOfflineStore {
     try {
       await box.put(
         _delegatesKey,
-        jsonEncode(items.map((d) => {
-              'assignmentId': d.assignmentId,
-              'fullName': d.fullName,
-              'designation': d.designation,
-              'delegateType': d.delegateType,
-              'countryName': d.countryName,
-              'arrivalDate': d.arrivalDate,
-              'departureDate': d.departureDate,
-            }).toList()),
+        jsonEncode(
+          items
+              .map(
+                (d) => {
+                  'assignmentId': d.assignmentId,
+                  'fullName': d.fullName,
+                  'designation': d.designation,
+                  'delegateType': d.delegateType,
+                  'countryName': d.countryName,
+                  'arrivalDate': d.arrivalDate,
+                  'departureDate': d.departureDate,
+                },
+              )
+              .toList(),
+        ),
       );
     } catch (_) {}
   }
@@ -54,17 +61,49 @@ class LoOfflineStore {
     try {
       await box.put(
         _tasksKey,
-        jsonEncode(items
-            .map((t) => {
+        jsonEncode(
+          items
+              .map(
+                (t) => {
                   'id': t.id,
                   'taskTitle': t.taskTitle,
                   'delegateName': t.delegateName,
                   'statusCode': t.statusCode,
                   'statusName': t.statusName,
-                })
-            .toList()),
+                },
+              )
+              .toList(),
+        ),
       );
     } catch (_) {}
+  }
+
+  static Future<void> cacheHelplines(List<LoHelplineDto> items) async {
+    await LoPortalCache.saveHelplines(items);
+    try {
+      await box.put(
+        _helplinesKey,
+        jsonEncode(items.map((h) => h.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
+  static Future<List<LoHelplineDto>> loadHelplines() async {
+    final fromPrefs = await LoPortalCache.loadHelplines();
+    if (fromPrefs.isNotEmpty) return fromPrefs;
+    try {
+      final raw = box.get(_helplinesKey);
+      if (raw is! String || raw.isEmpty) return const [];
+      final list = jsonDecode(raw) as List;
+      return LoHelplineDto.visible(
+        list
+            .whereType<Map>()
+            .map((e) => LoHelplineDto.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+      );
+    } catch (_) {
+      return const [];
+    }
   }
 
   static Future<void> enqueueTaskStatus({
@@ -160,14 +199,8 @@ class LoOfflineStore {
 
   static Future<LoIssueReport> saveIssue(LoIssueReport issue) async {
     final all = await listIssues();
-    final next = [
-      issue,
-      ...all.where((e) => e.id != issue.id),
-    ];
-    await box.put(
-      _issuesKey,
-      jsonEncode(next.map((e) => e.toJson()).toList()),
-    );
+    final next = [issue, ...all.where((e) => e.id != issue.id)];
+    await box.put(_issuesKey, jsonEncode(next.map((e) => e.toJson()).toList()));
     return issue;
   }
 

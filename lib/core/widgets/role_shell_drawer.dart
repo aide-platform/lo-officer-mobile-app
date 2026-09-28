@@ -1,4 +1,6 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/widgets/app_settings_sheet.dart';
 import 'package:liaison_officer/core/widgets/role_profile_drawer_header.dart';
@@ -100,15 +102,15 @@ class RoleShellDrawer extends StatelessWidget {
                     ),
                   ),
                   ListTile(
-                    leading: Icon(Icons.help_outline, color: AppTheme.royalBlue),
+                    leading: Icon(
+                      Icons.help_outline,
+                      color: AppTheme.royalBlue,
+                    ),
                     title: const Text('Help & Support'),
                     onTap: () {
+                      final bloc = context.read<LoPortalBloc>();
                       Navigator.pop(context);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const HelpSupportScreen(),
-                        ),
-                      );
+                      openHelpSupport(context, bloc: bloc);
                     },
                   ),
                   ListTile(
@@ -128,7 +130,10 @@ class RoleShellDrawer extends StatelessWidget {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+              leading: const Icon(
+                Icons.logout_rounded,
+                color: Colors.redAccent,
+              ),
               title: const Text('Logout'),
               onTap: () {
                 Navigator.pop(context);

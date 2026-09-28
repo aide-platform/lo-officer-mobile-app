@@ -3,10 +3,37 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/widgets/helpline_numbers_card.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+/// Keeps the portal bloc available when Help is pushed above the app navigator.
+///
+/// Pass [bloc] when the drawer will close before this push; [Navigator.pop]
+/// would otherwise remove the help route if it is pushed first.
+void openHelpSupport(BuildContext context, {LoPortalBloc? bloc}) {
+  var resolved = bloc;
+  if (resolved == null) {
+    try {
+      resolved = context.read<LoPortalBloc>();
+    } catch (_) {}
+  }
+  final portal = resolved;
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => portal == null
+          ? const HelpSupportScreen()
+          : BlocProvider.value(
+              value: portal,
+              child: const HelpSupportScreen(),
+            ),
+    ),
+  );
+}
 
 /// Help & Support — portal-aligned LO walkthrough (mirrors CAP web guide).
 class HelpSupportScreen extends StatefulWidget {
@@ -17,8 +44,7 @@ class HelpSupportScreen extends StatefulWidget {
 }
 
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
-  static const _manualAsset =
-      'assets/docs/lo-help-and-support-manual.md';
+  static const _manualAsset = 'assets/docs/lo-help-and-support-manual.md';
 
   late final Map<String, GlobalKey> _sectionKeys = {
     for (final s in _sections) s.id: GlobalKey(),
@@ -89,49 +115,53 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       whereToFind:
           'Liaison Officer login → My Profile → Complete Profile / Update Details.\nMobile: Avatar menu → My Profile.',
       fields: [
-        ('First Name / Last Name', 'Required', 'Personal Details — your legal name.'),
+        (
+          'First Name / Last Name',
+          'Required',
+          'Personal Details — your legal name.',
+        ),
         (
           'Mobile Number (from Nomination)',
           'Required',
-          'Pre-filled from nomination; editable here.'
+          'Pre-filled from nomination; editable here.',
         ),
         (
           'Aadhaar Number',
           'Required',
-          '12 digits (spaces allowed while typing).'
+          '12 digits (spaces allowed while typing).',
         ),
         ('Languages Known', 'Optional', 'Chip list — pick a language and Add.'),
         (
           'Photo & Specimen Signature',
           'Required',
-          'Document Uploads — JPEG / JPG / PNG only.'
+          'Document Uploads — JPEG / JPG / PNG only.',
         ),
         (
           'Prior LO Experience rows',
           'Optional',
-          'Event, Year, Role / Responsibilities, Delegates Handled.'
+          'Event, Year, Role / Responsibilities, Delegates Handled.',
         ),
       ],
       actions: [
         (
           'Complete Profile / Update Details',
-          'Header action on the view screen — opens the wizard.'
+          'Header action on the view screen — opens the wizard.',
         ),
         (
           'Stepper',
-          'Jump between Personal Details, Document Uploads and Prior LO Experience without losing entered data.'
+          'Jump between Personal Details, Document Uploads and Prior LO Experience without losing entered data.',
         ),
         (
           'Back / Next',
-          'Wizard navigation. Each step validates required fields before advancing.'
+          'Wizard navigation. Each step validates required fields before advancing.',
         ),
         (
           'Choose File / Replace / Clear',
-          'Document Uploads controls. Clear is only for pending (unsaved) files.'
+          'Document Uploads controls. Clear is only for pending (unsaved) files.',
         ),
         (
           'Submit',
-          'Only on the final step. Commits every change across all three steps — the only moment data reaches the server.'
+          'Only on the final step. Commits every change across all three steps — the only moment data reaches the server.',
         ),
       ],
       steps: [
@@ -153,23 +183,20 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       actions: [
         (
           'View (eye)',
-          'Opens delegate details — profile, contacts, arrival / departure.'
+          'Opens delegate details — profile, contacts, arrival / departure.',
         ),
         (
           'Events (calendar)',
-          'Opens itinerary / event nominations for the assignment.'
+          'Opens itinerary / event nominations for the assignment.',
         ),
-        (
-          'Vehicles (car)',
-          'Opens vehicles allocated to the delegate.'
-        ),
+        ('Vehicles (car)', 'Opens vehicles allocated to the delegate.'),
         (
           'Update actual arrival (plane)',
-          'Opens the travel / arrival editor for the row.'
+          'Opens the travel / arrival editor for the row.',
         ),
         (
           'Search',
-          'Search across name, type, country / category, arrival and departure.'
+          'Search across name, type, country / category, arrival and departure.',
         ),
       ],
       note:
@@ -190,7 +217,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         ('Arrival Time', 'Optional', 'Actual arrival time (HH:MM).'),
       ],
       actions: [
-        ('Save', 'Persists arrival details; the delegate row updates immediately.'),
+        (
+          'Save',
+          'Persists arrival details; the delegate row updates immediately.',
+        ),
         ('Cancel', 'Closes without saving.'),
       ],
       note:
@@ -208,22 +238,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         (
           'New Status',
           'Required',
-          'Pick Pending, In Progress or Completed. Saved as soon as you confirm.'
+          'Pick Pending, In Progress or Completed. Saved as soon as you confirm.',
         ),
       ],
       actions: [
         (
           'Per-row status action',
-          'Opens a status picker (optional remarks). Update is immediate.'
+          'Opens a status picker (optional remarks). Update is immediate.',
         ),
-        (
-          'Mark In Progress',
-          'When you actively start working on the task.'
-        ),
-        (
-          'Mark Completed',
-          'When done — status badge turns green.'
-        ),
+        ('Mark In Progress', 'When you actively start working on the task.'),
+        ('Mark Completed', 'When done — status badge turns green.'),
       ],
       note:
           'Stat cards at the top show Pending / In Progress / Completed counts. Tasks are grouped by delegate. Use search by title, description or delegate name. Mobile queues status updates offline when needed.',
@@ -239,11 +263,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       actions: [
         (
           'Notification bell',
-          'Opens the in-portal notification centre with recent updates.'
+          'Opens the in-portal notification centre with recent updates.',
         ),
         (
           'Email inbox',
-          'The same events are emailed to your nomination address.'
+          'The same events are emailed to your nomination address.',
         ),
       ],
       note:
@@ -260,7 +284,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       actions: [
         (
           'Download User Manual',
-          'Web downloads a PDF; mobile shares a markdown copy via the device share sheet.'
+          'Web downloads a PDF; mobile shares a markdown copy via the device share sheet.',
         ),
       ],
     ),
@@ -291,10 +315,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/lo-officer-user-manual.md');
       await file.writeAsString(markdown);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Liaison Officer user manual',
-      );
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Liaison Officer user manual');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -338,6 +361,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
         children: [
+          const HelplineNumbersSection(),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,9 +421,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                           child: Icon(
                             Icons.arrow_downward,
                             size: 18,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -439,9 +463,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                           Icon(
                             Icons.chevron_right,
                             size: 18,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ],
                       ),
@@ -619,29 +643,29 @@ class _HelpSectionCard extends StatelessWidget {
             const SizedBox(height: 10),
             _label(context, 'STEP-BY-STEP'),
             ...section.steps.asMap().entries.map(
-                  (e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: AppTheme.activeAccent,
-                          child: Text(
-                            '${e.key + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 10,
+                      backgroundColor: AppTheme.activeAccent,
+                      child: Text(
+                        '${e.key + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(e.value)),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(e.value)),
+                  ],
                 ),
+              ),
+            ),
           ],
           if ((section.note ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -655,10 +679,7 @@ class _HelpSectionCard extends StatelessWidget {
               ),
               child: Text(
                 section.note!,
-                style: const TextStyle(
-                  color: Color(0xFF5D4037),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF5D4037), fontSize: 13),
               ),
             ),
           ],

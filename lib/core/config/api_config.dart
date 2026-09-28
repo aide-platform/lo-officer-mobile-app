@@ -32,8 +32,12 @@ class ApiConfig {
   static const String myLoMePath = '/app/my-lo/me';
   static const String myLoDelegatesPath = '/app/my-lo/me/delegates';
   static const String myLoTasksPath = '/app/my-lo/me/tasks';
+
   /// CAP issue create; unsynced reports queue in Hive until flush succeeds.
   static const String myLoIssuesPath = '/app/my-lo/me/issues';
+
+  /// Nodal-officer helplines. Not in public OpenAPI yet — 404 yields an empty list.
+  static const String myLoHelplinesPath = '/app/my-lo/me/helplines';
   static String myLoTaskStatusPath(String taskId) =>
       '/app/my-lo/me/tasks/$taskId/status';
   static String myLoTravelPath(String assignmentId) =>

@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
+import 'package:liaison_officer/core/session/jwt_expiry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists auth session with JWT tokens in encrypted storage.
@@ -28,10 +29,10 @@ class SessionStore {
       return null;
     }
 
-    final expiresRaw = await _secure.read(key: _expiresAtKey) ??
+    final expiresRaw =
+        await _secure.read(key: _expiresAtKey) ??
         prefs.getString(_expiresAtKey);
-    final expiresAt =
-        expiresRaw == null ? null : DateTime.tryParse(expiresRaw);
+    var expiresAt = expiresRaw == null ? null : DateTime.tryParse(expiresRaw);
 
     // Prefer secure storage; migrate any legacy prefs tokens once.
     var accessToken = await _secure.read(key: _accessTokenKey);
@@ -55,6 +56,12 @@ class SessionStore {
     if (expiresRaw != null && prefs.containsKey(_expiresAtKey)) {
       await _secure.write(key: _expiresAtKey, value: expiresRaw);
       await prefs.remove(_expiresAtKey);
+    }
+
+    // JWT `exp` wins over a short or mis-scaled expiresInMs saved at login.
+    if (accessToken != null && accessToken.isNotEmpty) {
+      final fromJwt = jwtExpiresAt(accessToken);
+      if (fromJwt != null) expiresAt = fromJwt;
     }
 
     final session = AuthSession(

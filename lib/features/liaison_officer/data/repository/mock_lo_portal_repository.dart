@@ -104,7 +104,8 @@ class MockLoPortalRepository implements LoPortalRepository {
           '${body['firstName'] ?? _profile.firstName} ${body['lastName'] ?? _profile.lastName}',
       orgName: _profile.orgName,
       orgTypeName: _profile.orgTypeName,
-      officialEmail: body['officialEmail']?.toString() ?? _profile.officialEmail,
+      officialEmail:
+          body['officialEmail']?.toString() ?? _profile.officialEmail,
       personalEmail: body['personalEmail']?.toString(),
       personalContact: body['personalContact']?.toString(),
       officialContact: body['officialContact']?.toString(),
@@ -166,16 +167,18 @@ class MockLoPortalRepository implements LoPortalRepository {
     if (arrivalRaw is List) {
       _arrivalConnecting[assignmentId] = arrivalRaw
           .whereType<Map>()
-          .map((e) =>
-              ConnectingFlightDraft.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => ConnectingFlightDraft.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList();
     }
     final departureRaw = body['departureConnectingFlights'];
     if (departureRaw is List) {
       _departureConnecting[assignmentId] = departureRaw
           .whereType<Map>()
-          .map((e) =>
-              ConnectingFlightDraft.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => ConnectingFlightDraft.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList();
     }
     final updated = MyLoAssignmentDto(
@@ -314,30 +317,31 @@ class MockLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<List<Map<String, dynamic>>> getVehicles(String assignmentId) async => [
-        {
-          'vehicleType': 'SUV',
-          'vehicleNumber': 'KA-01-AB-1234',
-          'driverName': 'Ramesh',
-          'driverContact': '+919876543210',
-        },
-      ];
+    {
+      'vehicleType': 'SUV',
+      'vehicleNumber': 'KA-01-AB-1234',
+      'driverName': 'Ramesh',
+      'driverContact': '+919876543210',
+    },
+  ];
 
   @override
-  Future<List<Map<String, dynamic>>> getNominations(String assignmentId) async =>
-      [
-        {
-          'eventName': 'RM Dinner',
-          'eventDate': '2026-02-11',
-          'eventTime': '19:30',
-          'venue': 'VIP Lounge',
-        },
-        {
-          'eventName': 'Inaugural Function',
-          'eventDate': '2026-02-12',
-          'eventTime': '10:00',
-          'venue': 'Main Arena',
-        },
-      ];
+  Future<List<Map<String, dynamic>>> getNominations(
+    String assignmentId,
+  ) async => [
+    {
+      'eventName': 'RM Dinner',
+      'eventDate': '2026-02-11',
+      'eventTime': '19:30',
+      'venue': 'VIP Lounge',
+    },
+    {
+      'eventName': 'Inaugural Function',
+      'eventDate': '2026-02-12',
+      'eventTime': '10:00',
+      'venue': 'Main Arena',
+    },
+  ];
 
   final List<LoIssueReport> _issues = [];
 
@@ -379,4 +383,20 @@ class MockLoPortalRepository implements LoPortalRepository {
   @override
   Future<List<int>> downloadBadge(String passId) async =>
       'BADGE-$passId'.codeUnits;
+
+  @override
+  Future<List<LoHelplineDto>> getHelplines() async => const [
+    LoHelplineDto(
+      id: 'hl-1',
+      label: 'Control room',
+      phone: '+918012345678',
+      sortOrder: 1,
+    ),
+    LoHelplineDto(
+      id: 'hl-2',
+      label: 'Medical',
+      phone: '+918087654321',
+      sortOrder: 2,
+    ),
+  ];
 }

@@ -29,8 +29,7 @@ class DioLoPortalRepository implements LoPortalRepository {
     final res = await _dio.get(ApiConfig.myLoMePath);
     final aide = AideResponse.unwrap(
       res.data,
-      parseData: (raw) =>
-          LiaisonOfficerDto.fromJson(AideResponse.asMap(raw)),
+      parseData: (raw) => LiaisonOfficerDto.fromJson(AideResponse.asMap(raw)),
     );
     return aide.data;
   }
@@ -40,8 +39,7 @@ class DioLoPortalRepository implements LoPortalRepository {
     final res = await _dio.put(ApiConfig.myLoMePath, data: body);
     final aide = AideResponse.unwrap(
       res.data,
-      parseData: (raw) =>
-          LiaisonOfficerDto.fromJson(AideResponse.asMap(raw)),
+      parseData: (raw) => LiaisonOfficerDto.fromJson(AideResponse.asMap(raw)),
     );
     final data = aide.data;
     if (data == null) throw ApiException('Empty profile response.');
@@ -53,9 +51,8 @@ class DioLoPortalRepository implements LoPortalRepository {
     final res = await _dio.get(ApiConfig.myLoDelegatesPath);
     final aide = AideResponse.unwrap(
       res.data,
-      parseData: (raw) => AideResponse.asMapList(raw)
-          .map(MyLoAssignmentDto.fromJson)
-          .toList(),
+      parseData: (raw) =>
+          AideResponse.asMapList(raw).map(MyLoAssignmentDto.fromJson).toList(),
     );
     return aide.data ?? const [];
   }
@@ -107,8 +104,7 @@ class DioLoPortalRepository implements LoPortalRepository {
     );
     final aide = AideResponse.unwrap(
       res.data,
-      parseData: (raw) =>
-          MyLoAssignmentDto.fromJson(AideResponse.asMap(raw)),
+      parseData: (raw) => MyLoAssignmentDto.fromJson(AideResponse.asMap(raw)),
     );
     final data = aide.data;
     if (data == null) throw ApiException('Empty travel response.');
@@ -133,8 +129,7 @@ class DioLoPortalRepository implements LoPortalRepository {
     );
     final aide = AideResponse.unwrap(
       res.data,
-      parseData: (raw) =>
-          MyLoAssignmentDto.fromJson(AideResponse.asMap(raw)),
+      parseData: (raw) => MyLoAssignmentDto.fromJson(AideResponse.asMap(raw)),
     );
     final data = aide.data;
     if (data == null) throw ApiException('Empty arrival-flight response.');
@@ -197,16 +192,19 @@ class DioLoPortalRepository implements LoPortalRepository {
     final aide = AideResponse.unwrap(res.data);
     final raw = aide.data;
     if (raw is List) {
-      return raw.map((e) {
-        if (e is String) return e;
-        if (e is Map) {
-          return e['languageName']?.toString() ??
-              e['name']?.toString() ??
-              e['language']?.toString() ??
-              '';
-        }
-        return e.toString();
-      }).where((e) => e.isNotEmpty).toList();
+      return raw
+          .map((e) {
+            if (e is String) return e;
+            if (e is Map) {
+              return e['languageName']?.toString() ??
+                  e['name']?.toString() ??
+                  e['language']?.toString() ??
+                  '';
+            }
+            return e.toString();
+          })
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
     return const [];
   }
@@ -226,7 +224,8 @@ class DioLoPortalRepository implements LoPortalRepository {
       for (final e in raw) {
         if (e is! Map) continue;
         final id = e['id']?.toString();
-        final name = e['languageName']?.toString() ??
+        final name =
+            e['languageName']?.toString() ??
             e['name']?.toString() ??
             e['language']?.toString() ??
             '';
@@ -235,8 +234,7 @@ class DioLoPortalRepository implements LoPortalRepository {
       }
     }
 
-    final existingNames =
-        existingRows.map((e) => e['name']!).toSet();
+    final existingNames = existingRows.map((e) => e['name']!).toSet();
 
     for (final row in existingRows) {
       if (!desired.contains(row['name'])) {
@@ -345,6 +343,28 @@ class DioLoPortalRepository implements LoPortalRepository {
   @override
   Future<List<LoIssueReport>> listReportedIssues() async {
     return LoOfflineStore.listIssues();
+  }
+
+  @override
+  Future<List<LoHelplineDto>> getHelplines() async {
+    try {
+      final res = await _dio.get(ApiConfig.myLoHelplinesPath);
+      final aide = AideResponse.unwrap(
+        res.data,
+        parseData: (raw) =>
+            AideResponse.asMapList(raw).map(LoHelplineDto.fromJson).toList(),
+      );
+      return LoHelplineDto.visible(aide.data ?? const []);
+    } on DioException catch (e) {
+      final wrapped = e.error;
+      final code = wrapped is ApiException
+          ? wrapped.statusCode
+          : e.response?.statusCode;
+      if (code == 404 || e.response?.statusCode == 404) {
+        return const [];
+      }
+      rethrow;
+    }
   }
 
   @override
