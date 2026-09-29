@@ -41,16 +41,17 @@ jobs:
           flutter pub get
           flutter build apk --release \
             --dart-define=USE_MOCK_API=false \
-            --dart-define=API_BASE_URL=http://34.47.128.151:6080
+            --dart-define=API_BASE_URL=http://34.47.128.151:6080 \
+            --dart-define=ENABLE_FCM=true
 
       - name: Stage APK under releases/
         run: |
           mkdir -p releases
-          cp build/app/outputs/flutter-apk/app-release.apk releases/liaison-officer-1.0.4.apk
-          ls -lh releases/liaison-officer-1.0.4.apk
+          cp build/app/outputs/flutter-apk/app-release.apk releases/liaison-officer-1.0.5.apk
+          ls -lh releases/liaison-officer-1.0.5.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: liaison-officer-1.0.4-apk
-          path: releases/liaison-officer-1.0.4.apk
+          name: liaison-officer-1.0.5-apk
+          path: releases/liaison-officer-1.0.5.apk
           if-no-files-found: error

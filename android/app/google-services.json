@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "813770238672",
+    "project_id": "lo-mobile-app",
+    "storage_bucket": "lo-mobile-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:813770238672:android:2b93e6f8e598a881304cd5",
+        "android_client_info": {
+          "package_name": "com.bel.liaison_officer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_yyUcBhbD8969aX8uFG7fWTk-AWXCn-k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
