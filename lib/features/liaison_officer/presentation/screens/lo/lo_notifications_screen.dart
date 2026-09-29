@@ -107,7 +107,7 @@ class LoNotificationsScreen extends StatelessWidget {
                       fit: BoxFit.contain,
                     ),
                     title: Text(
-                      'CAP notification inbox',
+                      'Notification inbox',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text('Schedule updates, task assignments, B2B'),

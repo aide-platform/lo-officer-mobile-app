@@ -345,7 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text(
                               ApiConfig.useMockApi
                                   ? 'Mock: liaison@test.com · OTP 123456'
-                                  : 'CAP: ${ApiConfig.baseUrl}',
+                                  : 'Portal: ${ApiConfig.baseUrl}',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 11,

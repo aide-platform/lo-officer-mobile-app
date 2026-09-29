@@ -33,8 +33,8 @@ class PushNotificationService {
   static const _channelName = 'Task reminders';
   static const _channelDesc = 'Lead-time alerts for assigned LO tasks';
   static const _pushChannelId = 'lo_push';
-  static const _pushChannelName = 'CAP alerts';
-  static const _pushChannelDesc = 'Schedule, task, and meeting alerts from CAP';
+  static const _pushChannelName = 'Alerts';
+  static const _pushChannelDesc = 'Schedule, task, and meeting alerts';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();

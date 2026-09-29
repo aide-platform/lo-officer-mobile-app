@@ -3,11 +3,11 @@
 Your quick guide to completing your LO profile, coordinating with your assigned delegates and tracking your tasks.
 
 **Event:** Aero India 2027 · Made for LO Committee  
-**Source:** Mirrors the live CAP Liaison Officer Help & Support content. If a menu item appears in the portal sidebar (or the equivalent mobile surface), its documentation is below.
+**Source:** Mirrors the live Liaison Officer Help & Support content. If a menu item appears in the portal sidebar (or the equivalent mobile surface), its documentation is below.
 
 **Download User Manual:** On web, the portal generates a PDF. On this Flutter app, **Help & Support → Download user manual** shares a markdown copy via the device share sheet (no backend PDF API).
 
-Related: [API ↔ Help crosswalk](lo-help-api-and-requirements.md) · [CAP LO endpoints](api-lo-endpoints.md)
+Related: [API ↔ Help crosswalk](lo-help-api-and-requirements.md) · [LO endpoints](api-lo-endpoints.md)
 
 ---
 
@@ -88,7 +88,7 @@ A one-time OTP is sent to that email. Enter it to complete sign-in and land on M
 
 - If you did not receive the portal link, check spam and then ask your Organisation Representative to re-send it — only they can re-trigger the invite.
 - OTP is required on every sign-in. Sessions do not persist across logouts.
-- **Mobile:** CAPTCHA is required before requesting OTP (same CAP auth APIs).
+- **Mobile:** CAPTCHA is required before requesting OTP (same sign-in steps).
 
 ---
 
@@ -96,7 +96,7 @@ A one-time OTP is sent to that email. Enter it to complete sign-in and land on M
 
 ### Purpose
 
-Your first job as an LO is to complete your own record. **My Profile** opens in a read-only view; use the header CTA to enter a three-step wizard covering Personal Details, Document Uploads and Prior LO Experience. Nothing is written to the backend until you press **Submit** on the final step — the whole profile is saved in one atomic write (web UX; mobile orchestrates the same CAP calls on submit).
+Your first job as an LO is to complete your own record. **My Profile** opens in a read-only view; use the header CTA to enter a three-step wizard covering Personal Details, Document Uploads and Prior LO Experience. Nothing is written to the backend until you press **Submit** on the final step — the whole profile is saved in one atomic write (web UX; mobile orchestrates the same profile save on submit).
 
 ### Where to find it
 
@@ -139,7 +139,7 @@ Document Uploads (wizard Step 2 — all six mandatory on web): Photo, Specimen S
 
 - Nothing writes to the backend between steps — if you close the tab before Submit, everything you typed on the current session is lost.
 - The email shown at the top is your nomination email. It is read-only and cannot be edited from inside the portal.
-- On the **read-only My Profile** view, document slots can show **Load failed** / **Preview unavailable** even after a successful wizard upload. That is a CAP preview/fetch issue on the view screen, not a missing upload API — re-open **Update Details** or check the upload endpoints (`photo`, `signature`, `aadhaar-*`, `org-badge-*`).
+- On the **read-only My Profile** view, document slots can show **Load failed** / **Preview unavailable** even after a successful wizard upload. That is a preview issue on the view screen, not a missing upload API — re-open **Update Details** or check the upload endpoints (`photo`, `signature`, `aadhaar-*`, `org-badge-*`).
 
 ---
 
@@ -166,7 +166,7 @@ Liaison Officer login → **My Delegates**.
 | Update actual arrival (plane / arrival icon) | Opens the Update Actual Arrival dialog for the row. See [section 4](#4-update-delegate-travel-details) (`PUT …/arrival-flight`, `PUT …/travel`). |
 | Search / Density / Columns | Search across columns; Density adjusts row height; Columns toggles visibility. Sort / paginate from the table footer. |
 
-**Mobile:** Detail screen also surfaces itinerary (composed), transport/vehicles, and movement editors. The four web list icons map to detail cards or sheets on mobile (family remains a gap if CAP has no LO family API).
+**Mobile:** Detail screen also surfaces itinerary (composed), transport/vehicles, and movement editors. The four web list icons map to detail cards or sheets on mobile (family remains a gap if family details are not available).
 
 ### Note
 
@@ -256,7 +256,7 @@ You will not need to keep refreshing pages — the portal notifies you when some
 
 Liaison Officer login → notification bell (top bar), and your nomination-email inbox.
 
-**Mobile:** AppBar bell → CAP inbox; **Alerts** tab for local notices / reminders.
+**Mobile:** AppBar bell → notification inbox; **Alerts** tab for local notices / reminders.
 
 ### Available actions
 
@@ -304,7 +304,7 @@ Liaison Officer login → **Help & Support**.
 | 3. Delegates | My Delegates | Delegates tab → detail |
 | 4. Travel | My Delegates → plane icon | Delegate detail → arrival / movement sheets |
 | 5. Tasks | My Tasks | Tasks tab |
-| 6. Notifications | Top-bar bell + email | AppBar bell (CAP inbox) + Alerts tab |
+| 6. Notifications | Top-bar bell + email | AppBar bell (notification inbox) + Alerts tab |
 | 7. Help | Help & Support | Avatar → Help & Support |
 
 **Mobile extras (not in web Help sections 1–7):** Issue reporting (detail / Alerts), Theme toggle, offline queues for task status and travel writes. See [lo-help-api-and-requirements.md](lo-help-api-and-requirements.md).

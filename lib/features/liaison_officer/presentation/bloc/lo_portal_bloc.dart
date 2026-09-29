@@ -424,7 +424,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       await LoPortalCache.pushAlert(
         title: submitted ? 'Issue submitted' : 'Issue queued offline',
         body: submitted
-            ? '${saved.title} was submitted to CAP.'
+            ? '${saved.title} was submitted.'
             : '${saved.title} — queued for sync. Share to escalate now if needed.',
       );
       emit(
@@ -470,7 +470,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           issues: issues,
           status: LoPortalStatus.ready,
           infoMessage: saved.synced
-              ? 'Issue synced to CAP.'
+              ? 'Issue synced.'
               : 'Still offline — will retry on next load.',
           clearError: true,
           pendingSyncCount: await _refreshPendingCount(),

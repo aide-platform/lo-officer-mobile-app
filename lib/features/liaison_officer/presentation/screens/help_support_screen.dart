@@ -171,7 +171,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         'Prior LO Experience — Answer Has LO Experience? If Yes, add rows, then Submit to persist the entire profile.',
       ],
       note:
-          'Nothing writes between steps — closing before Submit loses the session. Nomination email is read-only. Document preview “Load failed” on the read-only view is a CAP preview issue, not a missing upload.',
+          'Nothing writes between steps — closing before Submit loses the session. Nomination email is read-only. Document preview “Load failed” on the read-only view is a preview issue, not a missing upload.',
     ),
     _HelpSection(
       id: 'delegates',
@@ -260,7 +260,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       purpose:
           'The portal notifies you when something relevant changes — through the in-portal bell and email on your nomination address.',
       whereToFind:
-          'Top-bar notification bell, and your nomination-email inbox.\nMobile: AppBar bell → CAP inbox; Alerts tab for local notices / reminders.',
+          'Top-bar notification bell, and your nomination-email inbox.\nMobile: AppBar bell → notification inbox; Alerts tab for local notices / reminders.',
       actions: [
         (
           'Notification bell',
@@ -486,7 +486,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             child: Text(
               'NOTE: This app is for Liaison Officers only. '
               'Use Delegates · Tasks · Alerts, plus Profile, Help, and Theme from the account menu. '
-              'Content mirrors the live CAP Help & Support guide.',
+              'Content mirrors the live Help & Support guide.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

@@ -59,7 +59,7 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
             child: const Padding(
               padding: EdgeInsets.all(10),
               child: Text(
-                'Reports POST to CAP when online. Offline reports stay on this '
+                'Reports are sent when you are online. Offline reports stay on this '
                 'device and sync on the next load. Use Share to escalate now.',
                 style: TextStyle(fontSize: 12),
               ),
