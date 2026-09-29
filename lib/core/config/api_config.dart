@@ -2,7 +2,7 @@
 ///
 /// Override at build time:
 /// `--dart-define=USE_MOCK_API=true`
-/// `--dart-define=API_BASE_URL=http://35.244.48.209:8080`
+/// `--dart-define=API_BASE_URL=http://34.47.128.151:6080`
 class ApiConfig {
   ApiConfig._();
 
@@ -15,7 +15,7 @@ class ApiConfig {
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://35.244.48.209:8080',
+    defaultValue: 'http://34.47.128.151:6080',
   );
 
   static const Duration connectTimeout = Duration(seconds: 25);

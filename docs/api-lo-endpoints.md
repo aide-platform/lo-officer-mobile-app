@@ -1,12 +1,12 @@
 # CAP API endpoints — Liaison Officer app
 
-Base URL: `http://35.244.48.209:8080`  
-OpenAPI: `http://35.244.48.209:8080/v3/api-docs`  
-Swagger UI: http://35.244.48.209:8080/swagger-ui/index.html
+Base URL: `http://34.47.128.151:6080`  
+OpenAPI: `http://34.47.128.151:6080/v3/api-docs`  
+Swagger UI: http://34.47.128.151:6080/swagger-ui/index.html
 
 Verified against live OpenAPI (`Aero India Event Management API` v1). Tag: **My LO (Liaison Officer portal)** (+ Authentication, Notifications).
 
-Corporate networks: set `NO_PROXY=35.244.48.209` (or `*`) so the proxy does not block this host.
+Corporate networks: set `NO_PROXY=34.47.128.151` (or `*`) so the proxy does not block this host.
 
 Envelope: `{ success, message, data, errorCode, timestamp }`  
 Auth header: `Authorization: Bearer <accessToken>`
@@ -103,7 +103,7 @@ CAP (not this app) looks up the stored token and sends with the **Firebase Admin
 | Method | Path | App behaviour | Notes |
 |--------|------|---------------|-------|
 | POST | `/app/my-lo/me/issues` | Wired + Hive offline queue + Share escalate | Soft-fail if backend rejects; **not** listed under My LO in OpenAPI. Do not confuse with `/app/cons-issues` (conservancy). |
-| GET | `/app/lo-help-lines/active` | Wired; 404 or empty hides the card | LO portal read from aide-service `media-lo-changes`. `{ id, label, displayOrder, isActive, contacts: [{ id, contactNumber, displayOrder }] }`. Not in the deployed OpenAPI yet. Last good list is cached for offline. |
+| GET | `/app/lo-help-lines/active` | Wired on the Helplines tab; 404 or empty shows the empty state | LO portal read. `{ id, label, displayOrder, isActive, contacts: [{ id, contactNumber, displayOrder }] }`. Tap a number to call. Last good list is cached for offline. |
 | POST | `/api/devices/register` | FCM token register; 404 ignored | Mobile client only. CAP sends via Firebase Admin SDK. |
 | — | Help / PDF user manual | Client-only | No `/app/help` or manual download API. Web PDF / mobile markdown share. |
 | — | LO family-members CRUD under `/app/my-lo/me/**` | N/A | Web “family” action is outside My LO OpenAPI surface. |
@@ -114,7 +114,7 @@ CAP (not this app) looks up the stored token and sends with the **Firebase Admin
 
 ```bash
 flutter run \
-  --dart-define=API_BASE_URL=http://35.244.48.209:8080 \
+  --dart-define=API_BASE_URL=http://34.47.128.151:6080 \
   --dart-define=USE_MOCK_API=false
 ```
 

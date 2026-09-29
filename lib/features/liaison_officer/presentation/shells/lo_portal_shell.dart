@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +13,7 @@ import 'package:liaison_officer/core/widgets/role_shell_drawer.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegates_screen.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_helplines_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_notifications_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_profile_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_tasks_screen.dart';
@@ -157,7 +158,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
           );
         }
 
-        // Web parity: finish My Profile before Delegates / Tasks / Alerts.
+        // Web parity: finish My Profile before Delegates / Tasks / Helplines / Alerts.
         if (state.profile?.profileComplete != true) {
           return LoProfileScreen(email: widget.email, readOnly: false);
         }
@@ -168,10 +169,11 @@ class _LoPortalShellState extends State<LoPortalShell> {
   }
 
   Widget _buildMainShell(BuildContext context, LoPortalState state) {
-    final titles = ['Delegates', 'Tasks', 'Alerts'];
+    final titles = ['Delegates', 'Tasks', 'Help Line Numbers', 'Alerts'];
     final pages = [
       const LoDelegatesScreen(),
       const LoTasksScreen(),
+      const LoHelplinesScreen(),
       LoNotificationsScreen(onOpenInbox: () => _openInbox(context)),
     ];
     final showCacheBanner =
@@ -200,9 +202,14 @@ class _LoPortalShellState extends State<LoPortalShell> {
               onTap: () => setState(() => _index = 1),
             ),
             RoleDrawerNavItem(
+              icon: Icons.phone_in_talk_outlined,
+              label: 'Help Line Numbers',
+              onTap: () => setState(() => _index = 2),
+            ),
+            RoleDrawerNavItem(
               icon: Icons.notifications_outlined,
               label: 'Alerts',
-              onTap: () => setState(() => _index = 2),
+              onTap: () => setState(() => _index = 3),
             ),
             RoleDrawerNavItem(
               icon: Icons.person_outline,
@@ -350,6 +357,11 @@ class _LoPortalShellState extends State<LoPortalShell> {
             icon: Icon(Icons.task_alt_outlined),
             selectedIcon: Icon(Icons.task_alt),
             label: 'Tasks',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.phone_in_talk_outlined),
+            selectedIcon: Icon(Icons.phone_in_talk),
+            label: 'Helplines',
           ),
           NavigationDestination(
             icon: Icon(Icons.notifications_outlined),

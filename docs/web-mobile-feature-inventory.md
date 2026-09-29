@@ -1,6 +1,6 @@
 # CAP Web ↔ Mobile — Liaison Officer inventory
 
-Live portal: `http://35.244.48.209/` · API: `http://35.244.48.209:8080`
+Live portal: `http://34.47.128.151:3100/` · API: `http://34.47.128.151:6080`
 
 This Flutter app is **Liaison Officer only** (`LoPortalShell`). Committee Nodal / Org Rep UIs are web-portal only.
 
@@ -8,7 +8,7 @@ This Flutter app is **Liaison Officer only** (`LoPortalShell`). Committee Nodal 
 
 | Surface | Nav |
 |---------|-----|
-| `/lo-portal/*` equivalents | Delegates · Tasks · Alerts; Profile / Help / Theme off avatar |
+| `/lo-portal/*` equivalents | Delegates · Tasks · Help Line Numbers · Alerts; Profile / Help / Theme off avatar |
 
 ## Feature parity (LO portal)
 
@@ -21,6 +21,7 @@ This Flutter app is **Liaison Officer only** (`LoPortalShell`). Committee Nodal 
 | Transport / vehicles | Delegate detail | Done |
 | Travel / movement update | Detail sheets | Done |
 | Tasks + status | Tasks tab | Done |
+| Help Line Numbers | Helplines tab | Done (`GET /app/lo-help-lines/active`, tap to call) |
 | Issue reporting | Detail / Alerts → issues | Done (on-device + speculative CAP POST + Share) |
 | Notifications | Alerts + AppBar inbox | Done |
 | Theme light/dark | Avatar menu | Done |

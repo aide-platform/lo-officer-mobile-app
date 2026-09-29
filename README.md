@@ -8,21 +8,21 @@ Flutter client for **Liaison Officers** in the Aero India Committee Automation P
 
 | Role | Mock login email | Shell |
 |------|------------------|-------|
-| Liaison Officer | `liaison@test.com` | Delegates · Tasks · Alerts (+ profile, issues, notifications, Help, Theme) |
+| Liaison Officer | `liaison@test.com` | Delegates · Tasks · Helplines · Alerts (+ profile, issues, notifications, Help, Theme) |
 
 OTP (mock & CAP demo): **`123456`**
 
-Live LO emails: Admin Login → Users page at http://35.244.48.209/
+Live LO emails: Admin Login → Users page at http://34.47.128.151:3100/
 
 ## Run
 
 ```bash
 # Live CAP (recommended)
 # Windows PowerShell:
-$env:NO_PROXY='35.244.48.209'
+$env:NO_PROXY='34.47.128.151'
 flutter run `
   --dart-define=USE_MOCK_API=false `
-  --dart-define=API_BASE_URL=http://35.244.48.209:8080
+  --dart-define=API_BASE_URL=http://34.47.128.151:6080
 
 # Offline / mock UI
 flutter run --dart-define=USE_MOCK_API=true
@@ -31,17 +31,17 @@ flutter run --dart-define=USE_MOCK_API=true
 Release APK (live CAP — required for QA / device install):
 
 ```powershell
-$env:NO_PROXY='35.244.48.209'
+$env:NO_PROXY='34.47.128.151'
 flutter build apk --release `
   --dart-define=USE_MOCK_API=false `
-  --dart-define=API_BASE_URL=http://35.244.48.209:8080
+  --dart-define=API_BASE_URL=http://34.47.128.151:6080
 ```
 
 Copy the artifact to `releases/liaison-officer-1.0.3.apk` (see [`releases/README.md`](releases/README.md)).
 
 **Signing:** Release builds use `android/key.properties` + `android/upload-keystore.jks` when present (gitignored). Without them, Gradle falls back to the debug keystore.
 
-**Android notes:** Cleartext HTTP is allowlisted only for `35.244.48.209` until CAP serves TLS. JWT tokens use `flutter_secure_storage`. R8 minify + resource shrink are enabled for release.
+**Android notes:** Cleartext HTTP is allowlisted for `34.47.128.151` until CAP serves TLS. JWT tokens use `flutter_secure_storage`. R8 minify + resource shrink are enabled for release.
 
 Compile-time `USE_MOCK_API` defaults to `true` in code for safe offline tests; **docs for this branch default to `false`**.
 
@@ -76,7 +76,7 @@ Supporting UX: My Profile, Help & Support, Theme toggle.
 - [`docs/lo-help-api-and-requirements.md`](docs/lo-help-api-and-requirements.md) — Help sections ↔ APIs + extra app requirements
 - [`docs/api-lo-endpoints.md`](docs/api-lo-endpoints.md) — CAP LO endpoints (Swagger-verified)
 - [`docs/store-launch-and-notifications-guide.md`](docs/store-launch-and-notifications-guide.md)
-- Portal UI: http://35.244.48.209/
-- Swagger: http://35.244.48.209:8080/swagger-ui/index.html
+- Portal UI: http://34.47.128.151:3100/
+- Swagger: http://34.47.128.151:6080/swagger-ui/index.html
 
 Mock: `liaison@test.com` · OTP `123456`

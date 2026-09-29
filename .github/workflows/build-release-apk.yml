@@ -41,7 +41,7 @@ jobs:
           flutter pub get
           flutter build apk --release \
             --dart-define=USE_MOCK_API=false \
-            --dart-define=API_BASE_URL=http://35.244.48.209:8080
+            --dart-define=API_BASE_URL=http://34.47.128.151:6080
 
       - name: Stage APK under releases/
         run: |
