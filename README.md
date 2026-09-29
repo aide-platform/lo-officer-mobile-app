@@ -38,7 +38,7 @@ flutter build apk --release `
   --dart-define=ENABLE_FCM=true
 ```
 
-Copy the artifact to `releases/liaison-officer-1.0.5.apk` (see [`releases/README.md`](releases/README.md)).
+Copy the artifact to `releases/liaison-officer-1.0.6.apk` (see [`releases/README.md`](releases/README.md)). `ENABLE_FCM=true` registers the device for delegate-assignment push.
 
 **Signing:** Release builds use `android/key.properties` + `android/upload-keystore.jks` when present (gitignored). Without them, Gradle falls back to the debug keystore.
 
