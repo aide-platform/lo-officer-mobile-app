@@ -15,7 +15,7 @@ This Flutter app is **Liaison Officer only** (`LoPortalShell`). Committee Nodal 
 | Capability | Mobile | Status |
 |------------|--------|--------|
 | Email OTP + CAPTCHA | Login | Done |
-| My LO profile | My Profile | Done |
+| My LO profile | My Profile | Done (personal, documents, dress measurements, prior experience) |
 | Assigned delegates + detail | Delegates tab | Done |
 | Itinerary (composed) | Delegate detail | Done |
 | Transport / vehicles | Delegate detail | Done |

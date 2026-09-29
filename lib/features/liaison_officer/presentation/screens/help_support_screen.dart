@@ -61,7 +61,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ),
     (
       '3 · Complete profile',
-      'Open My Profile and complete the three-step wizard (Personal Details, Document Uploads, Prior LO Experience), then Submit.',
+      'Open My Profile and complete the four-step wizard (Personal Details, Document Uploads, Dress Measurements, Prior LO Experience), then Submit.',
     ),
     (
       '4 · Assigned delegates',
@@ -111,7 +111,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       title: '2. Complete & Submit Your Profile',
       icon: Icons.badge_outlined,
       purpose:
-          'Your first job as an LO is to complete your own record. My Profile opens in a read-only view; use the header CTA to enter a three-step wizard covering Personal Details, Document Uploads and Prior LO Experience. Nothing is written to the backend until you press Submit on the final step.',
+          'Your first job as an LO is to complete your own record. My Profile opens in a read-only view; use the header CTA to enter a four-step wizard covering Personal Details, Document Uploads, Dress Measurements and Prior LO Experience. Nothing is written to the backend until you press Submit on the final step.',
       whereToFind:
           'Liaison Officer login → My Profile → Complete Profile / Update Details.\nMobile: Avatar menu → My Profile.',
       fields: [
@@ -149,7 +149,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         ),
         (
           'Stepper',
-          'Jump between Personal Details, Document Uploads and Prior LO Experience without losing entered data.',
+          'Jump between Personal Details, Document Uploads, Dress Measurements and Prior LO Experience without losing entered data.',
         ),
         (
           'Back / Next',
@@ -161,12 +161,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         ),
         (
           'Submit',
-          'Only on the final step. Commits every change across all three steps — the only moment data reaches the server.',
+          'Only on the final step. Commits every change across all four steps — the only moment data reaches the server.',
         ),
       ],
       steps: [
         'Personal Details — Salutation, gender, name, DOB, rank / designation, organisation ID, Aadhaar, personal email / contact, WhatsApp and Languages Known.',
         'Document Uploads — Photo, Specimen Signature, Aadhaar (Front & Back) and Organisation Badge (Front & Back). All six are mandatory; JPEG / JPG / PNG only.',
+        'Dress Measurements — Trouser waist and length, blazer chest and sleeve length, in inches.',
         'Prior LO Experience — Answer Has LO Experience? If Yes, add rows, then Submit to persist the entire profile.',
       ],
       note:

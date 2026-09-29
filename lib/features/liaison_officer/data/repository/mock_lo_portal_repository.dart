@@ -119,6 +119,10 @@ class MockLoPortalRepository implements LoPortalRepository {
       rank: body['rank']?.toString(),
       salutationName: body['salutation']?.toString(),
       hasPrevLoExp: body['hasPrevLoExp'] as bool?,
+      trouserWaist: (body['trouserWaist'] as num?)?.toDouble(),
+      trouserLength: (body['trouserLength'] as num?)?.toDouble(),
+      blazerChest: (body['blazerChest'] as num?)?.toDouble(),
+      blazerSleeve: (body['blazerSleeve'] as num?)?.toDouble(),
       profileStatus: 'SUBMITTED',
       profileComplete: true,
     );

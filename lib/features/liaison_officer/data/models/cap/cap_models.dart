@@ -28,6 +28,10 @@ class LiaisonOfficerDto {
   final String? orgIdNumber;
   final String? aadhaarNumber;
   final bool? hasPrevLoExp;
+  final double? trouserWaist;
+  final double? trouserLength;
+  final double? blazerChest;
+  final double? blazerSleeve;
   final int? yearsOfExperience;
   final String? currentPassId;
   final String? currentPassNumber;
@@ -74,6 +78,10 @@ class LiaisonOfficerDto {
     this.orgIdNumber,
     this.aadhaarNumber,
     this.hasPrevLoExp,
+    this.trouserWaist,
+    this.trouserLength,
+    this.blazerChest,
+    this.blazerSleeve,
     this.yearsOfExperience,
     this.currentPassId,
     this.currentPassNumber,
@@ -128,6 +136,10 @@ class LiaisonOfficerDto {
       orgIdNumber: json['orgIdNumber']?.toString(),
       aadhaarNumber: json['aadhaarNumber']?.toString(),
       hasPrevLoExp: json['hasPrevLoExp'] as bool?,
+      trouserWaist: _inches(json['trouserWaist']),
+      trouserLength: _inches(json['trouserLength']),
+      blazerChest: _inches(json['blazerChest']),
+      blazerSleeve: _inches(json['blazerSleeve']),
       yearsOfExperience: (json['yearsOfExperience'] as num?)?.toInt(),
       currentPassId: json['currentPassId']?.toString(),
       currentPassNumber: json['currentPassNumber']?.toString(),
@@ -152,6 +164,12 @@ class LiaisonOfficerDto {
       orgBadgeBackId: json['orgBadgeBackId']?.toString(),
       orgBadgeBackFileName: json['orgBadgeBackFileName']?.toString(),
     );
+  }
+
+  static double? _inches(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   /// Document slots present for preview (label â†’ fileId).

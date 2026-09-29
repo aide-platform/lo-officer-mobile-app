@@ -1,10 +1,10 @@
-# Liaison Officer release APK (1.0.3)
+# Liaison Officer release APK (1.0.4)
 
 ## Artifact
 
 | File | Description |
 |------|-------------|
-| `liaison-officer-1.0.3.apk` | Signed release build targeting live CAP (`USE_MOCK_API=false`) |
+| `liaison-officer-1.0.4.apk` | Signed release build targeting live CAP (`USE_MOCK_API=false`) |
 
 Build command (from repo root, PowerShell):
 
@@ -17,7 +17,7 @@ flutter build apk --release `
 
 Copy-Item -Force `
   build\app\outputs\flutter-apk\app-release.apk `
-  releases\liaison-officer-1.0.3.apk
+  releases\liaison-officer-1.0.4.apk
 ```
 
 Signing uses `android/key.properties` and `android/upload-keystore.jks` (gitignored, not in this repo).
@@ -25,14 +25,14 @@ Signing uses `android/key.properties` and `android/upload-keystore.jks` (gitigno
 ### CI (when local Gradle is blocked by corporate proxy)
 
 1. Open [Build release APK](https://github.com/aide-platform/lo-officer-mobile-app/actions/workflows/build-release-apk.yml) → **Run workflow** → branch `feature/lo-mobile-production`.
-2. Download the `liaison-officer-1.0.3-apk` artifact when the run finishes.
-3. Optionally commit it under `releases/liaison-officer-1.0.3.apk` for the testing team.
+2. Download the `liaison-officer-1.0.4-apk` artifact when the run finishes.
+3. Optionally commit it under `releases/liaison-officer-1.0.4.apk` for the testing team.
 
 Local builds fail with **HTTP 407** if `%USERPROFILE%\.gradle\gradle.properties` proxy credentials are expired — update them or use a hotspot / CI.
 
 ## Install on Android
 
-1. Copy `liaison-officer-1.0.3.apk` to the device (USB, email, MDM, etc.).
+1. Copy `liaison-officer-1.0.4.apk` to the device (USB, email, MDM, etc.).
 2. Open the file and allow **Install unknown apps** for your file manager or browser if prompted.
 3. Complete installation and open **Liaison Officer**.
 

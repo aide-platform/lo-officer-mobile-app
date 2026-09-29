@@ -37,7 +37,7 @@ flutter build apk --release `
   --dart-define=API_BASE_URL=http://34.47.128.151:6080
 ```
 
-Copy the artifact to `releases/liaison-officer-1.0.3.apk` (see [`releases/README.md`](releases/README.md)).
+Copy the artifact to `releases/liaison-officer-1.0.4.apk` (see [`releases/README.md`](releases/README.md)).
 
 **Signing:** Release builds use `android/key.properties` + `android/upload-keystore.jks` when present (gitignored). Without them, Gradle falls back to the debug keystore.
 

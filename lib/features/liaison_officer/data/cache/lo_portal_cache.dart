@@ -40,6 +40,10 @@ class LoPortalCache {
         'dateOfBirth': profile.dateOfBirth,
         'orgIdNumber': profile.orgIdNumber,
         'aadhaarNumber': profile.aadhaarNumber,
+        'trouserWaist': profile.trouserWaist,
+        'trouserLength': profile.trouserLength,
+        'blazerChest': profile.blazerChest,
+        'blazerSleeve': profile.blazerSleeve,
       }),
     );
   }
