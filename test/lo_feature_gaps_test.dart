@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liaison_officer/core/session/app_role.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_profile_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/data/repository/mock_lo_portal_repository.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
 
@@ -10,8 +11,14 @@ void main() {
   group('resolveAppRole', () {
     test('always maps to liaisonOfficer (LO-only app)', () {
       expect(resolveAppRole('Liaison Officer'), AppRole.liaisonOfficer);
-      expect(resolveAppRole('Organisation Representative'), AppRole.liaisonOfficer);
-      expect(resolveAppRole('LO Committee Nodal Officer'), AppRole.liaisonOfficer);
+      expect(
+        resolveAppRole('Organisation Representative'),
+        AppRole.liaisonOfficer,
+      );
+      expect(
+        resolveAppRole('LO Committee Nodal Officer'),
+        AppRole.liaisonOfficer,
+      );
       expect(resolveAppRole('ADMIN'), AppRole.liaisonOfficer);
     });
   });
@@ -75,14 +82,18 @@ void main() {
         ],
       };
       final arrival = (body['arrivalConnectingFlights'] as List)
-          .map((e) => ConnectingFlightDraft.fromJson(
-                Map<String, dynamic>.from(e as Map),
-              ))
+          .map(
+            (e) => ConnectingFlightDraft.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList();
       final departure = (body['departureConnectingFlights'] as List)
-          .map((e) => ConnectingFlightDraft.fromJson(
-                Map<String, dynamic>.from(e as Map),
-              ))
+          .map(
+            (e) => ConnectingFlightDraft.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList();
       expect(arrival.single.flightNumber, 'AI1');
       expect(departure.single.flightNumber, 'AI9');
@@ -90,21 +101,23 @@ void main() {
   });
 
   group('language replace-set', () {
-    test('removes dropped languages and keeps stable rows for kept ones',
-        () async {
-      final repo = MockLoPortalRepository();
-      final englishId = repo.languageRowIds.first;
-      expect(await repo.listLanguages(), ['English', 'Hindi']);
+    test(
+      'removes dropped languages and keeps stable rows for kept ones',
+      () async {
+        final repo = MockLoPortalRepository();
+        final englishId = repo.languageRowIds.first;
+        expect(await repo.listLanguages(), ['English', 'Hindi']);
 
-      await repo.setLanguages(['English', 'Kannada']);
-      final after = await repo.listLanguages();
-      expect(after, containsAll(['English', 'Kannada']));
-      expect(after, isNot(contains('Hindi')));
-      expect(after.length, 2);
-      // English row id preserved across replace-set.
-      expect(repo.languageRowIds, contains(englishId));
-      expect(repo.languageRowIds.length, 2);
-    });
+        await repo.setLanguages(['English', 'Kannada']);
+        final after = await repo.listLanguages();
+        expect(after, containsAll(['English', 'Kannada']));
+        expect(after, isNot(contains('Hindi')));
+        expect(after.length, 2);
+        // English row id preserved across replace-set.
+        expect(repo.languageRowIds, contains(englishId));
+        expect(repo.languageRowIds.length, 2);
+      },
+    );
   });
 
   group('arrival-flight update', () {
@@ -122,6 +135,82 @@ void main() {
       expect(updated.arrivalFlight, 'AI 999');
       expect(updated.arrivalTerminal, 'T1');
       expect(updated.departureFlight, 'AI 803');
+    });
+  });
+
+  group('profile field checks', () {
+    test('date of birth accepts both formats and submits yyyy-mm-dd', () {
+      expect(LoProfileScreen.formatDob(DateTime(2000, 12, 31)), '31-12-2000');
+      expect(
+        LoProfileScreen.formatDobIso(DateTime(2000, 12, 31)),
+        '2000-12-31',
+      );
+      expect(LoProfileScreen.parseDob('31-12-2000'), DateTime(2000, 12, 31));
+      expect(LoProfileScreen.parseDob('2000-12-31'), DateTime(2000, 12, 31));
+      expect(LoProfileScreen.parseDob('31-02-2000'), isNull);
+    });
+
+    test('phones follow the portal pattern and aadhaar allows spaces', () {
+      expect(
+        LoProfileScreen.phoneError(
+          '',
+          required: true,
+          emptyMessage: 'Personal contact number is required.',
+          invalidMessage: 'Personal contact is invalid.',
+        ),
+        'Personal contact number is required.',
+      );
+      expect(
+        LoProfileScreen.phoneError(
+          '+91 98765 43210',
+          required: true,
+          emptyMessage: 'Personal contact number is required.',
+          invalidMessage: 'Personal contact is invalid.',
+        ),
+        isNull,
+      );
+      expect(
+        LoProfileScreen.phoneError(
+          '12',
+          required: true,
+          emptyMessage: 'Mobile number (from nomination) is required.',
+          invalidMessage: 'Mobile number (from nomination) is invalid.',
+        ),
+        'Mobile number (from nomination) is invalid.',
+      );
+      expect(
+        LoProfileScreen.phoneError(
+          '',
+          required: false,
+          emptyMessage: '',
+          invalidMessage: 'WhatsApp number is invalid.',
+        ),
+        isNull,
+      );
+      expect(LoProfileScreen.aadhaarError(''), 'Aadhaar number is required.');
+      expect(
+        LoProfileScreen.aadhaarError('1234'),
+        'Aadhaar must be 12 digits (spaces allowed).',
+      );
+      expect(LoProfileScreen.aadhaarError('1234 5678 9012'), isNull);
+      expect(
+        LoProfileScreen.isAllowedProfileImage(filename: 'photo.jpg'),
+        isTrue,
+      );
+      expect(
+        LoProfileScreen.isAllowedProfileImage(filename: 'badge.pdf'),
+        isFalse,
+      );
+      expect(
+        LoProfileScreen.experienceRowError(
+          index: 0,
+          eventName: 'Aero India',
+          role: 'Escort',
+          year: 1980,
+          currentYear: 2026,
+        ),
+        'Row 1: Year must be between 1990 and 2026.',
+      );
     });
   });
 

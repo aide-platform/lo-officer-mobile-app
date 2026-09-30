@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
@@ -26,6 +25,165 @@ class LoProfileScreen extends StatefulWidget {
       age--;
     }
     return age;
+  }
+
+  /// Accepts `dd-mm-yyyy` and `yyyy-mm-dd` (including an ISO time suffix).
+  static DateTime? parseDob(String raw) {
+    final trimmed = raw.trim();
+    final dmy = RegExp(r'^(\d{2})-(\d{2})-(\d{4})$').firstMatch(trimmed);
+    if (dmy != null) {
+      return _calendarDate(
+        int.parse(dmy.group(3)!),
+        int.parse(dmy.group(2)!),
+        int.parse(dmy.group(1)!),
+      );
+    }
+    final iso = DateTime.tryParse(trimmed);
+    if (iso == null) return null;
+    final local = iso.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  static DateTime? _calendarDate(int year, int month, int day) {
+    final date = DateTime(year, month, day);
+    if (date.year != year || date.month != month || date.day != day) {
+      return null;
+    }
+    return date;
+  }
+
+  static String formatDob(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString().padLeft(4, '0');
+    return '$day-$month-$year';
+  }
+
+  /// Value stored by the portal (`yyyy-mm-dd`).
+  static String formatDobIso(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  static final _salutationPattern = RegExp(r'^[A-Za-z][A-Za-z .]{0,59}$');
+  static final _personName = RegExp(r"^[A-Za-z][A-Za-z .,'\-]{0,199}$");
+  static final _rankPattern = RegExp(
+    r"^[A-Za-z0-9][A-Za-z0-9 .,'()\-_/&]{0,99}$",
+  );
+  static final _designationPattern = RegExp(
+    r"^[A-Za-z0-9][A-Za-z0-9 .,'()\-_/&]{0,199}$",
+  );
+  static final _orgIdPattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9 /_\-]{0,99}$');
+  static final _aadhaarPattern = RegExp(r'^[0-9][0-9 ]{11,19}$');
+  static final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+  static final _phonePattern = RegExp(r'^[+0-9][0-9 \-]{4,29}$');
+
+  static String? salutationError(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return 'Salutation is required.';
+    if (!_salutationPattern.hasMatch(value)) {
+      return 'Salutation may only contain letters, spaces, and dots (e.g. Mr., Dr., Capt.)';
+    }
+    return null;
+  }
+
+  static String? personNameError(String raw, {required String label}) {
+    final value = raw.trim();
+    if (value.isEmpty) return '$label is required.';
+    if (!_personName.hasMatch(value)) {
+      return '$label may only contain letters, spaces and . , \' -';
+    }
+    return null;
+  }
+
+  static String? rankError(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+    if (!_rankPattern.hasMatch(value)) {
+      return 'Rank contains invalid characters.';
+    }
+    return null;
+  }
+
+  static String? designationError(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return 'Designation is required.';
+    if (!_designationPattern.hasMatch(value)) {
+      return 'Designation contains invalid characters.';
+    }
+    return null;
+  }
+
+  static String? orgIdError(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return 'Organisation ID number is required.';
+    if (!_orgIdPattern.hasMatch(value)) {
+      return 'Organisation ID may only contain letters, digits, spaces and / _ -';
+    }
+    return null;
+  }
+
+  static String? aadhaarError(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return 'Aadhaar number is required.';
+    if (!_aadhaarPattern.hasMatch(value)) {
+      return 'Aadhaar must be 12 digits (spaces allowed).';
+    }
+    return null;
+  }
+
+  static String? emailError(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return 'Personal email is required.';
+    if (!_emailPattern.hasMatch(value)) return 'Personal email is invalid.';
+    return null;
+  }
+
+  static String? phoneError(
+    String raw, {
+    required bool required,
+    required String emptyMessage,
+    required String invalidMessage,
+  }) {
+    final value = raw.trim();
+    if (value.isEmpty) return required ? emptyMessage : null;
+    if (!_phonePattern.hasMatch(value)) return invalidMessage;
+    return null;
+  }
+
+  static bool isAllowedProfileImage({String? filename, String? mimeType}) {
+    const mimes = {'image/jpeg', 'image/jpg', 'image/png'};
+    final mime = mimeType?.trim().toLowerCase() ?? '';
+    final mimeOk = mimes.contains(mime);
+    final extOk = RegExp(
+      r'\.(jpe?g|png)$',
+      caseSensitive: false,
+    ).hasMatch(filename ?? '');
+    return mimeOk || extOk;
+  }
+
+  static String? experienceRowError({
+    required int index,
+    required String? eventName,
+    required String? role,
+    required int? year,
+    int? currentYear,
+  }) {
+    final row = index + 1;
+    if ((eventName ?? '').trim().isEmpty) {
+      return 'Row $row: Event name is required.';
+    }
+    if ((role ?? '').trim().isEmpty) {
+      return 'Row $row: Role / responsibilities is required.';
+    }
+    final maxYear = currentYear ?? DateTime.now().year;
+    if (year == null) return 'Row $row: Year is required.';
+    if (year < 1990 || year > maxYear) {
+      return 'Row $row: Year must be between 1990 and $maxYear.';
+    }
+    return null;
   }
 
   @override
@@ -80,6 +238,14 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
 
   final Map<LoUploadKind, String> _uploadNames = {};
   Uint8List? _pendingPhotoBytes;
+  static final _phoneInput = [
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')),
+    LengthLimitingTextInputFormatter(30),
+  ];
+  static final _aadhaarInput = [
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
+    LengthLimitingTextInputFormatter(20),
+  ];
 
   @override
   void dispose() {
@@ -131,7 +297,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
       }
     }
     if (p.dateOfBirth != null && p.dateOfBirth!.isNotEmpty) {
-      _dob = DateTime.tryParse(p.dateOfBirth!);
+      _dob = LoProfileScreen.parseDob(p.dateOfBirth!);
     }
     _hasPrevLoExp = p.hasPrevLoExp ?? false;
     if (_whatsapp.text.isNotEmpty) {
@@ -158,11 +324,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
 
   String _dobLabel() {
     if (_dob == null) return 'Select date of birth';
-    final d = _dob!;
-    final y = d.year.toString().padLeft(4, '0');
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return '$y-$m-$day';
+    return LoProfileScreen.formatDob(_dob!);
   }
 
   Future<void> _pickDob() async {
@@ -179,6 +341,13 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   Future<void> _pickUpload(LoUploadKind kind, String label) async {
     final file = await ImagePickService.pickImageWithChooser(context);
     if (file == null || !mounted) return;
+    if (!LoProfileScreen.isAllowedProfileImage(
+      filename: file.filename,
+      mimeType: file.mimeType,
+    )) {
+      _showError('Only JPEG / JPG / PNG images are allowed.');
+      return;
+    }
     // Defer API upload until final Submit (wizard / edit).
     setState(() {
       _uploadNames[kind] = file.filename;
@@ -216,6 +385,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     final delegateDetails = TextEditingController();
     String? eventError;
     String? roleError;
+    String? yearError;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -235,7 +405,10 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                 TextField(
                   controller: year,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Year'),
+                  decoration: InputDecoration(
+                    labelText: 'Year *',
+                    errorText: yearError,
+                  ),
                 ),
                 TextField(
                   controller: role,
@@ -262,11 +435,33 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
               onPressed: () {
                 final name = eventName.text.trim();
                 final roleText = role.text.trim();
+                final yearText = year.text.trim();
+                final parsedYear = int.tryParse(yearText);
+                final maxYear = DateTime.now().year;
                 setLocal(() {
                   eventError = name.isEmpty ? 'Event name is required.' : null;
-                  roleError = roleText.isEmpty ? 'Role is required.' : null;
+                  roleError = roleText.isEmpty
+                      ? 'Role / responsibilities is required.'
+                      : null;
+                  if (yearText.isEmpty) {
+                    yearError = 'Year is required.';
+                  } else if (parsedYear == null ||
+                      parsedYear < 1990 ||
+                      parsedYear > maxYear) {
+                    yearError =
+                        'Year must be a 4-digit year between 1990 and $maxYear.';
+                  } else {
+                    yearError = null;
+                  }
                 });
-                if (name.isEmpty || roleText.isEmpty) return;
+                if (name.isEmpty ||
+                    roleText.isEmpty ||
+                    yearText.isEmpty ||
+                    parsedYear == null ||
+                    parsedYear < 1990 ||
+                    parsedYear > maxYear) {
+                  return;
+                }
                 Navigator.pop(ctx, true);
               },
               child: const Text('Add'),
@@ -336,25 +531,92 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     });
   }
 
-  String? _validateProfile() {
-    if (_first.text.trim().isEmpty) return 'First name is required.';
-    if (_last.text.trim().isEmpty) return 'Last name is required.';
-    if ((_genderId ?? '').trim().isEmpty) {
-      return 'Gender is required. Re-select gender or reload your profile.';
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)),
+    );
+  }
+
+  String? _validatePersonal() {
+    return LoProfileScreen.salutationError(_salutation) ??
+        LoProfileScreen.personNameError(_first.text, label: 'First name') ??
+        LoProfileScreen.personNameError(_last.text, label: 'Last name') ??
+        ((_genderId ?? '').trim().isEmpty ? 'Gender is required.' : null) ??
+        (_dob == null ? 'Date of birth is required.' : null) ??
+        LoProfileScreen.rankError(_rank.text) ??
+        LoProfileScreen.designationError(_designation.text) ??
+        LoProfileScreen.orgIdError(_orgId.text) ??
+        LoProfileScreen.aadhaarError(_aadhaar.text) ??
+        LoProfileScreen.emailError(_personalEmail.text) ??
+        LoProfileScreen.phoneError(
+          _personalContact.text,
+          required: true,
+          emptyMessage: 'Personal contact number is required.',
+          invalidMessage: 'Personal contact is invalid.',
+        ) ??
+        LoProfileScreen.phoneError(
+          _officialContact.text,
+          required: true,
+          emptyMessage: 'Mobile number (from nomination) is required.',
+          invalidMessage: 'Mobile number (from nomination) is invalid.',
+        ) ??
+        LoProfileScreen.phoneError(
+          _whatsapp.text,
+          required: false,
+          emptyMessage: '',
+          invalidMessage: 'WhatsApp number is invalid.',
+        );
+  }
+
+  String? _validateDocuments(LiaisonOfficerDto? profile) {
+    final missing = <String>[];
+    void need(LoUploadKind kind, String label, String? fileId) {
+      final onServer = (fileId ?? '').trim().isNotEmpty;
+      if (!onServer && !_uploadNames.containsKey(kind)) missing.add(label);
     }
-    if (_dob == null) return 'Date of birth is required.';
-    if (_designation.text.trim().isEmpty) return 'Designation is required.';
-    if (_orgId.text.trim().isEmpty) {
-      return 'Organisation ID number is required.';
+
+    need(LoUploadKind.photo, 'Photo', profile?.photoFileId);
+    need(
+      LoUploadKind.signature,
+      'Specimen Signature',
+      profile?.signatureFileId,
+    );
+    need(LoUploadKind.aadhaarFront, 'Aadhaar (Front)', profile?.aadhaarFrontId);
+    need(LoUploadKind.aadhaarBack, 'Aadhaar (Back)', profile?.aadhaarBackId);
+    need(
+      LoUploadKind.orgBadgeFront,
+      'Org Badge (Front)',
+      profile?.orgBadgeFrontId,
+    );
+    need(
+      LoUploadKind.orgBadgeBack,
+      'Org Badge (Back)',
+      profile?.orgBadgeBackId,
+    );
+    if (missing.isEmpty) return null;
+    return 'Please upload: ${missing.join(', ')}.';
+  }
+
+  String? _validateExperiences(List<LoExperienceDto> experiences) {
+    if (!_hasPrevLoExp) return null;
+    for (var i = 0; i < experiences.length; i++) {
+      final row = experiences[i];
+      final error = LoProfileScreen.experienceRowError(
+        index: i,
+        eventName: row.eventName,
+        role: row.roleResponsibilities,
+        year: row.year,
+      );
+      if (error != null) return error;
     }
-    if (_aadhaar.text.trim().isEmpty) return 'Aadhaar number is required.';
-    if (_personalEmail.text.trim().isEmpty) {
-      return 'Personal email is required.';
-    }
-    if (_personalContact.text.trim().isEmpty) {
-      return 'Personal contact is required.';
-    }
-    return _validateMeasurements();
+    return null;
+  }
+
+  String? _validateProfile(LoPortalState state) {
+    return _validatePersonal() ??
+        _validateDocuments(state.profile) ??
+        _validateMeasurements() ??
+        _validateExperiences(state.experiences);
   }
 
   static const _steps = [
@@ -396,21 +658,22 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   double _inches(TextEditingController controller) =>
       double.parse(controller.text.trim());
 
-  void _goNext() {
-    if (_step == 2) {
-      final error = _validateMeasurements();
-      if (error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(behavior: SnackBarBehavior.floating, content: Text(error)),
-        );
-        return;
-      }
+  void _goNext(LoPortalState state) {
+    final error = switch (_step) {
+      0 => _validatePersonal(),
+      1 => _validateDocuments(state.profile),
+      2 => _validateMeasurements(),
+      _ => null,
+    };
+    if (error != null) {
+      _showError(error);
+      return;
     }
     setState(() => _step++);
   }
 
   void _submit(LoPortalState state) {
-    final validationError = _validateProfile();
+    final validationError = _validateProfile(state);
     if (validationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -430,7 +693,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
         'lastName': _last.text.trim(),
         'genderId': _genderId,
         'genderName': _gender,
-        'dateOfBirth': _dobLabel(),
+        'dateOfBirth': LoProfileScreen.formatDobIso(_dob!),
         'rank': _rank.text.trim(),
         'designation': _designation.text.trim(),
         'orgIdNumber': _orgId.text.trim(),
@@ -457,17 +720,9 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
       listener: (context, state) {
         if (state.status == LoPortalStatus.ready &&
             state.infoMessage == 'Profile saved' &&
-            !widget.readOnly) {
-          // Shell already toasts infoMessage when gating; avoid duplicate when embedded.
-          if (Navigator.of(context).canPop()) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                behavior: SnackBarBehavior.floating,
-                content: Text('Profile saved'),
-              ),
-            );
-            Navigator.of(context).maybePop();
-          }
+            !widget.readOnly &&
+            Navigator.of(context).canPop()) {
+          Navigator.of(context).maybePop();
         }
         if (state.status == LoPortalStatus.failure &&
             state.errorMessage != null) {
@@ -576,7 +831,11 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                         _detailKv('Gender', p?.genderName ?? _gender),
                         _detailKv(
                           'Date of birth',
-                          p?.dateOfBirth ?? _dobLabel(),
+                          _dob == null
+                              ? (p?.dateOfBirth?.trim().isNotEmpty == true
+                                    ? p!.dateOfBirth!.trim()
+                                    : _dobLabel())
+                              : _dobLabel(),
                         ),
                         if (age != null) _detailKv('Age', '$age'),
                         _detailKv('Organisation name', p?.orgName),
@@ -830,52 +1089,80 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                 ),
                 TextField(
                   controller: _rank,
-                  decoration: const InputDecoration(labelText: 'Rank'),
+                  maxLength: 100,
+                  decoration: const InputDecoration(
+                    labelText: 'Rank',
+                    counterText: '',
+                  ),
                 ),
                 TextField(
                   controller: _designation,
-                  decoration: const InputDecoration(labelText: 'Designation'),
+                  maxLength: 200,
+                  decoration: const InputDecoration(
+                    labelText: 'Designation',
+                    counterText: '',
+                  ),
                 ),
                 TextField(
                   controller: _orgId,
+                  maxLength: 100,
                   decoration: const InputDecoration(
                     labelText: 'Organisation / Service ID',
+                    counterText: '',
                   ),
                 ),
                 TextField(
                   controller: _aadhaar,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: _aadhaarInput,
                   decoration: const InputDecoration(
                     labelText: 'Aadhaar number',
+                    hintText: '12-digit Aadhaar',
                   ),
                 ),
-                TextField(
-                  controller: _officialEmail,
+                InputDecorator(
                   decoration: const InputDecoration(
-                    labelText: 'Official email',
+                    labelText: 'Email (from Nomination)',
+                    helperText: 'Used to log in — cannot be changed',
+                  ),
+                  child: Text(
+                    _officialEmail.text.trim().isEmpty
+                        ? widget.email
+                        : _officialEmail.text.trim(),
                   ),
                 ),
                 TextField(
                   controller: _personalEmail,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: 'Personal email',
                   ),
                 ),
                 TextField(
                   controller: _officialContact,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: _phoneInput,
                   decoration: const InputDecoration(
-                    labelText: 'Official contact',
+                    labelText: 'Mobile Number (from Nomination)',
+                    hintText: '+91 9xxxxxxxxx',
                   ),
                 ),
                 TextField(
                   controller: _personalContact,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: _phoneInput,
                   decoration: const InputDecoration(
                     labelText: 'Personal contact',
+                    hintText: '+91 9xxxxxxxxx',
                   ),
                 ),
                 TextField(
                   controller: _whatsapp,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: _phoneInput,
                   decoration: const InputDecoration(
                     labelText: 'WhatsApp number',
+                    hintText: '+91 9xxxxxxxxx',
                   ),
                 ),
                 const Text(
@@ -1133,7 +1420,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                         const Spacer(),
                         if (_step < _steps.length - 1)
                           FilledButton(
-                            onPressed: _goNext,
+                            onPressed: () => _goNext(state),
                             child: const Text('Next'),
                           )
                         else

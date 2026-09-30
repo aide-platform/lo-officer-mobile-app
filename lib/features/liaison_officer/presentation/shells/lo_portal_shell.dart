@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
@@ -109,17 +110,32 @@ class _LoPortalShellState extends State<LoPortalShell> {
     return BlocConsumer<LoPortalBloc, LoPortalState>(
       listener: (context, state) async {
         final bloc = context.read<LoPortalBloc>();
+        Object? shareError;
         if (state.lastDownloadBytes != null &&
             state.lastDownloadBytes!.isNotEmpty) {
-          final bytes = state.lastDownloadBytes!;
-          final name = state.lastDownloadFilename ?? 'badge.pdf';
-          final dir = await getTemporaryDirectory();
-          final file = File('${dir.path}/$name');
-          await file.writeAsBytes(bytes);
-          await Share.shareXFiles([XFile(file.path)], text: name);
+          try {
+            final bytes = state.lastDownloadBytes!;
+            final name = _safeDownloadFilename(state.lastDownloadFilename);
+            final dir = await getTemporaryDirectory();
+            final file = File('${dir.path}/$name');
+            await file.writeAsBytes(bytes);
+            await Share.shareXFiles([XFile(file.path)], text: name);
+          } catch (e) {
+            shareError = e;
+          }
+        }
+        if (state.infoMessage != null || state.lastDownloadBytes != null) {
+          bloc.add(LoPortalClearMessages());
         }
         if (!context.mounted) return;
-        if (state.infoMessage != null) {
+        if (shareError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text(apiErrorMessage(shareError)),
+            ),
+          );
+        } else if (state.infoMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               behavior: SnackBarBehavior.floating,
@@ -136,9 +152,6 @@ class _LoPortalShellState extends State<LoPortalShell> {
               content: Text(state.errorMessage!),
             ),
           );
-        }
-        if (state.infoMessage != null || state.lastDownloadBytes != null) {
-          bloc.add(LoPortalClearMessages());
         }
       },
       builder: (context, state) {
@@ -374,4 +387,13 @@ class _LoPortalShellState extends State<LoPortalShell> {
       ),
     );
   }
+}
+
+String _safeDownloadFilename(String? raw) {
+  final cleaned = (raw ?? 'badge.pdf')
+      .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '-')
+      .replaceAll(RegExp(r'-{2,}'), '-')
+      .replaceAll(RegExp(r'^[-.]+|[-.]+$'), '');
+  if (cleaned.isEmpty) return 'badge.pdf';
+  return cleaned.toLowerCase().endsWith('.pdf') ? cleaned : '$cleaned.pdf';
 }

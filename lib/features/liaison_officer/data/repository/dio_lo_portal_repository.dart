@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -369,10 +370,68 @@ class DioLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<List<int>> downloadBadge(String passId) async {
-    final res = await _dio.get<List<int>>(
-      ApiConfig.bvQuotaBadgeDownloadPath(passId),
-      options: Options(responseType: ResponseType.bytes),
-    );
-    return res.data ?? const [];
+    try {
+      final res = await _dio.get<List<int>>(
+        ApiConfig.bvQuotaBadgeDownloadPath(passId),
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: const {'Accept': 'application/pdf'},
+        ),
+      );
+      return _pdfBytes(res.data ?? const []);
+    } on DioException catch (e) {
+      final message = _jsonMessage(e.response?.data);
+      if (message != null) {
+        throw ApiException(message, statusCode: e.response?.statusCode);
+      }
+      rethrow;
+    }
+  }
+
+  List<int> _pdfBytes(List<int> bytes) {
+    if (bytes.isEmpty) {
+      throw ApiException('Badge file was empty.');
+    }
+    final message = _jsonMessage(bytes);
+    if (message != null) throw ApiException(message);
+    if (!_isPdf(bytes)) {
+      throw ApiException('Badge download did not return a PDF.');
+    }
+    return bytes;
+  }
+
+  bool _isPdf(List<int> bytes) {
+    var i = 0;
+    while (i < bytes.length &&
+        (bytes[i] == 0x20 ||
+            bytes[i] == 0x09 ||
+            bytes[i] == 0x0A ||
+            bytes[i] == 0x0D)) {
+      i++;
+    }
+    if (i + 4 > bytes.length) return false;
+    return bytes[i] == 0x25 &&
+        bytes[i + 1] == 0x50 &&
+        bytes[i + 2] == 0x44 &&
+        bytes[i + 3] == 0x46;
+  }
+
+  String? _jsonMessage(Object? data) {
+    List<int>? bytes;
+    if (data is List<int>) bytes = data;
+    if (bytes == null || bytes.isEmpty) return null;
+    try {
+      final text = utf8.decode(bytes);
+      final trimmed = text.trimLeft();
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+      final decoded = jsonDecode(text);
+      if (decoded is Map) {
+        final message = decoded['message']?.toString().trim() ?? '';
+        if (message.isNotEmpty) return message;
+      }
+      return 'Badge download did not return a PDF.';
+    } catch (_) {
+      return null;
+    }
   }
 }
