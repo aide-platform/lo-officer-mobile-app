@@ -282,8 +282,10 @@ class MockLoPortalRepository implements LoPortalRepository {
     final e = LoExperienceDto(
       id: 'exp-${_experiences.length + 1}',
       eventName: body['eventName']?.toString(),
-      year: (body['year'] as num?)?.toInt(),
-      roleResponsibilities: body['roleResponsibilities']?.toString(),
+      year: (body['eventYear'] as num?)?.toInt() ?? (body['year'] as num?)?.toInt(),
+      roleResponsibilities:
+          body['roleResp']?.toString() ??
+          body['roleResponsibilities']?.toString(),
       delegateDetails: body['delegateDetails']?.toString(),
     );
     _experiences.add(e);
@@ -298,6 +300,14 @@ class MockLoPortalRepository implements LoPortalRepository {
   @override
   Future<List<String>> listLanguages() async =>
       _languageRows.map((e) => e.languageName).toList();
+
+  @override
+  Future<List<LoLanguageOption>> listLanguageLookups() async => const [
+    LoLanguageOption(id: 'lang-en', name: 'English'),
+    LoLanguageOption(id: 'lang-hi', name: 'Hindi'),
+    LoLanguageOption(id: 'lang-kn', name: 'Kannada'),
+    LoLanguageOption(id: 'lang-ta', name: 'Tamil'),
+  ];
 
   /// Test helper: row ids currently stored for languages.
   List<String> get languageRowIds =>
@@ -387,6 +397,14 @@ class MockLoPortalRepository implements LoPortalRepository {
   @override
   Future<List<int>> downloadBadge(String passId) async =>
       'BADGE-$passId'.codeUnits;
+
+  @override
+  Future<List<int>> downloadProfileFile(String fileId) async {
+    if (fileId.trim().isEmpty) {
+      throw StateError('File is not available yet.');
+    }
+    return 'FILE-$fileId'.codeUnits;
+  }
 
   @override
   Future<List<LoHelplineDto>> getHelplines() async => const [

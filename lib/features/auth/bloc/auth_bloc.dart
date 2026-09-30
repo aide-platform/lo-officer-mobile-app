@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 
@@ -24,6 +25,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
   }
 
   final AuthRepository _repository;
+
+  static final RegExp _emailPattern = RegExp(
+    r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+  );
+
+  static bool _isWellFormedEmail(String email) => _emailPattern.hasMatch(email);
 
   static AuthBlocState _initialState(AuthSession? session) {
     if (session == null || !session.isValid) {
@@ -65,7 +72,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     Emitter<AuthBlocState> emit,
   ) async {
     final email = event.email.trim();
-    if (email.isEmpty || !email.contains('@')) {
+    if (!_isWellFormedEmail(email)) {
       emit(state.copyWith(
         status: AuthStatus.failure,
         errorMessage: 'Please enter a valid email address.',
@@ -86,7 +93,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
       clearError: true,
     ));
 
-    await _repository.checkEmail(email: email);
+    try {
+      await _repository.checkEmail(email: email);
+    } catch (e) {
+      emit(state.copyWith(
+        status: AuthStatus.failure,
+        email: email,
+        errorMessage: apiErrorMessage(
+          e,
+          fallback: 'Unable to verify this email address.',
+        ),
+      ));
+      return;
+    }
+
     final result = await _repository.requestOtp(
       email: email,
       captchaId: event.captchaId,

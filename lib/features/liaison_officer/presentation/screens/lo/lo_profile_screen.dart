@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -76,8 +77,9 @@ class LoProfileScreen extends StatefulWidget {
     r"^[A-Za-z0-9][A-Za-z0-9 .,'()\-_/&]{0,199}$",
   );
   static final _orgIdPattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9 /_\-]{0,99}$');
-  static final _aadhaarPattern = RegExp(r'^[0-9][0-9 ]{11,19}$');
-  static final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+  static final _emailPattern = RegExp(
+    r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+  );
   static final _phonePattern = RegExp(r'^[+0-9][0-9 \-]{4,29}$');
 
   static String? salutationError(String raw) {
@@ -128,16 +130,17 @@ class LoProfileScreen extends StatefulWidget {
   static String? aadhaarError(String raw) {
     final value = raw.trim();
     if (value.isEmpty) return 'Aadhaar number is required.';
-    if (!_aadhaarPattern.hasMatch(value)) {
+    final digits = value.replaceAll(' ', '');
+    if (!RegExp(r'^\d{12}$').hasMatch(digits)) {
       return 'Aadhaar must be 12 digits (spaces allowed).';
     }
     return null;
   }
 
-  static String? emailError(String raw) {
+  static String? emailError(String raw, {String label = 'Personal email'}) {
     final value = raw.trim();
-    if (value.isEmpty) return 'Personal email is required.';
-    if (!_emailPattern.hasMatch(value)) return 'Personal email is invalid.';
+    if (value.isEmpty) return '$label is required.';
+    if (!_emailPattern.hasMatch(value)) return '$label is invalid.';
     return null;
   }
 
@@ -186,6 +189,27 @@ class LoProfileScreen extends StatefulWidget {
     return null;
   }
 
+  /// Role / responsibilities is required only when at least one row exists.
+  static String? experiencesError({
+    required bool hasPrevious,
+    required List<LoExperienceDto> experiences,
+    int? currentYear,
+  }) {
+    if (!hasPrevious || experiences.isEmpty) return null;
+    for (var i = 0; i < experiences.length; i++) {
+      final row = experiences[i];
+      final error = experienceRowError(
+        index: i,
+        eventName: row.eventName,
+        role: row.roleResponsibilities,
+        year: row.year,
+        currentYear: currentYear,
+      );
+      if (error != null) return error;
+    }
+    return null;
+  }
+
   @override
   State<LoProfileScreen> createState() => _LoProfileScreenState();
 }
@@ -193,17 +217,6 @@ class LoProfileScreen extends StatefulWidget {
 class _LoProfileScreenState extends State<LoProfileScreen> {
   static const _salutations = ['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'];
   static const _genders = ['Male', 'Female', 'Other', 'Prefer not to say'];
-  static const _languageOptions = [
-    'English',
-    'Hindi',
-    'Odia',
-    'Kannada',
-    'Tamil',
-    'Telugu',
-    'Malayalam',
-    'Marathi',
-    'Gujarati',
-  ];
 
   final _first = TextEditingController();
   final _last = TextEditingController();
@@ -221,6 +234,15 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   final _blazerChest = TextEditingController();
   final _blazerSleeve = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<LoPortalBloc>().add(LoPortalLanguageLookupsRequested());
+    });
+  }
+
   String _salutation = 'Mr';
   String _gender = 'Male';
   String? _genderId;
@@ -237,14 +259,15 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   bool _languagesSeeded = false;
 
   final Map<LoUploadKind, String> _uploadNames = {};
-  Uint8List? _pendingPhotoBytes;
+  final Map<LoUploadKind, Uint8List> _uploadBytes = {};
+  bool _profileSaveDialogVisible = false;
   static final _phoneInput = [
     FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')),
     LengthLimitingTextInputFormatter(30),
   ];
   static final _aadhaarInput = [
     FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-    LengthLimitingTextInputFormatter(20),
+    LengthLimitingTextInputFormatter(14),
   ];
 
   @override
@@ -324,7 +347,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
 
   String _dobLabel() {
     if (_dob == null) return 'Select date of birth';
-    return LoProfileScreen.formatDob(_dob!);
+    return LoProfileScreen.formatDobIso(_dob!);
   }
 
   Future<void> _pickDob() async {
@@ -351,9 +374,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     // Defer API upload until final Submit (wizard / edit).
     setState(() {
       _uploadNames[kind] = file.filename;
-      if (kind == LoUploadKind.photo) {
-        _pendingPhotoBytes = file.bytes;
-      }
+      _uploadBytes[kind] = file.bytes;
     });
     context.read<LoPortalBloc>().add(
       LoPortalUploadRequested(
@@ -364,25 +385,258 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     );
   }
 
-  Widget _uploadRow(LoUploadKind kind, String label) {
-    return AppImageThumbRow(
-      label: label,
-      bytes: kind == LoUploadKind.photo ? _pendingPhotoBytes : null,
-      onPick: () => _pickUpload(kind, label),
-      onClear: () => setState(() {
-        _uploadNames.remove(kind);
-        if (kind == LoUploadKind.photo) {
-          _pendingPhotoBytes = null;
-        }
-      }),
+  String? _serverFileId(LoUploadKind kind, LiaisonOfficerDto? profile) {
+    return switch (kind) {
+      LoUploadKind.photo => profile?.photoFileId,
+      LoUploadKind.signature => profile?.signatureFileId,
+      LoUploadKind.aadhaarFront => profile?.aadhaarFrontId,
+      LoUploadKind.aadhaarBack => profile?.aadhaarBackId,
+      LoUploadKind.orgBadgeFront => profile?.orgBadgeFrontId,
+      LoUploadKind.orgBadgeBack => profile?.orgBadgeBackId,
+    };
+  }
+
+  String? _serverFileName(LoUploadKind kind, LiaisonOfficerDto? profile) {
+    return switch (kind) {
+      LoUploadKind.photo => profile?.photoFileName,
+      LoUploadKind.signature => profile?.signatureFileName,
+      LoUploadKind.aadhaarFront => profile?.aadhaarFrontFileName,
+      LoUploadKind.aadhaarBack => profile?.aadhaarBackFileName,
+      LoUploadKind.orgBadgeFront => profile?.orgBadgeFrontFileName,
+      LoUploadKind.orgBadgeBack => profile?.orgBadgeBackFileName,
+    };
+  }
+
+  void _viewDocument({
+    required String filename,
+    Uint8List? bytes,
+    String? fileId,
+  }) {
+    if (bytes != null && bytes.isNotEmpty) {
+      _showImagePreview(bytes, filename);
+      return;
+    }
+    final id = fileId?.trim() ?? '';
+    if (id.isEmpty) {
+      _showError('File is not available yet.');
+      return;
+    }
+    context.read<LoPortalBloc>().add(
+      LoPortalDocumentFetchRequested(
+        fileId: id,
+        filename: filename,
+        share: false,
+      ),
     );
   }
 
-  Future<void> _addExperience() async {
-    final eventName = TextEditingController();
-    final year = TextEditingController();
-    final role = TextEditingController();
-    final delegateDetails = TextEditingController();
+  void _downloadDocument({
+    required String filename,
+    Uint8List? bytes,
+    String? fileId,
+  }) {
+    if (bytes != null && bytes.isNotEmpty) {
+      context.read<LoPortalBloc>().add(
+        LoPortalLocalFileShareRequested(bytes: bytes, filename: filename),
+      );
+      return;
+    }
+    final id = fileId?.trim() ?? '';
+    if (id.isEmpty) {
+      _showError('File is not available yet.');
+      return;
+    }
+    context.read<LoPortalBloc>().add(
+      LoPortalDocumentFetchRequested(
+        fileId: id,
+        filename: filename,
+        share: true,
+      ),
+    );
+  }
+
+  Future<void> _showImagePreview(Uint8List bytes, String filename) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                filename,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Flexible(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4,
+                child: Image.memory(bytes, fit: BoxFit.contain),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _uploadRow(
+    LoUploadKind kind,
+    String label,
+    LiaisonOfficerDto? profile,
+  ) {
+    final localName = _uploadNames[kind];
+    final serverName = _serverFileName(kind, profile);
+    final serverId = _serverFileId(kind, profile);
+    final uploaded =
+        (localName ?? '').isNotEmpty ||
+        (serverId ?? '').trim().isNotEmpty ||
+        (serverName ?? '').trim().isNotEmpty;
+    final filename = (localName ?? '').isNotEmpty
+        ? localName!
+        : ((serverName ?? '').trim().isNotEmpty ? serverName! : 'Uploaded');
+    final bytes = _uploadBytes[kind];
+
+    return _documentCard(
+      label: label,
+      uploaded: uploaded,
+      filename: filename,
+      bytes: bytes,
+      onAdd: uploaded ? null : () => _pickUpload(kind, label),
+      onReplace: uploaded ? () => _pickUpload(kind, label) : null,
+      onView: uploaded
+          ? () => _viewDocument(
+              filename: filename,
+              bytes: bytes,
+              fileId: serverId,
+            )
+          : null,
+      onDownload: uploaded
+          ? () => _downloadDocument(
+              filename: filename,
+              bytes: bytes,
+              fileId: serverId,
+            )
+          : null,
+    );
+  }
+
+  Widget _documentCard({
+    required String label,
+    required bool uploaded,
+    required String filename,
+    Uint8List? bytes,
+    VoidCallback? onAdd,
+    VoidCallback? onReplace,
+    VoidCallback? onView,
+    VoidCallback? onDownload,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasThumb = bytes != null && bytes.isNotEmpty;
+    Widget action(String tooltip, IconData icon, VoidCallback onPressed) {
+      return IconButton(
+        tooltip: tooltip,
+        visualDensity: VisualDensity.compact,
+        onPressed: onPressed,
+        icon: Icon(icon),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: hasThumb
+                  ? Image.memory(bytes, fit: BoxFit.cover)
+                  : ColoredBox(
+                      color: scheme.surfaceContainerHighest,
+                      child: Icon(
+                        uploaded
+                            ? Icons.description_outlined
+                            : Icons.add_photo_alternate_outlined,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(
+                  uploaded ? filename : 'Not uploaded',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Text(
+                  uploaded ? 'Uploaded' : 'Not uploaded',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: uploaded ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!uploaded && onAdd != null)
+            action('Add', Icons.add, onAdd)
+          else ...[
+            if (onView != null) action('View', Icons.visibility_outlined, onView),
+            if (onDownload != null)
+              action('Download', Icons.download_outlined, onDownload),
+            if (onReplace != null)
+              action('Replace', Icons.swap_horiz, onReplace),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _experienceSubtitle(LoExperienceDto row) {
+    final role = (row.roleResponsibilities ?? '').trim();
+    final details = (row.delegateDetails ?? '').trim();
+    return [
+      if (row.year != null) '${row.year}',
+      if (role.isNotEmpty) role else 'Role / responsibilities missing',
+      if (details.isNotEmpty) details,
+    ].join(' · ');
+  }
+
+  Future<void> _addExperience([LoExperienceDto? existing]) async {
+    final editing = (existing?.id ?? '').isNotEmpty;
+    final eventName = TextEditingController(text: existing?.eventName ?? '');
+    final year = TextEditingController(
+      text: existing?.year?.toString() ?? '',
+    );
+    final role = TextEditingController(
+      text: existing?.roleResponsibilities ?? '',
+    );
+    final delegateDetails = TextEditingController(
+      text: existing?.delegateDetails ?? '',
+    );
     String? eventError;
     String? roleError;
     String? yearError;
@@ -391,7 +645,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('Add experience'),
+          title: Text(editing ? 'Edit experience' : 'Add experience'),
           content: SingleChildScrollView(
             child: AppFormColumn(
               children: [
@@ -464,7 +718,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                 }
                 Navigator.pop(ctx, true);
               },
-              child: const Text('Add'),
+              child: Text(editing ? 'Save' : 'Add'),
             ),
           ],
         ),
@@ -472,14 +726,18 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     );
 
     if (ok == true && mounted) {
-      context.read<LoPortalBloc>().add(
-        LoPortalExperienceAdded({
-          'eventName': eventName.text.trim(),
-          'year': int.tryParse(year.text.trim()),
-          'roleResponsibilities': role.text.trim(),
-          'delegateDetails': delegateDetails.text.trim(),
-        }),
-      );
+      final body = {
+        'eventName': eventName.text.trim(),
+        'eventYear': int.tryParse(year.text.trim()),
+        'roleResp': role.text.trim(),
+        'delegateDetails': delegateDetails.text.trim(),
+      };
+      final bloc = context.read<LoPortalBloc>();
+      if (editing) {
+        bloc.add(LoPortalExperienceReplaced(id: existing!.id!, body: body));
+      } else {
+        bloc.add(LoPortalExperienceAdded(body));
+      }
     }
 
     eventName.dispose();
@@ -537,6 +795,74 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     );
   }
 
+  Future<void> _showProfileSavedDialog() async {
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Profile updated',
+      transitionDuration: const Duration(milliseconds: 320),
+      pageBuilder: (ctx, _, _) {
+        return SafeArea(
+          child: Center(
+            child: AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 520),
+                    curve: Curves.elasticOut,
+                    builder: (context, value, _) => Transform.scale(
+                      scale: value,
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        color: Color(0xFF2E7D32),
+                        size: 72,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Profile updated successfully',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Your profile is now complete. Thank you!',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, anim, _, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutBack);
+        return FadeTransition(
+          opacity: anim,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.86, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+    if (!mounted) return;
+    _profileSaveDialogVisible = false;
+    final route = ModalRoute.of(context);
+    if (route is PageRoute && route.fullscreenDialog) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   String? _validatePersonal() {
     return LoProfileScreen.salutationError(_salutation) ??
         LoProfileScreen.personNameError(_first.text, label: 'First name') ??
@@ -547,6 +873,12 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
         LoProfileScreen.designationError(_designation.text) ??
         LoProfileScreen.orgIdError(_orgId.text) ??
         LoProfileScreen.aadhaarError(_aadhaar.text) ??
+        LoProfileScreen.emailError(
+          _officialEmail.text.trim().isEmpty
+              ? widget.email
+              : _officialEmail.text,
+          label: 'Official email',
+        ) ??
         LoProfileScreen.emailError(_personalEmail.text) ??
         LoProfileScreen.phoneError(
           _personalContact.text,
@@ -598,18 +930,10 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   }
 
   String? _validateExperiences(List<LoExperienceDto> experiences) {
-    if (!_hasPrevLoExp) return null;
-    for (var i = 0; i < experiences.length; i++) {
-      final row = experiences[i];
-      final error = LoProfileScreen.experienceRowError(
-        index: i,
-        eventName: row.eventName,
-        role: row.roleResponsibilities,
-        year: row.year,
-      );
-      if (error != null) return error;
-    }
-    return null;
+    return LoProfileScreen.experiencesError(
+      hasPrevious: _hasPrevLoExp,
+      experiences: experiences,
+    );
   }
 
   String? _validateProfile(LoPortalState state) {
@@ -649,6 +973,10 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     if (raw.trim().isEmpty) return '$group — $label is required.';
     final value = double.tryParse(raw.trim());
     if (value == null) return '$group — $label must be a number.';
+    final halves = value * 2;
+    if ((halves - halves.round()).abs() > 0.001) {
+      return '$group — $label must be a whole number or half-inch (e.g. 32.5).';
+    }
     if (value < min || value > max) {
       return '$group — $label must be between ${min.toInt()} and ${max.toInt()} inches.';
     }
@@ -718,11 +1046,18 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   Widget build(BuildContext context) {
     return BlocConsumer<LoPortalBloc, LoPortalState>(
       listener: (context, state) {
-        if (state.status == LoPortalStatus.ready &&
-            state.infoMessage == 'Profile saved' &&
+        if (state.profileSaveAck &&
             !widget.readOnly &&
-            Navigator.of(context).canPop()) {
-          Navigator.of(context).maybePop();
+            !_profileSaveDialogVisible) {
+          _profileSaveDialogVisible = true;
+          _showProfileSavedDialog();
+        }
+        final preview = state.documentPreviewBytes;
+        if (preview != null && preview.isNotEmpty) {
+          final name = state.documentPreviewName ?? 'Document';
+          final bytes = Uint8List.fromList(preview);
+          context.read<LoPortalBloc>().add(LoPortalClearDocumentPreview());
+          _showImagePreview(bytes, name);
         }
         if (state.status == LoPortalStatus.failure &&
             state.errorMessage != null) {
@@ -833,7 +1168,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                           'Date of birth',
                           _dob == null
                               ? (p?.dateOfBirth?.trim().isNotEmpty == true
-                                    ? p!.dateOfBirth!.trim()
+                                    ? LoDisplayFormat.date(p!.dateOfBirth)
                                     : _dobLabel())
                               : _dobLabel(),
                         ),
@@ -917,34 +1252,34 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                         ),
                         const SizedBox(height: 8),
                         _docStatusRow(
-                          'Photograph',
-                          p?.photoFileName,
-                          p?.photoFileId,
+                          'Passport Size Photo',
+                          LoUploadKind.photo,
+                          p,
                         ),
                         _docStatusRow(
-                          'Signature',
-                          p?.signatureFileName,
-                          p?.signatureFileId,
+                          'Specimen Signature',
+                          LoUploadKind.signature,
+                          p,
                         ),
                         _docStatusRow(
                           'Aadhaar (Front)',
-                          p?.aadhaarFrontFileName,
-                          p?.aadhaarFrontId,
+                          LoUploadKind.aadhaarFront,
+                          p,
                         ),
                         _docStatusRow(
                           'Aadhaar (Back)',
-                          p?.aadhaarBackFileName,
-                          p?.aadhaarBackId,
+                          LoUploadKind.aadhaarBack,
+                          p,
                         ),
                         _docStatusRow(
                           'Org Badge (Front)',
-                          p?.orgBadgeFrontFileName,
-                          p?.orgBadgeFrontId,
+                          LoUploadKind.orgBadgeFront,
+                          p,
                         ),
                         _docStatusRow(
                           'Org Badge (Back)',
-                          p?.orgBadgeBackFileName,
-                          p?.orgBadgeBackId,
+                          LoUploadKind.orgBadgeBack,
+                          p,
                         ),
                       ],
                     ),
@@ -1003,11 +1338,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                                           ),
                                       ],
                                     ),
-                                    if ((e.roleResponsibilities ?? '')
-                                        .isNotEmpty)
-                                      Text('Role: ${e.roleResponsibilities}'),
-                                    if ((e.delegateDetails ?? '').isNotEmpty)
-                                      Text('Delegates: ${e.delegateDetails}'),
+                                    Text(_experienceSubtitle(e)),
                                   ],
                                 ),
                               ),
@@ -1193,14 +1524,17 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Pick a language',
                         ),
-                        items: _languageOptions
+                        items: state.languageOptions
                             .where(
                               (o) => !_draftLanguages.any(
-                                (l) => l.toLowerCase() == o.toLowerCase(),
+                                (l) => l.toLowerCase() == o.name.toLowerCase(),
                               ),
                             )
                             .map(
-                              (o) => DropdownMenuItem(value: o, child: Text(o)),
+                              (o) => DropdownMenuItem(
+                                value: o.name,
+                                child: Text(o.name),
+                              ),
                             )
                             .toList(),
                         onChanged: (v) => setState(() => _languagePick = v),
@@ -1214,6 +1548,11 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                     ),
                   ],
                 ),
+                if (state.languageOptions.isEmpty)
+                  Text(
+                    'No languages available to add.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 Text(
                   'Added languages are saved when you Submit on the final step.',
                   style: Theme.of(context).textTheme.bodySmall,
@@ -1230,18 +1569,22 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   'Documents',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 8),
-                _uploadRow(LoUploadKind.photo, 'Photo'),
-                const SizedBox(height: 8),
-                _uploadRow(LoUploadKind.signature, 'Signature'),
-                const SizedBox(height: 8),
-                _uploadRow(LoUploadKind.orgBadgeFront, 'Org badge (front)'),
-                const SizedBox(height: 8),
-                _uploadRow(LoUploadKind.orgBadgeBack, 'Org badge (back)'),
-                const SizedBox(height: 8),
-                _uploadRow(LoUploadKind.aadhaarFront, 'Aadhaar (front)'),
-                const SizedBox(height: 8),
-                _uploadRow(LoUploadKind.aadhaarBack, 'Aadhaar (back)'),
+                const SizedBox(height: 4),
+                Text(
+                  'JPEG, JPG or PNG only.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                _uploadRow(LoUploadKind.photo, 'Passport Size Photo *', p),
+                _uploadRow(LoUploadKind.signature, 'Specimen Signature *', p),
+                _uploadRow(LoUploadKind.aadhaarFront, 'Aadhaar (Front) *', p),
+                _uploadRow(LoUploadKind.aadhaarBack, 'Aadhaar (Back) *', p),
+                _uploadRow(
+                  LoUploadKind.orgBadgeFront,
+                  'Org Badge (Front) *',
+                  p,
+                ),
+                _uploadRow(LoUploadKind.orgBadgeBack, 'Org Badge (Back) *', p),
               ],
             ),
           );
@@ -1253,6 +1596,28 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   'Dress measurements',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
+                Text(
+                  'Enter each measurement in inches. Half-inches (e.g. 32.5) are allowed. Refer to the diagram if you are unsure where each measurement is taken from — tap it for a larger view.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'How to measure',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _openMeasurementGuide,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/dress_measurements_guide.jpg',
+                      width: double.infinity,
+                      fit: BoxFit.fitWidth,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   'All lengths are taken in inches, measured on a relaxed body.',
                   style: Theme.of(context).textTheme.bodySmall,
@@ -1344,24 +1709,26 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                     (e) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(e.eventName ?? 'Event'),
-                      subtitle: Text(
-                        [
-                              if (e.year != null) '${e.year}',
-                              e.roleResponsibilities,
-                              e.delegateDetails,
-                            ]
-                            .whereType<String>()
-                            .where((s) => s.isNotEmpty)
-                            .join(' · '),
-                      ),
+                      subtitle: Text(_experienceSubtitle(e)),
                       trailing: e.id == null
                           ? null
-                          : IconButton(
-                              tooltip: 'Remove',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => context.read<LoPortalBloc>().add(
-                                LoPortalExperienceDeleted(e.id!),
-                              ),
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Edit',
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _addExperience(e),
+                                ),
+                                IconButton(
+                                  tooltip: 'Remove',
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () =>
+                                      context.read<LoPortalBloc>().add(
+                                        LoPortalExperienceDeleted(e.id!),
+                                      ),
+                                ),
+                              ],
                             ),
                     ),
                   ),
@@ -1459,44 +1826,80 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     );
   }
 
-  Widget _docStatusRow(String label, String? fileName, String? fileId) {
-    final uploaded =
-        (fileId ?? '').trim().isNotEmpty || (fileName ?? '').trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+  void _openMeasurementGuide() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close),
                 ),
-                Text(
-                  uploaded
-                      ? (fileName?.trim().isNotEmpty == true
-                            ? fileName!
-                            : 'Uploaded')
-                      : 'Not uploaded',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
+              ),
+              Expanded(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5,
+                  child: Image.asset(
+                    'assets/images/dress_measurements_guide.jpg',
+                    fit: BoxFit.contain,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'All lengths are taken in inches, measured on a relaxed body.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
-          AppStatusChip(
-            label: uploaded
-                ? 'Uploaded'
-                : (widget.readOnly
-                      ? 'Missing — tap Update Details'
-                      : 'Missing'),
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _docStatusRow(
+    String label,
+    LoUploadKind kind,
+    LiaisonOfficerDto? profile,
+  ) {
+    final fileName = _serverFileName(kind, profile);
+    final fileId = _serverFileId(kind, profile);
+    final localName = _uploadNames[kind];
+    final uploaded =
+        (fileId ?? '').trim().isNotEmpty ||
+        (fileName ?? '').trim().isNotEmpty ||
+        (localName ?? '').isNotEmpty;
+    final filename = (localName ?? '').isNotEmpty
+        ? localName!
+        : ((fileName ?? '').trim().isNotEmpty ? fileName! : 'Uploaded');
+    final bytes = _uploadBytes[kind];
+    return _documentCard(
+      label: label,
+      uploaded: uploaded,
+      filename: filename,
+      bytes: bytes,
+      onView: uploaded
+          ? () => _viewDocument(
+              filename: filename,
+              bytes: bytes,
+              fileId: fileId,
+            )
+          : null,
+      onDownload: uploaded
+          ? () => _downloadDocument(
+              filename: filename,
+              bytes: bytes,
+              fileId: fileId,
+            )
+          : null,
     );
   }
 }

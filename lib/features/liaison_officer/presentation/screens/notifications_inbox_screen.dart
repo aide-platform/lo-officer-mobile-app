@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/notifications_repository.dart';
 
@@ -139,8 +140,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
   String _shortDate(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     final dt = DateTime.tryParse(raw);
-    if (dt == null) return raw;
-    return '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
+    if (dt == null) return LoDisplayFormat.when(raw);
+    return LoDisplayFormat.dateTime(dt);
   }
 }

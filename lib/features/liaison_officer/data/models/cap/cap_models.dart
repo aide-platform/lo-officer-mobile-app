@@ -145,9 +145,7 @@ class LiaisonOfficerDto {
       currentPassNumber: json['currentPassNumber']?.toString(),
       currentBadgeCatName: json['currentBadgeCatName']?.toString(),
       currentBadgeCatId: json['currentBadgeCatId']?.toString(),
-      languages: langs is List
-          ? langs.map((e) => e.toString()).toList()
-          : const [],
+      languages: _languageNames(langs),
       availabilityStatus:
           json['availabilityStatus']?.toString() ??
           json['availability']?.toString(),
@@ -164,6 +162,23 @@ class LiaisonOfficerDto {
       orgBadgeBackId: json['orgBadgeBackId']?.toString(),
       orgBadgeBackFileName: json['orgBadgeBackFileName']?.toString(),
     );
+  }
+
+  static List<String> _languageNames(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map((e) {
+          if (e is String) return e.trim();
+          if (e is Map) {
+            return (e['languageName'] ?? e['name'] ?? e['language'])
+                    ?.toString()
+                    .trim() ??
+                '';
+          }
+          return '';
+        })
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   static double? _inches(dynamic value) {
@@ -471,20 +486,54 @@ class LoExperienceDto {
       LoExperienceDto(
         id: json['id']?.toString(),
         eventName: json['eventName']?.toString() ?? json['event']?.toString(),
-        year: (json['year'] as num?)?.toInt(),
+        year: _year(json['eventYear'] ?? json['year']),
         roleResponsibilities:
+            json['roleResp']?.toString() ??
             json['roleResponsibilities']?.toString() ??
             json['role']?.toString(),
         delegateDetails: json['delegateDetails']?.toString(),
       );
 
+  static int? _year(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  /// CAP body: `eventName`, `eventYear`, `roleResp`, `delegateDetails`.
   Map<String, dynamic> toJson() => {
     if (eventName != null) 'eventName': eventName,
-    if (year != null) 'year': year,
-    if (roleResponsibilities != null)
-      'roleResponsibilities': roleResponsibilities,
+    if (year != null) 'eventYear': year,
+    if (roleResponsibilities != null) 'roleResp': roleResponsibilities,
     if (delegateDetails != null) 'delegateDetails': delegateDetails,
   };
+}
+
+class LoLanguageOption {
+  final String id;
+  final String name;
+
+  const LoLanguageOption({required this.id, required this.name});
+
+  factory LoLanguageOption.fromJson(Map<String, dynamic> json) {
+    final name = _firstText([
+      json['displayName'],
+      json['languageName'],
+      json['name'],
+      json['language'],
+      json['code'],
+    ]);
+    final id = _firstText([json['id'], json['languageId']]);
+    return LoLanguageOption(id: id, name: name);
+  }
+
+  static String _firstText(List<dynamic> values) {
+    for (final value in values) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
 }
 
 class ConnectingFlightDraft {

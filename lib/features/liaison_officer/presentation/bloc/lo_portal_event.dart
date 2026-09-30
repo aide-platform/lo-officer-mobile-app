@@ -75,10 +75,18 @@ class LoPortalExperienceDeleted extends LoPortalEvent {
   final String id;
 }
 
+class LoPortalExperienceReplaced extends LoPortalEvent {
+  LoPortalExperienceReplaced({required this.id, required this.body});
+  final String id;
+  final Map<String, dynamic> body;
+}
+
 class LoPortalLanguagesSaved extends LoPortalEvent {
   LoPortalLanguagesSaved(this.languages);
   final List<String> languages;
 }
+
+class LoPortalLanguageLookupsRequested extends LoPortalEvent {}
 
 class LoPortalDelegateExtrasRequested extends LoPortalEvent {
   LoPortalDelegateExtrasRequested(this.assignmentId);
@@ -100,3 +108,27 @@ class LoPortalBadgeDownloadRequested extends LoPortalEvent {
 }
 
 class LoPortalClearMessages extends LoPortalEvent {}
+
+class LoPortalClearDocumentPreview extends LoPortalEvent {}
+
+class LoPortalDocumentFetchRequested extends LoPortalEvent {
+  LoPortalDocumentFetchRequested({
+    required this.fileId,
+    required this.filename,
+    required this.share,
+  });
+
+  final String fileId;
+  final String filename;
+  final bool share;
+}
+
+class LoPortalLocalFileShareRequested extends LoPortalEvent {
+  LoPortalLocalFileShareRequested({
+    required this.bytes,
+    required this.filename,
+  });
+
+  final Uint8List bytes;
+  final String filename;
+}

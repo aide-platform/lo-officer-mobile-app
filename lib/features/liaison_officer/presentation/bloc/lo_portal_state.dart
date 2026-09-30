@@ -10,6 +10,7 @@ class LoPortalState {
   final List<Map<String, dynamic>> alerts;
   final List<LoExperienceDto> experiences;
   final List<String> languages;
+  final List<LoLanguageOption> languageOptions;
   final Map<String, List<Map<String, dynamic>>> vehiclesByAssignment;
   final Map<String, List<Map<String, dynamic>>> nominationsByAssignment;
   final Map<String, List<LoItineraryItem>> itineraryByAssignment;
@@ -24,6 +25,9 @@ class LoPortalState {
   final String? infoMessage;
   final List<int>? lastDownloadBytes;
   final String? lastDownloadFilename;
+  final bool profileSaveAck;
+  final List<int>? documentPreviewBytes;
+  final String? documentPreviewName;
 
   const LoPortalState({
     this.status = LoPortalStatus.initial,
@@ -33,6 +37,7 @@ class LoPortalState {
     this.alerts = const [],
     this.experiences = const [],
     this.languages = const [],
+    this.languageOptions = const [],
     this.vehiclesByAssignment = const {},
     this.nominationsByAssignment = const {},
     this.itineraryByAssignment = const {},
@@ -46,6 +51,9 @@ class LoPortalState {
     this.infoMessage,
     this.lastDownloadBytes,
     this.lastDownloadFilename,
+    this.profileSaveAck = false,
+    this.documentPreviewBytes,
+    this.documentPreviewName,
   });
 
   LoPortalState copyWith({
@@ -56,6 +64,7 @@ class LoPortalState {
     List<Map<String, dynamic>>? alerts,
     List<LoExperienceDto>? experiences,
     List<String>? languages,
+    List<LoLanguageOption>? languageOptions,
     Map<String, List<Map<String, dynamic>>>? vehiclesByAssignment,
     Map<String, List<Map<String, dynamic>>>? nominationsByAssignment,
     Map<String, List<LoItineraryItem>>? itineraryByAssignment,
@@ -69,9 +78,14 @@ class LoPortalState {
     String? infoMessage,
     List<int>? lastDownloadBytes,
     String? lastDownloadFilename,
+    bool? profileSaveAck,
+    List<int>? documentPreviewBytes,
+    String? documentPreviewName,
     bool clearError = false,
     bool clearInfo = false,
     bool clearDownload = false,
+    bool clearProfileSaveAck = false,
+    bool clearDocumentPreview = false,
   }) {
     return LoPortalState(
       status: status ?? this.status,
@@ -81,6 +95,7 @@ class LoPortalState {
       alerts: alerts ?? this.alerts,
       experiences: experiences ?? this.experiences,
       languages: languages ?? this.languages,
+      languageOptions: languageOptions ?? this.languageOptions,
       vehiclesByAssignment: vehiclesByAssignment ?? this.vehiclesByAssignment,
       nominationsByAssignment:
           nominationsByAssignment ?? this.nominationsByAssignment,
@@ -103,6 +118,15 @@ class LoPortalState {
       lastDownloadFilename: clearDownload
           ? null
           : (lastDownloadFilename ?? this.lastDownloadFilename),
+      profileSaveAck: clearProfileSaveAck
+          ? false
+          : (profileSaveAck ?? this.profileSaveAck),
+      documentPreviewBytes: clearDocumentPreview
+          ? null
+          : (documentPreviewBytes ?? this.documentPreviewBytes),
+      documentPreviewName: clearDocumentPreview
+          ? null
+          : (documentPreviewName ?? this.documentPreviewName),
     );
   }
 }

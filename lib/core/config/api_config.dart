@@ -52,7 +52,9 @@ class ApiConfig {
   static const String myLoExperiencesPath = '/app/my-lo/me/experiences';
   static String myLoExperiencePath(String id) =>
       '/app/my-lo/me/experiences/$id';
+  static const String lookupLanguagesPath = '/app/lookups/languages';
   static const String myLoLanguagesPath = '/app/my-lo/me/languages';
+  static String filePath(String fileId) => '/app/files/$fileId';
   static String myLoLanguagePath(String rowId) =>
       '/app/my-lo/me/languages/$rowId';
   static const String myLoPhotoPath = '/app/my-lo/me/photo';

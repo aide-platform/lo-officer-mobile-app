@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
@@ -33,9 +35,8 @@ Dio createDio({String? accessToken}) {
         final status = error.response?.statusCode;
         String message = error.message ?? 'Request failed';
         final data = error.response?.data;
-        if (data is Map) {
-          message = data['message']?.toString() ?? message;
-        }
+        final parsed = _messageFromBody(data);
+        if (parsed != null && parsed.isNotEmpty) message = parsed;
         handler.reject(
           DioException(
             requestOptions: error.requestOptions,
@@ -50,4 +51,30 @@ Dio createDio({String? accessToken}) {
   );
 
   return dio;
+}
+
+String? _messageFromBody(Object? data) {
+  if (data is Map) {
+    final message = data['message']?.toString().trim() ?? '';
+    return message.isEmpty ? null : message;
+  }
+  if (data is String) {
+    final trimmed = data.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        return _messageFromBody(jsonDecode(trimmed));
+      } catch (_) {
+        return trimmed.isEmpty ? null : trimmed;
+      }
+    }
+    return trimmed.isEmpty ? null : trimmed;
+  }
+  if (data is List<int> && data.isNotEmpty) {
+    try {
+      return _messageFromBody(utf8.decode(data));
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }

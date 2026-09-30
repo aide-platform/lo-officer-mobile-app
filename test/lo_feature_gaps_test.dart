@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liaison_officer/core/session/app_role.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_profile_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/data/repository/mock_lo_portal_repository.dart';
@@ -193,6 +194,70 @@ void main() {
         'Aadhaar must be 12 digits (spaces allowed).',
       );
       expect(LoProfileScreen.aadhaarError('1234 5678 9012'), isNull);
+      expect(
+        LoProfileScreen.aadhaarError('1234567890123'),
+        'Aadhaar must be 12 digits (spaces allowed).',
+      );
+      expect(
+        LoProfileScreen.emailError('officer@example.com', label: 'Official email'),
+        isNull,
+      );
+      expect(
+        LoProfileScreen.emailError('not-an-email', label: 'Official email'),
+        'Official email is invalid.',
+      );
+      expect(
+        LoProfileScreen.experiencesError(
+          hasPrevious: true,
+          experiences: const [],
+        ),
+        isNull,
+      );
+      expect(
+        LoProfileScreen.experiencesError(
+          hasPrevious: false,
+          experiences: const [
+            LoExperienceDto(eventName: 'Aero India', year: 2024),
+          ],
+        ),
+        isNull,
+      );
+      expect(
+        LoProfileScreen.experiencesError(
+          hasPrevious: true,
+          experiences: const [
+            LoExperienceDto(eventName: 'Aero India', year: 2024),
+          ],
+          currentYear: 2026,
+        ),
+        'Row 1: Role / responsibilities is required.',
+      );
+      final saved = LoExperienceDto.fromJson({
+        'eventName': 'Aero India',
+        'eventYear': 2024,
+        'roleResp': 'Escort',
+      });
+      expect(saved.year, 2024);
+      expect(saved.roleResponsibilities, 'Escort');
+      expect(saved.toJson()['eventYear'], 2024);
+      expect(saved.toJson()['roleResp'], 'Escort');
+      final hindi = LoLanguageOption.fromJson({
+        'id': 'lang-hi',
+        'code': 'hi',
+        'displayName': 'Hindi',
+      });
+      expect(hindi.id, 'lang-hi');
+      expect(hindi.name, 'Hindi');
+      final kannada = LoLanguageOption.fromJson({
+        'languageId': 'lang-kn',
+        'code': 'kn',
+      });
+      expect(kannada.id, 'lang-kn');
+      expect(kannada.name, 'kn');
+      expect(LoDisplayFormat.date('30-09-2026'), '2026-09-30');
+      expect(LoDisplayFormat.time('14:30'), '2:30:00 PM');
+      expect(LoDisplayFormat.time('11:25:00'), '11:25:00 AM');
+      expect(LoDisplayFormat.toApiTime('2:30:00 PM'), '14:30');
       expect(
         LoProfileScreen.isAllowedProfileImage(filename: 'photo.jpg'),
         isTrue,

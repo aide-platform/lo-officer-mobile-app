@@ -4,6 +4,7 @@ import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegate_detail_screen.dart';
@@ -245,14 +246,8 @@ class _DelegateCard extends StatelessWidget {
       d.vipCategory,
     ].whereType<String>().where((e) => e.trim().isNotEmpty).join(' · ');
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    final arr = [
-      d.arrivalDate,
-      if ((d.arrivalTime ?? '').trim().isNotEmpty) d.arrivalTime,
-    ].whereType<String>().where((e) => e.trim().isNotEmpty).join(' - ');
-    final dep = [
-      d.departureDate,
-      if ((d.departureTime ?? '').trim().isNotEmpty) d.departureTime,
-    ].whereType<String>().where((e) => e.trim().isNotEmpty).join(' - ');
+    final arr = LoDisplayFormat.dateAndTime(d.arrivalDate, d.arrivalTime);
+    final dep = LoDisplayFormat.dateAndTime(d.departureDate, d.departureTime);
 
     return AppCard(
       onTap: onOpenDetail,

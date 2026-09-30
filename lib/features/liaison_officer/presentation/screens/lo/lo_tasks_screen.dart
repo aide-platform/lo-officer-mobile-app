@@ -4,6 +4,7 @@ import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
@@ -376,10 +377,10 @@ class _TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheduled = [
+    final scheduled = LoDisplayFormat.dateAndTime(
       task.scheduledDate,
       task.scheduledTime,
-    ].where((e) => e != null && e.toString().trim().isNotEmpty).join(' - ');
+    );
     final location = (task.locationVenue ?? '').trim();
     final statusLabel = task.statusName ?? task.statusCode ?? '—';
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;

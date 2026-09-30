@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
@@ -181,7 +182,8 @@ class LoNotificationsScreen extends StatelessWidget {
                         subtitle: Text(
                           [
                             body,
-                            ?at,
+                            if (at != null && at.isNotEmpty)
+                              LoDisplayFormat.when(at),
                           ].where((e) => e.toString().isNotEmpty).join('\n'),
                         ),
                       ),

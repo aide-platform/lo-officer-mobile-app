@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -17,12 +18,20 @@ class LoTravelEditor {
   ) async {
     final arrivalFlight = TextEditingController(text: d.arrivalFlight);
     final arrivalTerminal = TextEditingController(text: d.arrivalTerminal);
-    final arrivalDate = TextEditingController(text: d.arrivalDate);
-    final arrivalTime = TextEditingController(text: d.arrivalTime);
+    final arrivalDate = TextEditingController(
+      text: LoDisplayFormat.date(d.arrivalDate),
+    );
+    final arrivalTime = TextEditingController(
+      text: LoDisplayFormat.time(d.arrivalTime),
+    );
     final departureFlight = TextEditingController(text: d.departureFlight);
     final departureTerminal = TextEditingController(text: d.departureTerminal);
-    final departureDate = TextEditingController(text: d.departureDate);
-    final departureTime = TextEditingController(text: d.departureTime);
+    final departureDate = TextEditingController(
+      text: LoDisplayFormat.date(d.departureDate),
+    );
+    final departureTime = TextEditingController(
+      text: LoDisplayFormat.time(d.departureTime),
+    );
 
     var arrivalFlights = seededArrival
         .map(
@@ -169,12 +178,14 @@ class LoTravelEditor {
               body: {
                 'arrivalFlight': arrivalFlight.text.trim(),
                 'arrivalTerminal': arrivalTerminal.text.trim(),
-                'arrivalDate': arrivalDate.text.trim(),
-                'arrivalTime': arrivalTime.text.trim(),
+                'arrivalDate': LoDisplayFormat.date(arrivalDate.text.trim()),
+                'arrivalTime': LoDisplayFormat.toApiTime(arrivalTime.text.trim()),
                 'departureFlight': departureFlight.text.trim(),
                 'departureTerminal': departureTerminal.text.trim(),
-                'departureDate': departureDate.text.trim(),
-                'departureTime': departureTime.text.trim(),
+                'departureDate': LoDisplayFormat.date(departureDate.text.trim()),
+                'departureTime': LoDisplayFormat.toApiTime(
+                  departureTime.text.trim(),
+                ),
                 'arrivalConnectingFlights':
                     arrivalFlights.map((e) => e.toJson()).toList(),
                 'departureConnectingFlights':
@@ -217,13 +228,9 @@ class LoTravelEditor {
     TextEditingController controller,
   ) async {
     TimeOfDay initial = TimeOfDay.now();
-    final parts = controller.text.split(':');
-    if (parts.length >= 2) {
-      final h = int.tryParse(parts[0]);
-      final m = int.tryParse(parts[1]);
-      if (h != null && m != null) {
-        initial = TimeOfDay(hour: h, minute: m);
-      }
+    final parsed = LoDisplayFormat.tryParseTime(controller.text);
+    if (parsed != null) {
+      initial = TimeOfDay(hour: parsed.hour, minute: parsed.minute);
     }
     final picked = await showTimePicker(
       context: context,
@@ -232,7 +239,7 @@ class LoTravelEditor {
     if (picked == null) return;
     final h = picked.hour.toString().padLeft(2, '0');
     final m = picked.minute.toString().padLeft(2, '0');
-    controller.text = '$h:$m';
+    controller.text = LoDisplayFormat.time('$h:$m:00');
   }
 
   static Widget _dateTimeField({

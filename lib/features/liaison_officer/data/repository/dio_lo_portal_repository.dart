@@ -6,6 +6,7 @@ import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/network/aide_response.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
 import 'package:liaison_officer/core/network/dio_provider.dart';
+import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/lo_portal_repository.dart';
@@ -18,11 +19,27 @@ class DioLoPortalRepository implements LoPortalRepository {
 
   final Dio _dio;
 
+  DioMediaType _imageType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return DioMediaType('image', 'png');
+    return DioMediaType('image', 'jpeg');
+  }
+
   Future<void> _upload(String path, Uint8List bytes, String filename) async {
     final form = FormData.fromMap({
-      'file': MultipartFile.fromBytes(bytes, filename: filename),
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: _imageType(filename),
+      ),
     });
-    await _dio.post(path, data: form);
+    await _dio.post(
+      path,
+      data: form,
+      options: Options(
+        contentType: 'multipart/form-data; boundary=${form.boundary}',
+      ),
+    );
   }
 
   @override
@@ -179,12 +196,41 @@ class DioLoPortalRepository implements LoPortalRepository {
       res.data,
       parseData: (raw) => LoExperienceDto.fromJson(AideResponse.asMap(raw)),
     );
-    return aide.data ?? LoExperienceDto.fromJson(body);
+    final saved = aide.data ?? LoExperienceDto.fromJson(body);
+    final submitted = LoExperienceDto.fromJson(body);
+    String? keep(String? fromServer, String? fromForm) {
+      final server = fromServer?.trim() ?? '';
+      return server.isNotEmpty ? fromServer : fromForm;
+    }
+
+    return LoExperienceDto(
+      id: saved.id,
+      eventName: keep(saved.eventName, submitted.eventName),
+      year: saved.year ?? submitted.year,
+      roleResponsibilities: keep(
+        saved.roleResponsibilities,
+        submitted.roleResponsibilities,
+      ),
+      delegateDetails: keep(saved.delegateDetails, submitted.delegateDetails),
+    );
   }
 
   @override
   Future<void> deleteExperience(String id) async {
     await _dio.delete(ApiConfig.myLoExperiencePath(id));
+  }
+
+  @override
+  Future<List<LoLanguageOption>> listLanguageLookups() async {
+    final res = await _dio.get(ApiConfig.lookupLanguagesPath);
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) => AideResponse.asMapList(raw)
+          .map(LoLanguageOption.fromJson)
+          .where((e) => e.id.isNotEmpty && e.name.trim().isNotEmpty)
+          .toList(),
+    );
+    return aide.data ?? const [];
   }
 
   @override
@@ -197,9 +243,11 @@ class DioLoPortalRepository implements LoPortalRepository {
           .map((e) {
             if (e is String) return e;
             if (e is Map) {
-              return e['languageName']?.toString() ??
+              return e['displayName']?.toString() ??
+                  e['languageName']?.toString() ??
                   e['name']?.toString() ??
                   e['language']?.toString() ??
+                  e['code']?.toString() ??
                   '';
             }
             return e.toString();
@@ -215,7 +263,14 @@ class DioLoPortalRepository implements LoPortalRepository {
     final desired = languages
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
-        .toSet();
+        .toList();
+    final desiredKeys = desired.map((e) => e.toLowerCase()).toSet();
+
+    final lookups = await listLanguageLookups();
+    final idByName = <String, String>{};
+    for (final option in lookups) {
+      idByName.putIfAbsent(option.name.trim().toLowerCase(), () => option.id);
+    }
 
     final res = await _dio.get(ApiConfig.myLoLanguagesPath);
     final aide = AideResponse.unwrap(res.data);
@@ -226,28 +281,38 @@ class DioLoPortalRepository implements LoPortalRepository {
         if (e is! Map) continue;
         final id = e['id']?.toString();
         final name =
+            e['displayName']?.toString() ??
             e['languageName']?.toString() ??
             e['name']?.toString() ??
             e['language']?.toString() ??
+            e['code']?.toString() ??
             '';
-        if (id == null || id.isEmpty || name.isEmpty) continue;
-        existingRows.add({'id': id, 'name': name});
+        if (id == null || id.isEmpty || name.trim().isEmpty) continue;
+        existingRows.add({'id': id, 'name': name.trim()});
       }
     }
 
-    final existingNames = existingRows.map((e) => e['name']!).toSet();
+    final existingNames = existingRows
+        .map((e) => e['name']!.toLowerCase())
+        .toSet();
 
     for (final row in existingRows) {
-      if (!desired.contains(row['name'])) {
+      if (!desiredKeys.contains(row['name']!.toLowerCase())) {
         await _dio.delete(ApiConfig.myLoLanguagePath(row['id']!));
       }
     }
 
     for (final lang in desired) {
-      if (existingNames.contains(lang)) continue;
+      final key = lang.toLowerCase();
+      if (existingNames.contains(key)) continue;
+      final languageId = idByName[key];
+      if (languageId == null || languageId.isEmpty) {
+        throw ApiException('Language "$lang" is not available.');
+      }
       await _dio.post(
         ApiConfig.myLoLanguagesPath,
-        data: {'languageName': lang},
+        queryParameters: {'languageId': languageId},
+        data: const <String, dynamic>{},
       );
     }
   }
@@ -370,20 +435,59 @@ class DioLoPortalRepository implements LoPortalRepository {
 
   @override
   Future<List<int>> downloadBadge(String passId) async {
+    final bytes = await _downloadAuthedBytes(
+      ApiConfig.bvQuotaBadgeDownloadPath(passId),
+      accept: 'application/pdf',
+    );
+    return _pdfBytes(bytes);
+  }
+
+  @override
+  Future<List<int>> downloadProfileFile(String fileId) {
+    final id = fileId.trim();
+    if (id.isEmpty) {
+      throw ApiException('File is not available yet.');
+    }
+    return _downloadAuthedBytes(
+      ApiConfig.filePath(id),
+      accept: 'image/jpeg, image/png, */*',
+    );
+  }
+
+  Future<List<int>> _downloadAuthedBytes(
+    String path, {
+    required String accept,
+  }) async {
+    final token = SessionStore.current?.accessToken;
     try {
       final res = await _dio.get<List<int>>(
-        ApiConfig.bvQuotaBadgeDownloadPath(passId),
+        path,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: const {'Accept': 'application/pdf'},
+          contentType: accept.contains('pdf')
+              ? 'application/pdf'
+              : 'application/octet-stream',
+          headers: {
+            'Accept': accept,
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
         ),
       );
-      return _pdfBytes(res.data ?? const []);
-    } on DioException catch (e) {
-      final message = _jsonMessage(e.response?.data);
+      final bytes = res.data ?? const <int>[];
+      final message = _jsonMessage(bytes);
       if (message != null) {
-        throw ApiException(message, statusCode: e.response?.statusCode);
+        throw ApiException(message, statusCode: res.statusCode);
       }
+      if (bytes.isEmpty) throw ApiException('File was empty.');
+      return bytes;
+    } on DioException catch (e) {
+      final parsed = _jsonMessage(e.response?.data);
+      if (parsed != null) {
+        throw ApiException(parsed, statusCode: e.response?.statusCode);
+      }
+      final wrapped = e.error;
+      if (wrapped is ApiException) throw wrapped;
       rethrow;
     }
   }

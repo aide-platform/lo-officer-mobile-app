@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
@@ -30,10 +31,15 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     on<LoPortalUploadRequested>(_onUpload);
     on<LoPortalExperienceAdded>(_onExpAdd);
     on<LoPortalExperienceDeleted>(_onExpDel);
+    on<LoPortalExperienceReplaced>(_onExpReplace);
     on<LoPortalLanguagesSaved>(_onLangs);
+    on<LoPortalLanguageLookupsRequested>(_onLanguageLookups);
     on<LoPortalDelegateExtrasRequested>(_onExtras);
     on<LoPortalAlertLeadMinutesChanged>(_onLead);
     on<LoPortalBadgeDownloadRequested>(_onBadgeDownload);
+    on<LoPortalDocumentFetchRequested>(_onDocumentFetch);
+    on<LoPortalLocalFileShareRequested>(_onLocalFileShare);
+    on<LoPortalClearDocumentPreview>(_onClearDocumentPreview);
     on<LoPortalClearMessages>(_onClearMessages);
   }
 
@@ -56,7 +62,14 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     LoPortalLoadRequested event,
     Emitter<LoPortalState> emit,
   ) async {
-    emit(state.copyWith(status: LoPortalStatus.loading, clearError: true));
+    emit(
+      state.copyWith(
+        status: LoPortalStatus.loading,
+        clearError: true,
+        clearProfileSaveAck: true,
+        clearDocumentPreview: true,
+      ),
+    );
     final prefs = await SharedPreferences.getInstance();
     final lead = prefs.getInt('lo_alert_lead_minutes') ?? 60;
 
@@ -92,7 +105,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       final delegates = await repository.getMyDelegates();
       final tasks = await repository.getMyTasks();
       final experiences = await repository.listExperiences();
-      final languages = _dedupeLanguages(await repository.listLanguages());
+      final languages = _preferLanguages(
+        _dedupeLanguages(await repository.listLanguages()),
+        state.languages,
+      );
       final issues = await repository.listReportedIssues();
       await LoPortalCache.saveProfile(profile);
       await LoPortalCache.saveDelegates(delegates);
@@ -110,7 +126,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
             title: 'Upcoming task',
             body:
                 '${t.taskTitle ?? 'Task'} for ${t.delegateName ?? 'delegate'} '
-                        'on ${t.scheduledDate} ${t.scheduledTime ?? ''} '
+                        'on ${LoDisplayFormat.dateAndTime(t.scheduledDate, t.scheduledTime)} '
                         '(alert ${lead}m before)'
                     .trim(),
           );
@@ -234,7 +250,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
             'Your LO profile status is ${profile.profileStatus ?? 'SUBMITTED'}.',
       );
       // Refresh languages / experiences / documents from CAP after submit.
-      final languages = _dedupeLanguages(await repository.listLanguages());
+      final languages = _preferLanguages(
+        _dedupeLanguages(await repository.listLanguages()),
+        state.languages,
+      );
       final experiences = await repository.listExperiences();
       final alerts = await LoPortalCache.loadAlerts();
       emit(
@@ -245,7 +264,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           experiences: experiences,
           alerts: alerts,
           clearError: true,
-          infoMessage: 'Profile saved',
+          clearInfo: true,
+          profileSaveAck: true,
         ),
       );
       // Full portal reload so shell gate + delegates stay in sync.
@@ -537,7 +557,18 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         title: 'Upload complete',
         body: event.filename,
       );
-      emit(state.copyWith(alerts: await LoPortalCache.loadAlerts()));
+      final profile = await repository.getMyProfile();
+      if (profile != null) {
+        await LoPortalCache.saveProfile(profile);
+      }
+      emit(
+        state.copyWith(
+          profile: profile,
+          alerts: await LoPortalCache.loadAlerts(),
+          status: LoPortalStatus.ready,
+          clearError: true,
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -570,6 +601,38 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     }
   }
 
+  Future<void> _onExpReplace(
+    LoPortalExperienceReplaced event,
+    Emitter<LoPortalState> emit,
+  ) async {
+    try {
+      await repository.deleteExperience(event.id);
+      final exp = await repository.addExperience(event.body);
+      emit(
+        state.copyWith(
+          experiences: [
+            for (final row in state.experiences)
+              if (row.id != event.id) row,
+            exp,
+          ],
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      List<LoExperienceDto> experiences = state.experiences;
+      try {
+        experiences = await repository.listExperiences();
+      } catch (_) {}
+      emit(
+        state.copyWith(
+          status: LoPortalStatus.failure,
+          errorMessage: apiErrorMessage(e),
+          experiences: experiences,
+        ),
+      );
+    }
+  }
+
   Future<void> _onExpDel(
     LoPortalExperienceDeleted event,
     Emitter<LoPortalState> emit,
@@ -594,14 +657,49 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     }
   }
 
+  Future<void> _onLanguageLookups(
+    LoPortalLanguageLookupsRequested event,
+    Emitter<LoPortalState> emit,
+  ) async {
+    if (state.languageOptions.isNotEmpty) return;
+    try {
+      final options = await repository.listLanguageLookups();
+      emit(state.copyWith(languageOptions: options));
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: LoPortalStatus.failure,
+          errorMessage: apiErrorMessage(e),
+        ),
+      );
+    }
+  }
+
   Future<void> _onLangs(
     LoPortalLanguagesSaved event,
     Emitter<LoPortalState> emit,
   ) async {
-    await repository.setLanguages(event.languages);
-    emit(
-      state.copyWith(languages: LoPortalBloc._dedupeLanguages(event.languages)),
-    );
+    final requested = LoPortalBloc._dedupeLanguages(event.languages);
+    try {
+      await repository.setLanguages(requested);
+      final fetched = LoPortalBloc._dedupeLanguages(
+        await repository.listLanguages(),
+      );
+      emit(
+        state.copyWith(
+          languages: _preferLanguages(fetched, requested),
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: LoPortalStatus.failure,
+          errorMessage: apiErrorMessage(e),
+          languages: requested,
+        ),
+      );
+    }
   }
 
   Future<void> _onExtras(
@@ -679,6 +777,64 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     }
   }
 
+  Future<void> _onDocumentFetch(
+    LoPortalDocumentFetchRequested event,
+    Emitter<LoPortalState> emit,
+  ) async {
+    try {
+      final bytes = await repository.downloadProfileFile(event.fileId);
+      if (event.share) {
+        emit(
+          state.copyWith(
+            status: LoPortalStatus.ready,
+            lastDownloadBytes: bytes,
+            lastDownloadFilename: event.filename,
+            clearError: true,
+            clearInfo: true,
+          ),
+        );
+        return;
+      }
+      emit(
+        state.copyWith(
+          status: LoPortalStatus.ready,
+          documentPreviewBytes: bytes,
+          documentPreviewName: event.filename,
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: LoPortalStatus.failure,
+          errorMessage: apiErrorMessage(e),
+        ),
+      );
+    }
+  }
+
+  void _onLocalFileShare(
+    LoPortalLocalFileShareRequested event,
+    Emitter<LoPortalState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        status: LoPortalStatus.ready,
+        lastDownloadBytes: event.bytes,
+        lastDownloadFilename: event.filename,
+        clearError: true,
+        clearInfo: true,
+      ),
+    );
+  }
+
+  void _onClearDocumentPreview(
+    LoPortalClearDocumentPreview event,
+    Emitter<LoPortalState> emit,
+  ) {
+    emit(state.copyWith(clearDocumentPreview: true));
+  }
+
   void _onClearMessages(
     LoPortalClearMessages event,
     Emitter<LoPortalState> emit,
@@ -686,6 +842,19 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     emit(
       state.copyWith(clearInfo: true, clearError: true, clearDownload: true),
     );
+  }
+
+  static List<String> _preferLanguages(
+    List<String> fetched,
+    List<String> local,
+  ) {
+    if (fetched.isEmpty) return local;
+    final fetchedKeys = fetched.map((e) => e.toLowerCase()).toSet();
+    final extras = local.where(
+      (e) => !fetchedKeys.contains(e.toLowerCase()),
+    );
+    if (extras.isEmpty) return fetched;
+    return _dedupeLanguages([...fetched, ...extras]);
   }
 
   static List<String> _dedupeLanguages(List<String> raw) {

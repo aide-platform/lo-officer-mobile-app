@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
@@ -248,7 +249,7 @@ class _LoIssueReportScreenState extends State<LoIssueReportScreen> {
                     ],
                     const SizedBox(height: 6),
                     Text(
-                      issue.reportedAt.toLocal().toString().split('.').first,
+                      LoDisplayFormat.dateTime(issue.reportedAt),
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
@@ -206,21 +207,28 @@ class _LoPortalShellState extends State<LoPortalShell> {
           navItems: [
             RoleDrawerNavItem(
               icon: Icons.groups_outlined,
+              asset: AppAssetManager.iconDelegate,
+              selected: _index == 0,
               label: 'Delegates',
               onTap: () => setState(() => _index = 0),
             ),
             RoleDrawerNavItem(
               icon: Icons.task_alt_outlined,
+              asset: AppAssetManager.iconTask,
+              selected: _index == 1,
               label: 'Tasks',
               onTap: () => setState(() => _index = 1),
             ),
             RoleDrawerNavItem(
               icon: Icons.phone_in_talk_outlined,
+              selected: _index == 2,
               label: 'Help Line Numbers',
               onTap: () => setState(() => _index = 2),
             ),
             RoleDrawerNavItem(
               icon: Icons.notifications_outlined,
+              asset: AppAssetManager.iconAlert,
+              selected: _index == 3,
               label: 'Alerts',
               onTap: () => setState(() => _index = 3),
             ),
@@ -360,31 +368,86 @@ class _LoPortalShellState extends State<LoPortalShell> {
             ),
           ],
         ),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            selectedIcon: Icon(Icons.groups),
+            icon: const _NavMark(asset: AppAssetManager.iconDelegate),
+            selectedIcon: const _NavMark(
+              asset: AppAssetManager.iconDelegate,
+              selected: true,
+            ),
             label: 'Delegates',
           ),
           NavigationDestination(
-            icon: Icon(Icons.task_alt_outlined),
-            selectedIcon: Icon(Icons.task_alt),
+            icon: const _NavMark(asset: AppAssetManager.iconTask),
+            selectedIcon: const _NavMark(
+              asset: AppAssetManager.iconTask,
+              selected: true,
+            ),
             label: 'Tasks',
           ),
           NavigationDestination(
-            icon: Icon(Icons.phone_in_talk_outlined),
-            selectedIcon: Icon(Icons.phone_in_talk),
+            icon: const _NavMark(icon: Icons.phone_in_talk_outlined),
+            selectedIcon: const _NavMark(
+              icon: Icons.phone_in_talk,
+              selected: true,
+            ),
             label: 'Helplines',
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications),
+            icon: const _NavMark(asset: AppAssetManager.iconAlert),
+            selectedIcon: const _NavMark(
+              asset: AppAssetManager.iconAlert,
+              selected: true,
+            ),
             label: 'Alerts',
           ),
         ],
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
       ),
+    );
+  }
+}
+
+class _NavMark extends StatefulWidget {
+  const _NavMark({this.asset, this.icon, this.selected = false});
+
+  final String? asset;
+  final IconData? icon;
+  final bool selected;
+
+  @override
+  State<_NavMark> createState() => _NavMarkState();
+}
+
+class _NavMarkState extends State<_NavMark> {
+  double _scale = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _scale = 1.15);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final child = widget.asset != null
+        ? SafeAssetImage(
+            assetPath: widget.asset!,
+            width: 24,
+            height: 24,
+            fit: BoxFit.contain,
+          )
+        : Icon(widget.icon);
+    return AnimatedScale(
+      scale: _scale,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutBack,
+      child: child,
     );
   }
 }

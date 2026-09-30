@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:liaison_officer/core/auth/domain/auth_repository.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/network/aide_response.dart';
+import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
 import 'package:liaison_officer/core/network/dio_provider.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -13,10 +14,20 @@ class DioAuthRepository implements AuthRepository {
 
   @override
   Future<void> checkEmail({required String email}) async {
-    await _dio.post(
-      ApiConfig.checkEmailPath,
-      data: {'email': email.trim()},
-    );
+    try {
+      await _dio.post(
+        ApiConfig.checkEmailPath,
+        data: {'email': email.trim()},
+      );
+    } on DioException catch (e) {
+      throw ApiException(
+        apiErrorMessage(
+          e,
+          fallback: 'Unable to verify this email address.',
+        ),
+        statusCode: e.response?.statusCode,
+      );
+    }
   }
 
   @override

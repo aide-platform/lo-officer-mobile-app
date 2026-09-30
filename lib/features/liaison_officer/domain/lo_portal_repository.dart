@@ -44,6 +44,7 @@ abstract class LoPortalRepository {
   Future<void> deleteExperience(String id);
 
   Future<List<String>> listLanguages();
+  Future<List<LoLanguageOption>> listLanguageLookups();
   Future<void> setLanguages(List<String> languages);
 
   Future<List<Map<String, dynamic>>> getVehicles(String assignmentId);
@@ -58,6 +59,9 @@ abstract class LoPortalRepository {
   Future<List<LoIssueReport>> listReportedIssues();
 
   Future<List<int>> downloadBadge(String passId);
+
+  /// Bytes for an uploaded file via `GET /app/files/{fileId}`.
+  Future<List<int>> downloadProfileFile(String fileId);
 
   /// Active helplines from `GET /app/lo-help-lines/active`. Empty when none or 404.
   Future<List<LoHelplineDto>> getHelplines();

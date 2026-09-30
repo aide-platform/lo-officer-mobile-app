@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -250,7 +251,8 @@ class PushNotificationService {
       final title = 'Upcoming task';
       final body =
           '${t.taskTitle ?? 'Task'} · ${t.delegateName ?? 'delegate'} '
-          'at ${t.scheduledDate ?? ''} ${t.scheduledTime ?? ''}'.trim();
+          'at ${LoDisplayFormat.dateAndTime(t.scheduledDate, t.scheduledTime)}'
+              .trim();
       final payload = 'task:${t.id ?? id}';
 
       if (fireAt.isBefore(now)) {

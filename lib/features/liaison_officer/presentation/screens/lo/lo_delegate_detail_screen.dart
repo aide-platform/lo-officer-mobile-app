@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
+import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
@@ -249,10 +250,10 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                     children: [
                       _sectionTitle(context, 'Travel & movement'),
                       Text(
-                        'Arrival: ${live.arrivalFlight ?? '—'} · ${live.arrivalDate ?? ''} ${live.arrivalTime ?? ''}',
+                        'Arrival: ${live.arrivalFlight ?? '—'} · ${LoDisplayFormat.dateAndTime(live.arrivalDate, live.arrivalTime)}',
                       ),
                       Text(
-                        'Departure: ${live.departureFlight ?? '—'} · ${live.departureDate ?? ''} ${live.departureTime ?? ''}',
+                        'Departure: ${live.departureFlight ?? '—'} · ${LoDisplayFormat.dateAndTime(live.departureDate, live.departureTime)}',
                       ),
                       if (arrivalConnecting.isNotEmpty)
                         Text(
@@ -321,8 +322,12 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
       text: d.arrivalFlight ?? '',
     );
     final terminal = TextEditingController(text: d.arrivalTerminal ?? '');
-    final date = TextEditingController(text: d.arrivalDate ?? '');
-    final time = TextEditingController(text: d.arrivalTime ?? '');
+    final date = TextEditingController(
+      text: LoDisplayFormat.date(d.arrivalDate),
+    );
+    final time = TextEditingController(
+      text: LoDisplayFormat.time(d.arrivalTime),
+    );
     final notes = TextEditingController();
     final location = TextEditingController();
 
@@ -347,13 +352,13 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                 if (v == LoMovementKind.departure) {
                   flight.text = d.departureFlight ?? '';
                   terminal.text = d.departureTerminal ?? '';
-                  date.text = d.departureDate ?? '';
-                  time.text = d.departureTime ?? '';
+                  date.text = LoDisplayFormat.date(d.departureDate);
+                  time.text = LoDisplayFormat.time(d.departureTime);
                 } else if (v == LoMovementKind.arrival) {
                   flight.text = d.arrivalFlight ?? '';
                   terminal.text = d.arrivalTerminal ?? '';
-                  date.text = d.arrivalDate ?? '';
-                  time.text = d.arrivalTime ?? '';
+                  date.text = LoDisplayFormat.date(d.arrivalDate);
+                  time.text = LoDisplayFormat.time(d.arrivalTime);
                 }
               });
             },
@@ -372,7 +377,7 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
           ),
           TextField(
             controller: time,
-            decoration: const InputDecoration(labelText: 'Time (HH:mm)'),
+            decoration: const InputDecoration(labelText: 'Time'),
           ),
           TextField(
             controller: location,
@@ -410,8 +415,12 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                 flight: flight.text.trim().isEmpty ? null : flight.text.trim(),
                 terminal:
                     terminal.text.trim().isEmpty ? null : terminal.text.trim(),
-                date: date.text.trim().isEmpty ? null : date.text.trim(),
-                time: time.text.trim().isEmpty ? null : time.text.trim(),
+                date: date.text.trim().isEmpty
+                    ? null
+                    : LoDisplayFormat.date(date.text.trim()),
+                time: time.text.trim().isEmpty
+                    ? null
+                    : LoDisplayFormat.toApiTime(time.text.trim()),
                 notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
                 location:
                     location.text.trim().isEmpty ? null : location.text.trim(),
@@ -468,8 +477,10 @@ class _ItineraryTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   [
-                    if ((item.date ?? '').isNotEmpty) item.date,
-                    if ((item.time ?? '').isNotEmpty) item.time,
+                    if ((item.date ?? '').isNotEmpty)
+                      LoDisplayFormat.date(item.date),
+                    if ((item.time ?? '').isNotEmpty)
+                      LoDisplayFormat.time(item.time),
                     if (venue.isNotEmpty) venue,
                   ].join(' · '),
                   style: TextStyle(
@@ -547,7 +558,7 @@ class _TransportCard extends StatelessWidget {
           if (pickup != null && pickup.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Pickup: $pickup',
+              'Pickup: ${LoDisplayFormat.when(pickup)}',
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ],

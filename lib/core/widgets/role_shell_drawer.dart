@@ -93,7 +93,19 @@ class RoleShellDrawer extends StatelessWidget {
                   const Divider(),
                   ...navItems.map(
                     (item) => ListTile(
-                      leading: Icon(item.icon, color: AppTheme.royalBlue),
+                      leading: AnimatedScale(
+                        scale: item.selected ? 1.15 : 1,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutBack,
+                        child: item.asset == null
+                            ? Icon(item.icon, color: AppTheme.royalBlue)
+                            : SafeAssetImage(
+                                assetPath: item.asset!,
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.contain,
+                              ),
+                      ),
                       title: Text(item.label),
                       onTap: () {
                         Navigator.pop(context);
@@ -152,9 +164,13 @@ class RoleDrawerNavItem {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.asset,
+    this.selected = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final String? asset;
+  final bool selected;
 }

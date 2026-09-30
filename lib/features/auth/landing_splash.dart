@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
+import 'package:liaison_officer/core/widgets/aero_india_logo.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
@@ -58,20 +59,7 @@ class LandingSplash extends StatelessWidget {
                       curve: Curves.easeOutCubic,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    const SafeAssetImage(
-                      assetPath: AppAssetManager.aeroIndiaLogo,
-                      height: 88,
-                      fit: BoxFit.contain,
-                      fallback: Icon(
-                        Icons.flight,
-                        color: Colors.white70,
-                        size: 64,
-                      ),
-                    ).animate().fadeIn(
-                      delay: 80.ms,
-                      duration: AppMotion.page,
-                      curve: Curves.easeOutCubic,
-                    ),
+                    const AeroIndiaLogo(size: 96),
                     const SizedBox(height: AppSpacing.lg),
                     Column(
                       children: [

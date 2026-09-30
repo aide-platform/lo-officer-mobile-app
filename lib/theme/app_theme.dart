@@ -21,7 +21,13 @@ class AppTheme {
   static const Color borderStrokeColor = Color(0xFF243056);
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFFA8B4D0);
-  static const Color textMuted = Color(0xFF6B7998);
+  static const Color textMuted = Color(0xFFC5D0E6);
+  static const Color darkInputFill = Color(0xFF1A2544);
+
+  /// Accent when the swatch is too close to the dark bar to read.
+  static Color emphasisOnDark(Color swatch, Color accent) {
+    return swatch.computeLuminance() < 0.18 ? accent : swatch;
+  }
 
   static const Color lightBackground = Color(0xFFF4F7FC);
   static const Color lightCard = Color(0xFFFFFFFF);
@@ -276,7 +282,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: cardBgColor,
+        fillColor: darkInputFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: text.bodyMedium?.copyWith(color: textMuted),
         labelStyle: text.bodyMedium?.copyWith(color: textSecondary),
@@ -494,30 +500,37 @@ class AppTheme {
       );
     }
     final base = darkTheme;
+    final emphasis = emphasisOnDark(primary, secondary);
     return base.copyWith(
       colorScheme: base.colorScheme.copyWith(
         primary: primary,
         secondary: secondary,
       ),
-      appBarTheme: base.appBarTheme.copyWith(backgroundColor: primary),
-      listTileTheme: base.listTileTheme.copyWith(selectedColor: primary),
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        titleTextStyle: base.textTheme.titleLarge?.copyWith(color: Colors.white),
+      ),
+      listTileTheme: base.listTileTheme.copyWith(selectedColor: emphasis),
       navigationBarTheme: base.navigationBarTheme.copyWith(
-        indicatorColor: primary.withValues(alpha: 0.25),
+        indicatorColor: emphasis.withValues(alpha: 0.28),
         labelTextStyle: WidgetStateProperty.resolveWith((s) {
           final selected = s.contains(WidgetState.selected);
           return base.textTheme.labelMedium!.copyWith(
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? primary : textMuted,
+            color: selected ? emphasis : textMuted,
           );
         }),
       ),
       bottomNavigationBarTheme: base.bottomNavigationBarTheme.copyWith(
-        selectedItemColor: primary,
+        selectedItemColor: emphasis,
+        unselectedItemColor: textMuted,
       ),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        fillColor: darkInputFill,
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: BorderSide(color: primary, width: 1.5),
+          borderSide: BorderSide(color: emphasis, width: 1.5),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(

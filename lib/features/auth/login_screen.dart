@@ -10,6 +10,7 @@ import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
+import 'package:liaison_officer/core/widgets/aero_india_logo.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
@@ -200,22 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: Column(
                         children: [
-                          const SafeAssetImage(
-                                assetPath: AppAssetManager.aeroIndiaLogo,
-                                width: 112,
-                                height: 112,
-                              )
-                              .animate()
-                              .fadeIn(
-                                duration: AppMotion.page,
-                                curve: Curves.easeOutCubic,
-                              )
-                              .slideY(
-                                begin: 0.18,
-                                end: 0,
-                                duration: AppMotion.page,
-                                curve: Curves.easeOutCubic,
-                              ),
+                          const AeroIndiaLogo(size: 112),
                           const SizedBox(height: AppSpacing.lg),
                           Container(
                                 width: double.infinity,
@@ -466,8 +452,15 @@ class _EmailStep extends StatelessWidget {
             hint: 'you@example.com',
             prefix: Icons.mail_outline_rounded,
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Email required' : null,
+          validator: (v) {
+            final email = v?.trim() ?? '';
+            if (email.isEmpty) return 'Email required';
+            final wellFormed = RegExp(
+              r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+            ).hasMatch(email);
+            if (!wellFormed) return 'Enter a valid email address';
+            return null;
+          },
         ),
         const SizedBox(height: AppSpacing.lg),
         const _FieldLabel('CAPTCHA'),
