@@ -47,11 +47,11 @@ jobs:
       - name: Stage APK under releases/
         run: |
           mkdir -p releases
-          cp build/app/outputs/flutter-apk/app-release.apk releases/liaison-officer-1.0.6.apk
-          ls -lh releases/liaison-officer-1.0.6.apk
+          cp build/app/outputs/flutter-apk/app-release.apk releases/liaison-officer-1.0.7.apk
+          ls -lh releases/liaison-officer-1.0.7.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: liaison-officer-1.0.6-apk
-          path: releases/liaison-officer-1.0.6.apk
+          name: liaison-officer-1.0.7-apk
+          path: releases/liaison-officer-1.0.7.apk
           if-no-files-found: error
