@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 
@@ -184,6 +186,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
           DateTime.now().add(const Duration(hours: 8)),
     );
     await SessionStore.save(session);
+    LoFirebaseMonitor.instance.logLogin(LoMonitoringEvents.loginOtp);
 
     emit(state.copyWith(
       status: AuthStatus.authenticated,
@@ -222,6 +225,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
           result.expiresAt ?? DateTime.now().add(const Duration(days: 30)),
     );
     await SessionStore.save(session);
+    LoFirebaseMonitor.instance.logLogin(LoMonitoringEvents.loginPassword);
     emit(state.copyWith(
       status: AuthStatus.authenticated,
       email: session.email,
@@ -238,6 +242,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     Emitter<AuthBlocState> emit,
   ) async {
     await SessionStore.clear();
+    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureLogout);
     emit(const AuthBlocState(status: AuthStatus.unauthenticated));
   }
 

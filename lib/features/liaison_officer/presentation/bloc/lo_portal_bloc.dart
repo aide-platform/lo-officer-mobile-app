@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
@@ -268,6 +270,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           profileSaveAck: true,
         ),
       );
+      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureProfileSave);
       // Full portal reload so shell gate + delegates stay in sync.
       add(LoPortalLoadRequested());
     } catch (e) {
@@ -306,6 +309,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           pendingSyncCount: await _refreshPendingCount(),
         ),
       );
+      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureTaskStatus);
     } catch (e) {
       await LoOfflineStore.enqueueTaskStatus(
         taskId: event.taskId,
@@ -379,6 +383,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           status: LoPortalStatus.ready,
         ),
       );
+      LoFirebaseMonitor.instance.logFeature(
+        LoMonitoringEvents.featureTravelUpdate,
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -417,6 +424,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           pendingSyncCount: await _refreshPendingCount(),
         ),
       );
+      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureMovement);
     } catch (e) {
       await LoOfflineStore.enqueueMovement(
         assignmentId: event.assignmentId,
@@ -459,6 +467,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           pendingSyncCount: await _refreshPendingCount(),
         ),
       );
+      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureIssueReport);
     } catch (e) {
       emit(
         state.copyWith(
@@ -568,6 +577,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           status: LoPortalStatus.ready,
           clearError: true,
         ),
+      );
+      LoFirebaseMonitor.instance.logFeature(
+        LoMonitoringEvents.featureDocumentUpload,
       );
     } catch (e) {
       emit(
@@ -766,6 +778,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           infoMessage: 'Badge ready to share.',
           clearError: true,
         ),
+      );
+      LoFirebaseMonitor.instance.logFeature(
+        LoMonitoringEvents.featureBadgeDownload,
       );
     } catch (e) {
       emit(

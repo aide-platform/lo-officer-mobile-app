@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
@@ -37,6 +39,12 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
   bool _didScrollToFocus = false;
 
   MyLoAssignmentDto get delegate => widget.delegate;
+
+  @override
+  void initState() {
+    super.initState();
+    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureDelegateDetail);
+  }
 
   @override
   void didChangeDependencies() {

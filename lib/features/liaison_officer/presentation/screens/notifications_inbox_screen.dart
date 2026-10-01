@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/notifications_repository.dart';
@@ -26,6 +28,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
   void initState() {
     super.initState();
     _repo = AppDependencies.instance.notificationsRepository;
+    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureInbox);
     _load();
   }
 

@@ -19,6 +19,9 @@ class FcmDeviceRegistrar {
 
     final token = await PushNotificationService.instance.getToken();
     if (token == null || token.isEmpty) return;
+    if (kDebugMode) {
+      debugPrint('FcmDeviceRegistrar: fcmToken $token');
+    }
 
     final platform = switch (defaultTargetPlatform) {
       TargetPlatform.iOS => 'ios',

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
@@ -55,6 +57,7 @@ class HelplineNumbersCard extends StatelessWidget {
   }
 
   static Future<void> _call(BuildContext context, String phone) async {
+    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureHelplineCall);
     final ok = await LoContactActions.call(phone);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

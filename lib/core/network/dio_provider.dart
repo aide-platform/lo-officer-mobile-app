@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 
@@ -22,6 +23,7 @@ Dio createDio({String? accessToken}) {
     ),
   );
 
+  dio.interceptors.add(LoHttpPerformanceInterceptor());
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {

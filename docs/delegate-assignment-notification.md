@@ -130,19 +130,115 @@ In the existing service method that saves a **new** delegate assignment to a lia
 
 Set both the notification block and the data map. The phone can show title and body from either. The tap path reads only `data.link`.
 
-```text
-notification.title = Delegate assigned
-notification.body  = <delegate full name>
-data.title         = Delegate assigned
-data.body          = <delegate full name>
-data.link          = delegate:<assignmentId>
-```
-
-`assignmentId` is the id the officer’s delegate list already uses. The link only has to contain the word `delegate` to open the Delegates tab. The id is included so a later app build can open that person.
+`assignmentId` is the id the officer’s delegate list already uses (`MyLoAssignmentDto.assignmentId`). The link only has to contain the word `delegate` to open the Delegates tab. The id is included so a later app build can open that person. Installed 1.0.7 does not open a details card.
 
 Send once per new assignment. Do not send on profile edits, travel updates, or other saves of an existing assignment. If Firebase returns an unregistered or invalid token, delete that `lo_device_token` row.
 
 Initialize `FirebaseApp` once at process startup.
+
+### Sample the server should send
+
+Logical message for one new assignment. Firebase Cloud Messaging `data` cannot hold a nested object, so the wire form below flattens every value to a string.
+
+```json
+{
+  "notificationId": "NTF-2027-00001245",
+  "notificationType": "DELEGATE_ASSIGNED",
+  "priority": "HIGH",
+  "title": "New Delegate Assigned",
+  "body": "Delegate John Smith from Boeing has been assigned to you.",
+  "data": {
+    "eventCode": "AERO_INDIA_2027",
+    "eventName": "Aero India 2027",
+    "assignmentId": "ASN-2027-004521",
+    "delegateId": "DEL-2027-001245",
+    "delegateCode": "AI27-DEL-001245",
+    "delegateName": "John Smith",
+    "designation": "Vice President",
+    "organization": "Boeing",
+    "country": "United States",
+    "loId": "LO-2027-00045",
+    "loName": "Rajesh Kumar",
+    "assignmentStatus": "ASSIGNED",
+    "assignedDate": "2026-10-01T09:30:00+05:30",
+    "screen": "DELEGATE_DETAILS",
+    "deepLink": "aeroindia://delegates/DEL-2027-001245",
+    "action": "VIEW_DELEGATE",
+    "requiresAction": "true"
+  }
+}
+```
+
+Wire form. `priority` HIGH is the Android message priority (`android.priority` = `high`), not a data field the app reads. `data.link` must stay present so the installed app opens the Delegates tab. The custom scheme `aeroindia://delegates/...` is not registered on this app.
+
+```text
+notification.title = New Delegate Assigned
+notification.body  = Delegate John Smith from Boeing has been assigned to you.
+android.priority   = high
+
+data.notificationId   = NTF-2027-00001245
+data.notificationType = DELEGATE_ASSIGNED
+data.title            = New Delegate Assigned
+data.body             = Delegate John Smith from Boeing has been assigned to you.
+data.link             = delegate:ASN-2027-004521
+data.eventCode        = AERO_INDIA_2027
+data.eventName        = Aero India 2027
+data.assignmentId     = ASN-2027-004521
+data.delegateId       = DEL-2027-001245
+data.delegateCode     = AI27-DEL-001245
+data.delegateName     = John Smith
+data.designation      = Vice President
+data.organization     = Boeing
+data.country          = United States
+data.loId             = LO-2027-00045
+data.loName           = Rajesh Kumar
+data.assignmentStatus = ASSIGNED
+data.assignedDate     = 2026-10-01T09:30:00+05:30
+data.screen           = DELEGATE_DETAILS
+data.action           = VIEW_DELEGATE
+data.requiresAction   = true
+```
+
+### What the phone shows today
+
+The tray header is the app label `Aero India LO` from `android/app/src/main/AndroidManifest.xml`. `eventName` is data. It is not that header.
+
+```text
+Aero India LO
+New Delegate Assigned
+Delegate John Smith from Boeing has been assigned to you.
+```
+
+A tap reads `data.link` in `LoPortalShell._openPushLink`. `delegate:ASN-2027-004521` contains `delegate`, so the app opens the Delegates tab. It does not open a details page.
+
+### Details card for a later build
+
+Send the fields above now. A later app build can show this summary, then open `LoDelegateDetailScreen` when `assignmentId` matches a row already in the delegate list. This document does not add that screen.
+
+```text
+Delegate Details
+
+John Smith
+Vice President
+Boeing
+United States
+
+Delegate ID
+AI27-DEL-001245
+
+Assignment Status
+ASSIGNED
+
+Assigned On
+01 Oct 2026, 09:30 AM
+
+Liaison Officer
+Rajesh Kumar
+
+[ View Full Details ]
+```
+
+`assignedDate` `2026-10-01T09:30:00+05:30` is the source of “01 Oct 2026, 09:30 AM”. `delegateCode` is the Delegate ID line. `organization` is the organisation line (`MyLoAssignmentDto` spells the list field `organisation`).
 
 ## Flow
 
@@ -155,8 +251,8 @@ Phone login
 Web assigns a delegate
   -> assignment row commits
   -> Spring Boot loads the officer token
-  -> Firebase delivers title, body, and data.link = delegate:<assignmentId>
-  -> phone shows "Delegate assigned"
+  -> Firebase delivers title, body, data.link = delegate:<assignmentId>, and the flat data fields
+  -> phone shows "New Delegate Assigned"
   -> tap opens the Delegates tab
 ```
 
@@ -165,3 +261,4 @@ Web assigns a delegate
 - No unregister call on logout.
 - No push yet for tasks, schedule changes, or meetings. Those can reuse `lo_device_token` later with `data.link` starting with `task:` when that work is scheduled.
 - No change is required in the mobile register call or the Delegates tap handling.
+- The details card above is not built. 1.0.7 does not open it.

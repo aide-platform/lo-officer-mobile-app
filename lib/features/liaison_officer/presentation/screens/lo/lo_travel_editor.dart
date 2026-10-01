@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
@@ -16,6 +18,7 @@ class LoTravelEditor {
     List<ConnectingFlightDraft> seededArrival,
     List<ConnectingFlightDraft> seededDeparture,
   ) async {
+    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureTravelEditor);
     final arrivalFlight = TextEditingController(text: d.arrivalFlight);
     final arrivalTerminal = TextEditingController(text: d.arrivalTerminal);
     final arrivalDate = TextEditingController(

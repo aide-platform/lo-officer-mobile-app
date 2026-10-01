@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
@@ -23,6 +25,7 @@ void openHelpSupport(BuildContext context, {LoPortalBloc? bloc}) {
     } catch (_) {}
   }
   final portal = resolved;
+  LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureHelp);
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => portal == null

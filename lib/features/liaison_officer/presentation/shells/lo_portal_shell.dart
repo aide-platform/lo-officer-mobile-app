@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
+import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
@@ -45,7 +47,21 @@ class _LoPortalShellState extends State<LoPortalShell> {
   void initState() {
     super.initState();
     _refreshUnread();
+    LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabDelegates);
     PushNotificationService.instance.bindDeepLink(_openPushLink);
+  }
+
+  void _selectTab(int index) {
+    setState(() => _index = index);
+    if (index == 0) {
+      LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabDelegates);
+    } else if (index == 1) {
+      LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabTasks);
+    } else if (index == 2) {
+      LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabHelplines);
+    } else if (index == 3) {
+      LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabAlerts);
+    }
   }
 
   @override
@@ -56,6 +72,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
 
   void _openPushLink(String link) {
     if (!mounted) return;
+    LoFirebaseMonitor.instance.logNotificationOpen(link);
     final lower = link.toLowerCase();
     if (lower.contains('task')) {
       setState(() => _index = 1);
@@ -73,6 +90,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
   }
 
   void _openProfile(BuildContext context, {required bool forceWizard}) {
+    LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabProfile);
     final bloc = context.read<LoPortalBloc>();
     final complete = bloc.state.profile?.profileComplete == true;
     Navigator.of(context).push(
@@ -94,6 +112,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
           MaterialPageRoute<void>(
             builder: (_) => NotificationsInboxScreen(
               onOpenDeepLink: (link) {
+                LoFirebaseMonitor.instance.logNotificationOpen(link);
                 if (link.toLowerCase().contains('task')) {
                   setState(() => _index = 1);
                 } else if (link.toLowerCase().contains('delegate')) {
@@ -210,27 +229,27 @@ class _LoPortalShellState extends State<LoPortalShell> {
               asset: AppAssetManager.iconDelegate,
               selected: _index == 0,
               label: 'Delegates',
-              onTap: () => setState(() => _index = 0),
+              onTap: () => _selectTab(0),
             ),
             RoleDrawerNavItem(
               icon: Icons.task_alt_outlined,
               asset: AppAssetManager.iconTask,
               selected: _index == 1,
               label: 'Tasks',
-              onTap: () => setState(() => _index = 1),
+              onTap: () => _selectTab(1),
             ),
             RoleDrawerNavItem(
               icon: Icons.phone_in_talk_outlined,
               selected: _index == 2,
               label: 'Help Line Numbers',
-              onTap: () => setState(() => _index = 2),
+              onTap: () => _selectTab(2),
             ),
             RoleDrawerNavItem(
               icon: Icons.notifications_outlined,
               asset: AppAssetManager.iconAlert,
               selected: _index == 3,
               label: 'Alerts',
-              onTap: () => setState(() => _index = 3),
+              onTap: () => _selectTab(3),
             ),
             RoleDrawerNavItem(
               icon: Icons.person_outline,
@@ -403,7 +422,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
           ),
         ],
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _selectTab,
       ),
     );
   }

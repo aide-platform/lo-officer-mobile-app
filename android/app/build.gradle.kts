@@ -7,6 +7,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     // Applied at the bottom only when android/app/google-services.json exists.
     id("com.google.gms.google-services") apply false
+    id("com.google.firebase.crashlytics") apply false
+    id("com.google.firebase.firebase-perf") apply false
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -86,4 +88,6 @@ dependencies {
 // google-services.json in this directory to turn the plugin on.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+    apply(plugin = "com.google.firebase.firebase-perf")
 }
