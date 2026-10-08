@@ -134,6 +134,16 @@ class LoPortalCache {
     );
   }
 
+  /// Drops the signed-in officer's snapshot. Theme and alert lead time stay.
+  static Future<void> clearOfficerData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_profileKey);
+    await prefs.remove(_delegatesKey);
+    await prefs.remove(_tasksKey);
+    await prefs.remove(_alertsKey);
+    await prefs.remove(_helplinesKey);
+  }
+
   static Future<List<Map<String, dynamic>>> loadAlerts() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_alertsKey);

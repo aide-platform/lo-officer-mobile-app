@@ -169,6 +169,13 @@ class LoOfflineStore {
     }
   }
 
+  /// Drops delegates, tasks, helplines, issues, and queued writes for this device.
+  static Future<void> clearOfficerData() async {
+    try {
+      await box.clear();
+    } catch (_) {}
+  }
+
   static Future<void> clearQueue() async {
     try {
       await box.delete(_queueKey);

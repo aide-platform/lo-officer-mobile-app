@@ -174,8 +174,18 @@ class PushNotificationService {
     return _token;
   }
 
-  /// Drops the in-memory token. The device token on CAP is left as-is.
-  void clearCachedToken() {
+  /// Invalidates the Firebase registration token for this install.
+  /// The next [getToken] mints a new one. Failures are logged so logout continues.
+  Future<void> deleteDeviceToken() async {
+    if (!_fcmReady) {
+      _token = null;
+      return;
+    }
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (e) {
+      debugPrint('PushNotificationService: deleteToken failed: $e');
+    }
     _token = null;
   }
 

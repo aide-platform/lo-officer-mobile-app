@@ -80,4 +80,8 @@ class ApiConfig {
   /// Mobile FCM token registration. CAP sends via Firebase Admin SDK.
   /// Not in public OpenAPI yet — 404 is logged and ignored.
   static const String devicesRegisterPath = '/api/devices/register';
+
+  /// Drops this device token for the signed-in officer. Same 404 behaviour
+  /// as register: logout still finishes when the portal has no route yet.
+  static const String devicesUnregisterPath = '/api/devices/unregister';
 }

@@ -47,9 +47,9 @@ When a message arrives:
 - Body comes from the notification block or `data.body`.
 - A tap reads only `data.link`. If that string contains `delegate`, the app opens the Delegates tab. If it contains `task`, it opens the Tasks tab. See `LoPortalShell._openPushLink` in `lib/features/liaison_officer/presentation/shells/lo_portal_shell.dart`.
 
-Logout clears the token in memory on the phone only. The app does not call an unregister API.
+On logout, while the Bearer token is still valid, the app posts the same body to `POST /api/devices/unregister`, then calls `FirebaseMessaging.deleteToken()`. A 404 is logged and logout continues. The next login receives a new device token and registers it for whoever signs in. Logout also clears the on-device portal cache and offline queues (delegates, tasks, profile, alerts, helplines, and queued writes). Theme and the alert lead time stay on the phone.
 
-The officer must install a build that includes `ENABLE_FCM=true`, then sign in once, before any server send can reach that phone.
+The officer must install a build that includes `ENABLE_FCM=true`, then sign in once, before any server send can reach that phone. A Firebase console send aimed at the Android app still reaches every install. It does not follow who is logged in. Only a portal send that looks up the token stored for that officer is per person.
 
 ## Give the web team this
 
@@ -105,7 +105,8 @@ Rules:
 
 - Reject the call when the JWT is missing or is not a liaison officer.
 - Bind the token to the authenticated user. If `email` does not match the JWT subject, reject the call. Do not trust the body email alone.
-- Upsert one row per officer and platform. The phone posts again on the next login and on token refresh; replace the previous token.
+- One `fcmToken` belongs to one officer. Before saving, delete that token from every other officer, then save it for the email in this request. A second officer logging in on the same phone must not leave the token on the previous officer.
+- Upsert one row per officer and platform. The phone posts again on the next login and on token refresh; replace the previous token for that officer.
 - Do not log the raw `fcmToken`.
 
 Suggested table `lo_device_token`:
@@ -118,7 +119,11 @@ Suggested table `lo_device_token`:
 | `platform` | `android` or `ios` |
 | `updated_at` | Set on every upsert |
 
-Unique constraint: `(user_email, platform)`.
+Unique constraint: `(user_email, platform)`. Also keep `fcm_token` on at most one row.
+
+### Unregister on logout
+
+Add `POST /api/devices/unregister` with the same JSON body and the officer’s Bearer token. The phone calls it on logout, before the session is cleared. Delete the row for that `fcmToken`. Do not send to that token until a later register. The app treats 404 like register: it logs the status and still deletes the Firebase token on the phone.
 
 ### 2. Send when a delegate is assigned
 
@@ -246,7 +251,17 @@ Rajesh Kumar
 Phone login
   -> Firebase issues a device token
   -> POST /api/devices/register
-  -> Spring Boot upserts lo_device_token
+  -> Spring Boot deletes that token from any other officer, then upserts lo_device_token
+
+Phone logout
+  -> POST /api/devices/unregister while the Bearer token is still valid
+  -> Firebase deleteToken
+  -> local portal cache and offline queues cleared
+  -> session cleared
+
+Next officer on the same phone
+  -> Firebase issues a new device token
+  -> POST /api/devices/register
 
 Web assigns a delegate
   -> assignment row commits
@@ -258,7 +273,7 @@ Web assigns a delegate
 
 ## Not in this change
 
-- No unregister call on logout.
 - No push yet for tasks, schedule changes, or meetings. Those can reuse `lo_device_token` later with `data.link` starting with `task:` when that work is scheduled.
-- No change is required in the mobile register call or the Delegates tap handling.
+- The register call and the Delegates tap handling are unchanged. Logout now unregisters and clears local officer data.
+- A console send to the Android app still reaches every install. It is not limited to the signed-in officer.
 - The details card above is not built. 1.0.7 does not open it.
