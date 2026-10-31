@@ -240,6 +240,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<LoPortalBloc>().add(LoPortalLanguageLookupsRequested());
+      context.read<LoPortalBloc>().add(LoPortalGenderLookupsRequested());
     });
   }
 
@@ -1378,21 +1379,48 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   controller: _last,
                   decoration: const InputDecoration(labelText: 'Last name'),
                 ),
-                DropdownButtonFormField<String>(
-                  key: ValueKey('gender-$_gender'),
-                  initialValue: _gender,
-                  decoration: const InputDecoration(labelText: 'Gender *'),
-                  items: _genders
-                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() {
-                      _gender = v;
-                      _genderId = _genderIdByName[v];
-                    });
-                  },
-                ),
+                Builder(builder: (ctx) {
+                  final opts = state.genderOptions;
+                  final names = opts.isNotEmpty
+                      ? opts.map((o) => o.name).toList()
+                      : _genders;
+                  if (opts.isNotEmpty && _genderId == null) {
+                    final match = opts.where(
+                      (o) => o.name.toLowerCase() == _gender.toLowerCase(),
+                    );
+                    if (match.isNotEmpty) {
+                      _genderId = match.first.id;
+                      _gender = match.first.name;
+                    } else {
+                      _genderId = opts.first.id;
+                      _gender = opts.first.name;
+                    }
+                  }
+                  return DropdownButtonFormField<String>(
+                    key: ValueKey('gender-$_gender'),
+                    initialValue: names.contains(_gender) ? _gender : null,
+                    decoration: InputDecoration(
+                      labelText: 'Gender *',
+                      helperText: opts.isEmpty ? 'Loading options…' : null,
+                    ),
+                    items: names
+                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: opts.isEmpty
+                        ? null
+                        : (v) {
+                            if (v == null) return;
+                            final picked = opts.firstWhere(
+                              (o) => o.name == v,
+                              orElse: () => opts.first,
+                            );
+                            setState(() {
+                              _gender = picked.name;
+                              _genderId = picked.id;
+                            });
+                          },
+                  );
+                }),
                 if ((p?.orgName ?? '').isNotEmpty)
                   InputDecorator(
                     decoration: const InputDecoration(
@@ -1409,14 +1437,17 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                     ),
                     child: Text(p!.orgTypeName!),
                   ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Date of birth'),
-                  subtitle: Text(
-                    age == null ? _dobLabel() : '${_dobLabel()} · Age $age',
+                Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Date of birth'),
+                    subtitle: Text(
+                      age == null ? _dobLabel() : '${_dobLabel()} · Age $age',
+                    ),
+                    trailing: const Icon(Icons.calendar_today_outlined),
+                    onTap: _pickDob,
                   ),
-                  trailing: const Icon(Icons.calendar_today_outlined),
-                  onTap: _pickDob,
                 ),
                 TextField(
                   controller: _rank,
@@ -1706,7 +1737,9 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   ...state.experiences.map(
-                    (e) => ListTile(
+                    (e) => Material(
+                      type: MaterialType.transparency,
+                      child: ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(e.eventName ?? 'Event'),
                       subtitle: Text(_experienceSubtitle(e)),
@@ -1730,6 +1763,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                                 ),
                               ],
                             ),
+                      ),
                     ),
                   ),
                 ] else

@@ -309,6 +309,14 @@ class MockLoPortalRepository implements LoPortalRepository {
     LoLanguageOption(id: 'lang-ta', name: 'Tamil'),
   ];
 
+  @override
+  Future<List<LoGenderOption>> listGenderLookups() async => const [
+    LoGenderOption(id: 'gender-male', name: 'Male'),
+    LoGenderOption(id: 'gender-female', name: 'Female'),
+    LoGenderOption(id: 'gender-other', name: 'Other'),
+    LoGenderOption(id: 'gender-prefer-not-to-say', name: 'Prefer not to say'),
+  ];
+
   /// Test helper: row ids currently stored for languages.
   List<String> get languageRowIds =>
       _languageRows.map((e) => e.id).toList(growable: false);

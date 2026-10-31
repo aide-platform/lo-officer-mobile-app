@@ -536,6 +536,23 @@ class LoLanguageOption {
   }
 }
 
+class LoGenderOption {
+  final String id;
+  final String name;
+
+  const LoGenderOption({required this.id, required this.name});
+
+  factory LoGenderOption.fromJson(Map<String, dynamic> json) {
+    final name = LoLanguageOption._firstText([
+      json['displayName'],
+      json['name'],
+      json['code'],
+    ]);
+    final id = LoLanguageOption._firstText([json['id'], json['genderId']]);
+    return LoGenderOption(id: id, name: name);
+  }
+}
+
 class ConnectingFlightDraft {
   final String flightNumber;
   final String terminal;

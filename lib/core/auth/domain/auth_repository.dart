@@ -47,10 +47,9 @@ class AuthOtpResult {
     this.userId,
   }) : success = true;
 
-  const AuthOtpResult.failure(String message)
+  const AuthOtpResult.failure(this.message)
       : success = false,
         email = null,
-        message = message,
         role = null,
         accessToken = null,
         expiresAt = null,

@@ -234,6 +234,19 @@ class DioLoPortalRepository implements LoPortalRepository {
   }
 
   @override
+  Future<List<LoGenderOption>> listGenderLookups() async {
+    final res = await _dio.get(ApiConfig.lookupGendersPath);
+    final aide = AideResponse.unwrap(
+      res.data,
+      parseData: (raw) => AideResponse.asMapList(raw)
+          .map(LoGenderOption.fromJson)
+          .where((e) => e.id.isNotEmpty && e.name.trim().isNotEmpty)
+          .toList(),
+    );
+    return aide.data ?? const [];
+  }
+
+  @override
   Future<List<String>> listLanguages() async {
     final res = await _dio.get(ApiConfig.myLoLanguagesPath);
     final aide = AideResponse.unwrap(res.data);
@@ -396,7 +409,7 @@ class DioLoPortalRepository implements LoPortalRepository {
         synced: true,
         status: 'submitted',
       );
-      return LoOfflineStore.saveIssue(submitted);
+      return await LoOfflineStore.saveIssue(submitted);
     } on DioException catch (_) {
       final local = issue.copyWith(synced: false, status: 'on_device');
       return LoOfflineStore.saveIssue(local);

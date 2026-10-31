@@ -1,10 +1,13 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
 import 'package:liaison_officer/core/services/fcm_device_registrar.dart';
+import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
+import 'package:liaison_officer/firebase_options.dart';
 import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/core/themes/data/local/theme_settings_local_data_source.dart';
@@ -17,6 +20,14 @@ import 'package:liaison_officer/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await LoFirebaseMonitor.instance.start();
+  } catch (e) {
+    debugPrint('Firebase init skipped: $e');
+  }
   try {
     await LoOfflineStore.init();
   } catch (e) {

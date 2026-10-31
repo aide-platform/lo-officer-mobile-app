@@ -21,7 +21,7 @@ android {
     namespace = "com.bel.liaison_officer"
     // file_picker → flutter_plugin_android_lifecycle requires compileSdk ≥ 36
     compileSdk = maxOf(flutter.compileSdkVersion, 36)
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         // Required by flutter_local_notifications (Java 8+ APIs on older Android).

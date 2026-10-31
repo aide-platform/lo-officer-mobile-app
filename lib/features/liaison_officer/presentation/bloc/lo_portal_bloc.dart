@@ -36,6 +36,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     on<LoPortalExperienceReplaced>(_onExpReplace);
     on<LoPortalLanguagesSaved>(_onLangs);
     on<LoPortalLanguageLookupsRequested>(_onLanguageLookups);
+    on<LoPortalGenderLookupsRequested>(_onGenderLookups);
     on<LoPortalDelegateExtrasRequested>(_onExtras);
     on<LoPortalAlertLeadMinutesChanged>(_onLead);
     on<LoPortalBadgeDownloadRequested>(_onBadgeDownload);
@@ -112,6 +113,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
         state.languages,
       );
       final issues = await repository.listReportedIssues();
+      final previousTaskIds = cachedTasks
+          .map((t) => (t.id ?? '').trim())
+          .where((id) => id.isNotEmpty)
+          .toSet();
       await LoPortalCache.saveProfile(profile);
       await LoPortalCache.saveDelegates(delegates);
       await LoPortalCache.saveTasks(tasks);
@@ -119,12 +124,34 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       await LoOfflineStore.cacheTasks(tasks);
       final helplines = await _loadHelplines(cachedHelplines);
 
+      // One "new task" alert per task id — dedupeKey keeps it to a single row
+      // across refreshes, and the previousTaskIds guard means a fresh install
+      // does not stage an alert for every historical task on first load.
+      if (previousTaskIds.isNotEmpty) {
+        for (final t in tasks) {
+          final id = (t.id ?? '').trim();
+          if (id.isEmpty || previousTaskIds.contains(id)) continue;
+          await LoPortalCache.pushAlert(
+            dedupeKey: 'task-new:$id',
+            title: 'New task assigned',
+            body:
+                '${t.taskTitle ?? 'Task'} for ${t.delegateName ?? 'delegate'}'
+                    .trim(),
+          );
+        }
+      }
+
       for (final t in tasks) {
         if (t.scheduledDate != null &&
             (t.statusCode == null ||
                 t.statusCode == 'PENDING' ||
                 t.statusCode == 'IN_PROGRESS')) {
+          final id = (t.id ?? '').trim();
+          final key = id.isNotEmpty
+              ? 'task-reminder:$id'
+              : 'task-reminder:${t.taskTitle}:${t.scheduledDate}:${t.scheduledTime}';
           await LoPortalCache.pushAlert(
+            dedupeKey: key,
             title: 'Upcoming task',
             body:
                 '${t.taskTitle ?? 'Task'} for ${t.delegateName ?? 'delegate'} '
@@ -677,6 +704,24 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     try {
       final options = await repository.listLanguageLookups();
       emit(state.copyWith(languageOptions: options));
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: LoPortalStatus.failure,
+          errorMessage: apiErrorMessage(e),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onGenderLookups(
+    LoPortalGenderLookupsRequested event,
+    Emitter<LoPortalState> emit,
+  ) async {
+    if (state.genderOptions.isNotEmpty) return;
+    try {
+      final options = await repository.listGenderLookups();
+      emit(state.copyWith(genderOptions: options));
     } catch (e) {
       emit(
         state.copyWith(

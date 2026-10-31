@@ -11,6 +11,7 @@ class LoPortalState {
   final List<LoExperienceDto> experiences;
   final List<String> languages;
   final List<LoLanguageOption> languageOptions;
+  final List<LoGenderOption> genderOptions;
   final Map<String, List<Map<String, dynamic>>> vehiclesByAssignment;
   final Map<String, List<Map<String, dynamic>>> nominationsByAssignment;
   final Map<String, List<LoItineraryItem>> itineraryByAssignment;
@@ -38,6 +39,7 @@ class LoPortalState {
     this.experiences = const [],
     this.languages = const [],
     this.languageOptions = const [],
+    this.genderOptions = const [],
     this.vehiclesByAssignment = const {},
     this.nominationsByAssignment = const {},
     this.itineraryByAssignment = const {},
@@ -65,6 +67,7 @@ class LoPortalState {
     List<LoExperienceDto>? experiences,
     List<String>? languages,
     List<LoLanguageOption>? languageOptions,
+    List<LoGenderOption>? genderOptions,
     Map<String, List<Map<String, dynamic>>>? vehiclesByAssignment,
     Map<String, List<Map<String, dynamic>>>? nominationsByAssignment,
     Map<String, List<LoItineraryItem>>? itineraryByAssignment,
@@ -96,6 +99,7 @@ class LoPortalState {
       experiences: experiences ?? this.experiences,
       languages: languages ?? this.languages,
       languageOptions: languageOptions ?? this.languageOptions,
+      genderOptions: genderOptions ?? this.genderOptions,
       vehiclesByAssignment: vehiclesByAssignment ?? this.vehiclesByAssignment,
       nominationsByAssignment:
           nominationsByAssignment ?? this.nominationsByAssignment,

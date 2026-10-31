@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liaison_officer/core/auth/data/repositories/mock_auth_repository.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
@@ -23,6 +24,10 @@ String _jwt(Map<String, Object> payload) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
+  });
 
   group('AuthSession.isValid', () {
     test('requires email, access token, and future expiresAt', () {
@@ -78,12 +83,13 @@ void main() {
       LiaisonOfficerApp(themeCubit: themeCubit, initialSession: null),
     );
     await tester.pump();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Aero India 2027'), findsOneWidget);
     await tester.tap(find.text('Continue to Sign In'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
     expect(find.textContaining('Verify your identity'), findsOneWidget);
     expect(find.textContaining('EMAIL'), findsWidgets);
+    await tester.pump(const Duration(seconds: 2));
   });
 
   group('CAP models', () {

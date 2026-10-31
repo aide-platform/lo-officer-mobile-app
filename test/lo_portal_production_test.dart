@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liaison_officer/core/auth/data/repositories/mock_auth_repository.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
@@ -11,6 +12,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
+  });
 
   group('OTP auth happy path', () {
     test('captcha + OTP authenticates mock LO', () async {

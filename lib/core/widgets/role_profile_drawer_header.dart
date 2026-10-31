@@ -105,7 +105,7 @@ class RoleProfileDrawerHeader extends StatelessWidget {
                       tween: Tween(begin: 0, end: 1),
                       duration: const Duration(milliseconds: 700),
                       curve: Curves.elasticOut,
-                      builder: (_, v, __) => Transform.scale(
+                      builder: (_, v, _) => Transform.scale(
                         scale: v,
                         child: GestureDetector(
                           onTap: onAvatarTap ??

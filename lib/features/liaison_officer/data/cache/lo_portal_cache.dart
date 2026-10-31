@@ -95,16 +95,27 @@ class LoPortalCache {
         .toList();
   }
 
+  /// Inserts an alert. When [dedupeKey] is set, an existing alert with the
+  /// same key is left in place and no new row is written — this stops
+  /// recurring background refreshes from stacking duplicates for the same
+  /// underlying event (e.g. one upcoming-task reminder per task).
   static Future<void> pushAlert({
     required String title,
     required String body,
+    String? dedupeKey,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final existing = prefs.getString(_alertsKey);
     final list = existing == null
         ? <dynamic>[]
         : List<dynamic>.from(jsonDecode(existing) as List);
+    if (dedupeKey != null) {
+      for (final entry in list) {
+        if (entry is Map && entry['key'] == dedupeKey) return;
+      }
+    }
     list.insert(0, {
+      'key': ?dedupeKey,
       'title': title,
       'body': body,
       'at': DateTime.now().toIso8601String(),
@@ -148,10 +159,20 @@ class LoPortalCache {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_alertsKey);
     if (raw == null) return const [];
-    return (jsonDecode(raw) as List)
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+    // Dedupe-by-key once at read time so pre-existing duplicates (written
+    // before the pushAlert dedupeKey landed) collapse to the newest entry.
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final e in (jsonDecode(raw) as List).whereType<Map>()) {
+      final m = Map<String, dynamic>.from(e);
+      final k = m['key'];
+      if (k is String && k.isNotEmpty) {
+        if (seen.contains(k)) continue;
+        seen.add(k);
+      }
+      out.add(m);
+    }
+    return out;
   }
 
   static Map<String, dynamic> _delegateToMap(MyLoAssignmentDto d) => {
