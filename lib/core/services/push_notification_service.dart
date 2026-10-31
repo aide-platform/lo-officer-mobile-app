@@ -4,16 +4,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
+import 'package:liaison_officer/firebase_options.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 /// Background isolate entry. Notification payloads are shown by the OS.
 @pragma('vm:entry-point')
 Future<void> loFirebaseBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
 /// Push + local notification facade.
@@ -123,8 +123,6 @@ class PushNotificationService {
 
     try {
       FirebaseMessaging.onBackgroundMessage(loFirebaseBackgroundHandler);
-      await Firebase.initializeApp();
-      await LoFirebaseMonitor.instance.start();
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission(alert: true, badge: true, sound: true);
       await messaging.setForegroundNotificationPresentationOptions(

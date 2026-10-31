@@ -45,6 +45,7 @@ abstract class LoPortalRepository {
 
   Future<List<String>> listLanguages();
   Future<List<LoLanguageOption>> listLanguageLookups();
+  Future<List<LoGenderOption>> listGenderLookups();
   Future<void> setLanguages(List<String> languages);
 
   Future<List<Map<String, dynamic>>> getVehicles(String assignmentId);

@@ -88,6 +88,8 @@ class LoPortalLanguagesSaved extends LoPortalEvent {
 
 class LoPortalLanguageLookupsRequested extends LoPortalEvent {}
 
+class LoPortalGenderLookupsRequested extends LoPortalEvent {}
+
 class LoPortalDelegateExtrasRequested extends LoPortalEvent {
   LoPortalDelegateExtrasRequested(this.assignmentId);
   final String assignmentId;

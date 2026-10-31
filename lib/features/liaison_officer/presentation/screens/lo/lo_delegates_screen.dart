@@ -8,6 +8,7 @@ import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegate_detail_screen.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegate_sheets.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
@@ -144,19 +145,14 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
                           index: i - 1,
                           child: _DelegateCard(
                             delegate: d,
-                            onOpenDetail: () => _openDetail(context, d),
-                            onOpenEvents: () => _openDetail(
-                              context,
-                              d,
-                              focus: LoDelegateFocusSection.itinerary,
-                            ),
-                            onOpenVehicles: () => _openDetail(
-                              context,
-                              d,
-                              focus: LoDelegateFocusSection.transport,
-                            ),
+                            onOpenDetail: () => openDelegateViewSheet(context, d),
+                            onOpenEvents: () =>
+                                openDelegateNominationsSheet(context, d),
+                            onOpenVehicles: () =>
+                                openDelegateVehiclesSheet(context, d),
                             onOpenArrival: () =>
                                 _openArrival(context, state, d),
+                            onOpenFullProfile: () => _openDetail(context, d),
                           ),
                         );
                       },
@@ -230,6 +226,7 @@ class _DelegateCard extends StatelessWidget {
     required this.onOpenEvents,
     required this.onOpenVehicles,
     required this.onOpenArrival,
+    required this.onOpenFullProfile,
   });
 
   final MyLoAssignmentDto delegate;
@@ -237,6 +234,7 @@ class _DelegateCard extends StatelessWidget {
   final VoidCallback onOpenEvents;
   final VoidCallback onOpenVehicles;
   final VoidCallback onOpenArrival;
+  final VoidCallback onOpenFullProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +248,7 @@ class _DelegateCard extends StatelessWidget {
     final dep = LoDisplayFormat.dateAndTime(d.departureDate, d.departureTime);
 
     return AppCard(
-      onTap: onOpenDetail,
+      onTap: onOpenFullProfile,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

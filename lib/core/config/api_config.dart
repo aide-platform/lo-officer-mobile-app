@@ -1,8 +1,26 @@
 /// Committee Automation Portal (CAP) API configuration for Liaison Officer app.
 ///
-/// Override at build time:
-/// `--dart-define=USE_MOCK_API=true`
-/// `--dart-define=API_BASE_URL=http://34.47.128.151:6080`
+/// Mirrors aide-ui's `serviceUrls.ts` so both clients traverse the same
+/// gateway. `API_GATEWAY_URL` is the gateway root (ends with `/api`); each
+/// microservice is a fixed sub-path on it. `API_BASE_URL` is kept as a legacy
+/// override that pins the aide-service URL directly, in case someone wants
+/// to short-circuit the gateway for local testing.
+///
+/// Override at build time with `--dart-define`:
+///   USE_MOCK_API         — true/false (default true: in-memory mocks).
+///   API_GATEWAY_URL      — gateway root (scheme + host[:port] + `/api`).
+///   AIDE_SERVICE_URL     — overrides `${API_GATEWAY_URL}/aideservices`.
+///   EVENT_SERVICE_URL    — overrides `${API_GATEWAY_URL}/eventservices`.
+///   API_BASE_URL         — legacy alias for `AIDE_SERVICE_URL`.
+///
+/// Known values:
+///   Local Spring Boot (host loopback):   http://localhost:8080
+///   Local Spring Boot from Android emu:  http://10.0.2.2:8080
+///   GCP gateway:                         https://aeroindia.evenuefy.com/api
+///   GCP aide-service:                    https://aeroindia.evenuefy.com/api/aideservices
+///   GCP event-services:                  https://aeroindia.evenuefy.com/api/eventservices
+///
+/// Convenience launch wrappers live in `scripts/run-*.ps1`.
 class ApiConfig {
   ApiConfig._();
 
@@ -13,10 +31,38 @@ class ApiConfig {
     defaultValue: true,
   );
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://34.47.128.151:6080',
+  /// Gateway root. Both aide-service and event-services sit under it.
+  static const String apiGatewayUrl = String.fromEnvironment(
+    'API_GATEWAY_URL',
+    defaultValue: 'https://aeroindia.evenuefy.com/api',
   );
+
+  /// Legacy single-service URL. Takes precedence over the gateway when set,
+  /// so an older run config using `API_BASE_URL=http://localhost:8080` still
+  /// works.
+  static const String _legacyBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  /// aide-service (CAP) base. `_legacyBaseUrl` wins when supplied.
+  static String get baseUrl =>
+      _legacyBaseUrl.isNotEmpty ? _legacyBaseUrl : aideServiceUrl;
+
+  /// aide-service — all paths in this class resolve against it.
+  static const String _aideServiceOverride = String.fromEnvironment(
+    'AIDE_SERVICE_URL',
+  );
+  static String get aideServiceUrl => _aideServiceOverride.isNotEmpty
+      ? _aideServiceOverride
+      : '$apiGatewayUrl/aideservices';
+
+  /// event-services — not called by any current LO repo. Kept here so a
+  /// future module can route its Dio client through it without inventing a
+  /// second config class.
+  static const String _eventServiceOverride = String.fromEnvironment(
+    'EVENT_SERVICE_URL',
+  );
+  static String get eventServiceUrl => _eventServiceOverride.isNotEmpty
+      ? _eventServiceOverride
+      : '$apiGatewayUrl/eventservices';
 
   static const Duration connectTimeout = Duration(seconds: 25);
   static const Duration receiveTimeout = Duration(seconds: 30);
@@ -53,6 +99,7 @@ class ApiConfig {
   static String myLoExperiencePath(String id) =>
       '/app/my-lo/me/experiences/$id';
   static const String lookupLanguagesPath = '/app/lookups/languages';
+  static const String lookupGendersPath = '/app/lookups/genders';
   static const String myLoLanguagesPath = '/app/my-lo/me/languages';
   static String filePath(String fileId) => '/app/files/$fileId';
   static String myLoLanguagePath(String rowId) =>

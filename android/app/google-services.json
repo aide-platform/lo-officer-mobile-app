@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "813770238672",
-    "project_id": "lo-mobile-app",
-    "storage_bucket": "lo-mobile-app.firebasestorage.app"
+    "project_number": "263179461865",
+    "project_id": "aero-lo-app",
+    "storage_bucket": "aero-lo-app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:813770238672:android:2b93e6f8e598a881304cd5",
+        "mobilesdk_app_id": "1:263179461865:android:977f605ce41de87a987c78",
         "android_client_info": {
           "package_name": "com.bel.liaison_officer"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB_yyUcBhbD8969aX8uFG7fWTk-AWXCn-k"
+          "current_key": "AIzaSyCJW-9SN2hO48pPPFrddA3k3PK7O1j8Lkk"
         }
       ],
       "services": {

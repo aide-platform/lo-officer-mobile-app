@@ -134,11 +134,15 @@ class _NumberChip extends StatelessWidget {
             children: [
               const Icon(Icons.phone, size: 16, color: AppTheme.royalBlue),
               const SizedBox(width: 6),
-              Text(
-                number.trim(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.navy,
+              Flexible(
+                child: Text(
+                  number.trim(),
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.navy,
+                  ),
                 ),
               ),
             ],

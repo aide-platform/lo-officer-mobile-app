@@ -15,5 +15,8 @@ subprojects { sub ->
                 // Not an Android module or API shape changed.
             }
         }
+        try {
+            android.ndkVersion = null
+        } catch (Throwable ignored) {}
     }
 }
