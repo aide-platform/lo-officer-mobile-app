@@ -40,10 +40,7 @@ class AideResponse<T> {
     final map = Map<String, dynamic>.from(body);
     final parsed = AideResponse.fromJson(map, parseData);
     if (parsed.success == false) {
-      throw ApiException(
-        parsed.message ?? 'Request failed',
-        statusCode: null,
-      );
+      throw ApiException(parsed.message ?? 'Request failed', statusCode: null);
     }
     return parsed;
   }

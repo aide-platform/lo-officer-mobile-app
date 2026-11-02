@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
@@ -35,6 +36,12 @@ Dio createDio({String? accessToken}) {
       },
       onError: (error, handler) {
         final status = error.response?.statusCode;
+        if (kDebugMode) {
+          debugPrint(
+            'HTTP ${error.requestOptions.method} ${error.requestOptions.uri} '
+            'failed: ${status ?? error.type.name}',
+          );
+        }
         String message = error.message ?? 'Request failed';
         final data = error.response?.data;
         final parsed = _messageFromBody(data);

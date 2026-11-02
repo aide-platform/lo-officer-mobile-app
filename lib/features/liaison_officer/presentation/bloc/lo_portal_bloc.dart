@@ -61,6 +61,15 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     }
   }
 
+  /// Runs an optional call; on failure keeps [fallback] instead of failing the load.
+  Future<T> _orElse<T>(Future<T> Function() call, T fallback) async {
+    try {
+      return await call();
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   Future<void> _onLoad(
     LoPortalLoadRequested event,
     Emitter<LoPortalState> emit,
@@ -107,12 +116,19 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
       final profile = await repository.getMyProfile();
       final delegates = await repository.getMyDelegates();
       final tasks = await repository.getMyTasks();
-      final experiences = await repository.listExperiences();
+      // Profile extras are optional for the portal: a failure here must not
+      // flip the whole screen to "offline" when delegates and tasks loaded.
+      final experiences = await _orElse(
+        repository.listExperiences,
+        state.experiences,
+      );
       final languages = _preferLanguages(
-        _dedupeLanguages(await repository.listLanguages()),
+        _dedupeLanguages(
+          await _orElse(repository.listLanguages, const <String>[]),
+        ),
         state.languages,
       );
-      final issues = await repository.listReportedIssues();
+      final issues = await _orElse(repository.listReportedIssues, cachedIssues);
       final previousTaskIds = cachedTasks
           .map((t) => (t.id ?? '').trim())
           .where((id) => id.isNotEmpty)
@@ -134,9 +150,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           await LoPortalCache.pushAlert(
             dedupeKey: 'task-new:$id',
             title: 'New task assigned',
-            body:
-                '${t.taskTitle ?? 'Task'} for ${t.delegateName ?? 'delegate'}'
-                    .trim(),
+            body: t.taskScope == 'LO'
+                ? (t.taskTitle ?? 'Task')
+                : '${t.taskTitle ?? 'Task'} for ${t.delegateName ?? 'delegate'}'
+                      .trim(),
           );
         }
       }
@@ -154,7 +171,8 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
             dedupeKey: key,
             title: 'Upcoming task',
             body:
-                '${t.taskTitle ?? 'Task'} for ${t.delegateName ?? 'delegate'} '
+                '${t.taskTitle ?? 'Task'}'
+                        '${t.taskScope == 'LO' ? '' : ' for ${t.delegateName ?? 'delegate'}'} '
                         'on ${LoDisplayFormat.dateAndTime(t.scheduledDate, t.scheduledTime)} '
                         '(alert ${lead}m before)'
                     .trim(),
@@ -297,7 +315,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           profileSaveAck: true,
         ),
       );
-      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureProfileSave);
+      LoFirebaseMonitor.instance.logFeature(
+        LoMonitoringEvents.featureProfileSave,
+      );
       // Full portal reload so shell gate + delegates stay in sync.
       add(LoPortalLoadRequested());
     } catch (e) {
@@ -336,7 +356,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           pendingSyncCount: await _refreshPendingCount(),
         ),
       );
-      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureTaskStatus);
+      LoFirebaseMonitor.instance.logFeature(
+        LoMonitoringEvents.featureTaskStatus,
+      );
     } catch (e) {
       await LoOfflineStore.enqueueTaskStatus(
         taskId: event.taskId,
@@ -494,7 +516,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           pendingSyncCount: await _refreshPendingCount(),
         ),
       );
-      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureIssueReport);
+      LoFirebaseMonitor.instance.logFeature(
+        LoMonitoringEvents.featureIssueReport,
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -911,9 +935,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
   ) {
     if (fetched.isEmpty) return local;
     final fetchedKeys = fetched.map((e) => e.toLowerCase()).toSet();
-    final extras = local.where(
-      (e) => !fetchedKeys.contains(e.toLowerCase()),
-    );
+    final extras = local.where((e) => !fetchedKeys.contains(e.toLowerCase()));
     if (extras.isEmpty) return fetched;
     return _dedupeLanguages([...fetched, ...extras]);
   }

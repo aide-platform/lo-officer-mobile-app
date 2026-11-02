@@ -7,6 +7,7 @@ import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
+
 class LoTasksScreen extends StatefulWidget {
   const LoTasksScreen({super.key});
 
@@ -107,12 +108,29 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
                         .length;
                     final completedAll = state.tasks.where(_isCompleted).length;
 
+                    // LO's own tasks (LO suit, kit, forms) first, then one
+                    // group per delegate; standard tasks in client order.
+                    const myTasksKey = 'My tasks';
                     final grouped = <String, List<LoTaskDto>>{};
                     for (final t in filtered) {
-                      final key = t.delegateName ?? 'Unassigned';
+                      final key = t.taskScope == 'LO'
+                          ? myTasksKey
+                          : (t.delegateName ?? 'Unassigned');
                       grouped.putIfAbsent(key, () => []).add(t);
                     }
-                    final keys = grouped.keys.toList();
+                    for (final list in grouped.values) {
+                      list.sort(
+                        (a, b) => (a.sortOrder ?? 1000).compareTo(
+                          b.sortOrder ?? 1000,
+                        ),
+                      );
+                    }
+                    final keys = grouped.keys.toList()
+                      ..sort((a, b) {
+                        if (a == myTasksKey) return -1;
+                        if (b == myTasksKey) return 1;
+                        return a.compareTo(b);
+                      });
 
                     return ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -422,7 +440,10 @@ class _TaskTile extends StatelessWidget {
           IconButton(
             tooltip: 'Update status',
             onPressed: () => _updateStatus(context),
-            icon: Icon(Icons.sync_outlined, color: Theme.of(context).colorScheme.primary),
+            icon: Icon(
+              Icons.sync_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
         ],
       ),
