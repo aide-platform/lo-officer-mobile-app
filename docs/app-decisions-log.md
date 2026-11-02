@@ -49,6 +49,108 @@ When NIC comes online, add `scripts/run-nic.ps1` by copying `run-gcp.ps1` and sw
 
 ## 3. Change Log
 
+### 2026-11-02 — "Download badge" saves to Downloads instead of opening share sheet
+
+**What changed**
+
+- `MainActivity.kt`: new method channel `com.bel.liaison_officer/downloads` with `saveToDownloads` (writes into the public Downloads folder through MediaStore on Android 10+; direct file write plus media scan on Android 9 and older, after asking for storage permission) and `open` (opens the saved file in the default viewer).
+- `AndroidManifest.xml`: `WRITE_EXTERNAL_STORAGE` with `maxSdkVersion="28"` (only used on Android 9 and older).
+- New `lib/core/services/device_downloads.dart`: Dart wrapper for the channel. On iOS, which has no shared Downloads folder, it saves to app Documents and opens the share sheet ("Save to Files").
+- `LoPortalState.lastDownloadSaveToDevice`: set by the badge download only. `lo_portal_shell.dart` saves the file and shows "Saved to Downloads: <name>" with an **Open** action. Document previews still use the share sheet.
+
+**Why**
+
+- The user expected "Download badge" to work like a download, the same as aide-ui (`saveBlob` puts the PDF in the browser's Downloads). The share sheet made the user pick an app and did not keep a copy on the phone.
+- MediaStore needs no runtime permission on Android 10+, so most users see no prompt.
+
+**Impact for deployment**
+
+- Native code and manifest change: full rebuild and reinstall needed.
+
+### 2026-11-02 — Fix LO badge download (new LO-own endpoint)
+
+**What changed (aide-service repo)**
+
+- `MyLoController`: new `GET /app/my-lo/me/badge/download` (`hasRole('LIAISON_OFFICER')`). Returns `application/pdf` from the same `PersonBadgePdfService.badgePdf` renderer the committee download uses (eventservices E-Badge when `euBadgeRegId` is set, else the local JRXML render).
+- `MyLoService.requireMyCurrentPass()`: finds the caller's LO record from the session, then the latest non-deleted Pass held by that LO's Person. Returns "No badge has been assigned to you yet." when there is none.
+
+**What changed (mobile)**
+
+- `ApiConfig`: `bvQuotaBadgeDownloadPath(passId)` replaced by `myLoBadgeDownloadPath`.
+- `DioLoPortalRepository.downloadBadge` calls the new path. `passId` is now used only for the file name. Save/share flow in `lo_portal_shell.dart` is unchanged.
+
+**Why**
+
+- The app called `/app/committee/bv-quota/badge/{passId}/download`. That route is guarded by `@access.canReadCommitteeQuota()` (Admin / Nodal / Sub-Nodal with `*_BADGE_QUOTA_*`) and checks that the pass belongs to the caller's committee. An LO has neither, so every download got 403.
+- aide-ui only downloads badges from the committee side (Manage Liaison Officers page, LO Committee Nodal Officer). The LO portal in aide-ui has no self-download, so a separate LO-scoped endpoint was needed.
+- The pass is resolved on the server from the logged-in account, never from a client-supplied id, so an LO can download only their own badge.
+
+**Impact for deployment**
+
+- Deploy aide-service before (or with) the new APK. An older aide-service returns 404 on the new path.
+- No DB change. Uses the existing gateway route (`/aideservices`).
+
+### 2026-10-31 — Branded Android notification icon
+
+**What changed**
+
+- New `android/app/src/main/res/drawable/ic_stat_notification.xml`: white-on-transparent aircraft vector used as the status-bar (small) icon.
+- `res/values/colors.xml`: added `notification_accent` = `#0055B8` (`AppTheme.royalBlue`).
+- `AndroidManifest.xml`: added FCM meta-data `default_notification_icon` (`@drawable/ic_stat_notification`), `default_notification_color` (`@color/notification_accent`), and `default_notification_channel_id` (`lo_push`).
+- New `res/raw/keep.xml`: keeps `ic_stat_notification` when release builds shrink resources.
+- `push_notification_service.dart`: local notifications (foreground pushes and task reminders) use the same small icon and accent colour, show the app logo (`@mipmap/ic_launcher`) as the large icon, and expand long text (`BigTextStyleInformation`).
+
+**Why**
+
+- Android draws the small icon from its alpha channel only. The old setting (`@mipmap/ic_launcher`, a full-colour image) showed as a grey/white blob, and background FCM pushes had no icon set at all. A monochrome icon plus accent colour and large logo gives the same look as WhatsApp and other apps.
+
+**Impact for deployment**
+
+- Manifest and resource change: full rebuild and reinstall needed (hot reload does not apply).
+- No aide-service change needed. The manifest defaults apply to every FCM push that does not set its own icon.
+
+### 2026-10-31 — Remove notification inbox and issue reports from the LO app
+
+**What changed**
+
+- Deleted `presentation/screens/notifications_inbox_screen.dart` and `presentation/screens/lo/lo_issue_report_screen.dart`.
+- `lo_notifications_screen.dart` (Alerts tab): removed the "Notification inbox" and "Issue reports" cards. The tab now shows alert lead time and local alerts only.
+- `lo_portal_shell.dart`: removed the app-bar bell, its unread badge, and the `unread-count` call on shell start. Pending-sync banner text now says "tasks or movements".
+- `lo_delegate_detail_screen.dart`: removed the "Report issue" app-bar button.
+
+**Why**
+
+- Product decision: real FCM pushes now reach the device, so the separate in-app inbox duplicated them. Issue reporting is out of scope for the LO app.
+
+**Impact for deployment**
+
+- The app no longer calls `/app/notifications/mine/*`. The backend endpoints stay; aide-ui may still use them.
+- Issue data layer (repository methods, offline issue queue in `LoOfflineStore`, `LoPortalBloc` issue events) is left in place but unreachable from the UI. Remove it in a follow-up if issue reporting is dropped for good.
+
+### 2026-10-31 — Real FCM push on LO task assign/update (aide-service)
+
+**What changed (aide-service repo)**
+
+- `LoTaskService.notifyLoOfTask` now calls `LoFcmNotificationService.notifyTaskAssigned` after the existing email, so task create ("New task assigned") and update ("Task updated") send a push to the officer's registered Android device.
+- `LoFcmNotificationService`
+  - Adds `client_id` to the service-account JSON it builds (`firebase.service-account-client-id`). Google's auth library rejects the credential without it.
+  - `normalizePem()` rebuilds the private key from whatever form the env value arrives in: escaped or double-escaped `\n`, real newlines, missing BEGIN/END lines, lost dashes or spaces, surrounding quotes. Tested locally against nine damaged variants of the real key; all parsed, and Google issued a token.
+  - Defaults moved from the old `lo-mobile-app` project to `aero-lo-app`.
+  - Temporary `Firebase key shape` INFO log (length, header/footer present, newline counts; never the key itself). Remove once stable.
+- `application.properties` / `application-dev.properties`: `firebase.project-id=aero-lo-app`, client email, client id. `FIREBASE_PRIVATE_KEY_ID` / `FIREBASE_PRIVATE_KEY` placeholders resolve from the container env.
+
+**Why**
+
+- The LO only saw new tasks after a manual refresh. Delegate assignment already pushed; tasks did not.
+- Failures came one after another, each hidden behind the previous: device not registered (mobile built without `ENABLE_FCM=true`), missing `client_id`, then `Invalid PKCS#8 data`. The shape log showed the GCP Docker value had lost its PEM header/footer lines (length 1680, no header, no footer). Making the code tolerant was chosen over re-entering the secret, so a future redeploy cannot break it the same way.
+
+**Impact for deployment**
+
+- Secrets stay out of git: private key id + key live only in the server's Docker env. Service account: `firebase-adminsdk-fbsvc@aero-lo-app.iam.gserviceaccount.com` (role: Firebase Admin SDK Administrator Service Agent).
+- NIC rollout: set the same two env vars on the NIC container. No code change.
+- Mobile must be built with `--dart-define=ENABLE_FCM=true`, and the officer must log in once on the device so `POST /api/devices/register` stores the token. Without a token, the server logs "officer has no device token" and sends only the email.
+- Verified 2026-10-31: `Task push sent email=peru.sib@gmail.com ... messageId=projects/aero-lo-app/messages/...`.
+
 Each entry follows the same shape:
 
 ```

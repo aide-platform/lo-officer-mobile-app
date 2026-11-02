@@ -111,9 +111,10 @@ class ApiConfig {
   static const String myLoAadhaarFrontPath = '/app/my-lo/me/aadhaar-front';
   static const String myLoAadhaarBackPath = '/app/my-lo/me/aadhaar-back';
 
-  /// LO profile badge PDF download.
-  static String bvQuotaBadgeDownloadPath(String passId) =>
-      '/app/committee/bv-quota/badge/$passId/download';
+  /// The logged-in LO's own badge PDF. The committee route
+  /// (`/app/committee/bv-quota/badge/{passId}/download`) needs a Nodal /
+  /// Sub-Nodal role, so an LO gets 403 there.
+  static const String myLoBadgeDownloadPath = '/app/my-lo/me/badge/download';
 
   // ── Notifications (in-app feed) ──────────────────────────────
   static const String notificationsMinePath = '/app/notifications/mine';

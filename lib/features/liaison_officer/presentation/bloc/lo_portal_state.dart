@@ -26,6 +26,10 @@ class LoPortalState {
   final String? infoMessage;
   final List<int>? lastDownloadBytes;
   final String? lastDownloadFilename;
+
+  /// True: save [lastDownloadBytes] into the phone's Downloads folder (badge).
+  /// False: open the share sheet (documents).
+  final bool lastDownloadSaveToDevice;
   final bool profileSaveAck;
   final List<int>? documentPreviewBytes;
   final String? documentPreviewName;
@@ -53,6 +57,7 @@ class LoPortalState {
     this.infoMessage,
     this.lastDownloadBytes,
     this.lastDownloadFilename,
+    this.lastDownloadSaveToDevice = false,
     this.profileSaveAck = false,
     this.documentPreviewBytes,
     this.documentPreviewName,
@@ -81,6 +86,7 @@ class LoPortalState {
     String? infoMessage,
     List<int>? lastDownloadBytes,
     String? lastDownloadFilename,
+    bool? lastDownloadSaveToDevice,
     bool? profileSaveAck,
     List<int>? documentPreviewBytes,
     String? documentPreviewName,
@@ -122,6 +128,9 @@ class LoPortalState {
       lastDownloadFilename: clearDownload
           ? null
           : (lastDownloadFilename ?? this.lastDownloadFilename),
+      lastDownloadSaveToDevice: clearDownload
+          ? false
+          : (lastDownloadSaveToDevice ?? this.lastDownloadSaveToDevice),
       profileSaveAck: clearProfileSaveAck
           ? false
           : (profileSaveAck ?? this.profileSaveAck),
