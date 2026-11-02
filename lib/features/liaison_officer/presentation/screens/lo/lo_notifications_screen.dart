@@ -5,14 +5,10 @@ import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_issue_report_screen.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/screens/notifications_inbox_screen.dart';
 
-/// Alerts tab: local operational alerts + entry to CAP inbox + issues.
+/// Alerts tab: alert lead time + local operational alerts.
 class LoNotificationsScreen extends StatelessWidget {
-  const LoNotificationsScreen({super.key, this.onOpenInbox});
-
-  final VoidCallback? onOpenInbox;
+  const LoNotificationsScreen({super.key});
 
   static const _leadOptions = [15, 30, 60, 120];
 
@@ -23,12 +19,10 @@ class LoNotificationsScreen extends StatelessWidget {
         final lead = _leadOptions.contains(state.alertLeadMinutes)
             ? state.alertLeadMinutes
             : 60;
-        final pendingIssues = state.issues.where((e) => !e.synced).length;
 
         return RefreshIndicator(
           onRefresh: () async {
             context.read<LoPortalBloc>().add(LoPortalAlertsRefreshRequested());
-            context.read<LoPortalBloc>().add(LoPortalIssuesRefreshRequested());
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -75,74 +69,10 @@ class LoNotificationsScreen extends StatelessWidget {
                           context.read<LoPortalBloc>().add(
                             LoPortalAlertsRefreshRequested(),
                           );
-                          context.read<LoPortalBloc>().add(
-                            LoPortalIssuesRefreshRequested(),
-                          );
                         },
                         icon: const Icon(Icons.refresh_rounded),
                       ),
                     ],
-                  ),
-                ),
-              ),
-              AppStagger(
-                index: 1,
-                child: AppCard(
-                  onTap: () {
-                    if (onOpenInbox != null) {
-                      onOpenInbox!();
-                    } else {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const NotificationsInboxScreen(),
-                        ),
-                      );
-                    }
-                  },
-                  child: const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: SafeAssetImage(
-                      assetPath: AppAssetManager.iconAlert,
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.contain,
-                    ),
-                    title: Text(
-                      'Notification inbox',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text('Schedule updates, task assignments, B2B'),
-                    trailing: Icon(Icons.chevron_right),
-                  ),
-                ),
-              ),
-              AppStagger(
-                index: 2,
-                child: AppCard(
-                  onTap: () {
-                    final bloc = context.read<LoPortalBloc>();
-                    Navigator.of(context).push(
-                      AppPageFadeRoute<void>(
-                        page: BlocProvider.value(
-                          value: bloc,
-                          child: const LoIssueReportScreen(),
-                        ),
-                      ),
-                    );
-                  },
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.report_problem_outlined),
-                    title: const Text(
-                      'Issue reports',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text(
-                      pendingIssues > 0
-                          ? '$pendingIssues on device — open to share/escalate'
-                          : 'Report operational issues',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
                   ),
                 ),
               ),
@@ -165,7 +95,7 @@ class LoNotificationsScreen extends StatelessWidget {
                   final body = a['body']?.toString() ?? '';
                   final at = a['at']?.toString() ?? a['createdAt']?.toString();
                   return AppStagger(
-                    index: 3 + entry.key,
+                    index: 1 + entry.key,
                     child: AppCard(
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,

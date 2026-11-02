@@ -820,8 +820,9 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           status: LoPortalStatus.ready,
           lastDownloadBytes: bytes,
           lastDownloadFilename: event.filename ?? 'badge-${event.passId}.pdf',
-          infoMessage: 'Badge ready to share.',
+          lastDownloadSaveToDevice: true,
           clearError: true,
+          clearInfo: true,
         ),
       );
       LoFirebaseMonitor.instance.logFeature(

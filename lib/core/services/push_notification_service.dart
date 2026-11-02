@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Color;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -30,6 +31,12 @@ class PushNotificationService {
     'ENABLE_FCM',
     defaultValue: false,
   );
+
+  // White-on-transparent status-bar icon (res/drawable), brand tint and the
+  // full-colour app logo shown on the right, like WhatsApp-style notifications.
+  static const _smallIcon = 'ic_stat_notification';
+  static const _accent = Color(0xFF0055B8);
+  static const _largeIcon = DrawableResourceAndroidBitmap('@mipmap/ic_launcher');
 
   static const _channelId = 'lo_task_reminders';
   static const _channelName = 'Task reminders';
@@ -66,7 +73,7 @@ class PushNotificationService {
       } catch (_) {
         tz.setLocalLocation(tz.UTC);
       }
-      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const android = AndroidInitializationSettings(_smallIcon);
       const ios = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -303,6 +310,10 @@ class PushNotificationService {
           channelDescription: channelDesc,
           importance: Importance.high,
           priority: Priority.high,
+          icon: _smallIcon,
+          color: _accent,
+          largeIcon: _largeIcon,
+          styleInformation: BigTextStyleInformation(body),
         ),
         iOS: const DarwinNotificationDetails(),
       ),
@@ -329,6 +340,10 @@ class PushNotificationService {
           channelDescription: _channelDesc,
           importance: Importance.high,
           priority: Priority.high,
+          icon: _smallIcon,
+          color: _accent,
+          largeIcon: _largeIcon,
+          styleInformation: BigTextStyleInformation(body),
         ),
         iOS: const DarwinNotificationDetails(),
       ),

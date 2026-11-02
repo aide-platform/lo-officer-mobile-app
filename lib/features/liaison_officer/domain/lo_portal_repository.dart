@@ -59,6 +59,7 @@ abstract class LoPortalRepository {
 
   Future<List<LoIssueReport>> listReportedIssues();
 
+  /// Badge PDF of the logged-in LO via `GET /app/my-lo/me/badge/download`.
   Future<List<int>> downloadBadge(String passId);
 
   /// Bytes for an uploaded file via `GET /app/files/{fileId}`.

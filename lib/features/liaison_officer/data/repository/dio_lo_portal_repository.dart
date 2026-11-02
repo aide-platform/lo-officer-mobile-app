@@ -449,7 +449,8 @@ class DioLoPortalRepository implements LoPortalRepository {
   @override
   Future<List<int>> downloadBadge(String passId) async {
     final bytes = await _downloadAuthedBytes(
-      ApiConfig.bvQuotaBadgeDownloadPath(passId),
+      // Server resolves the pass from the session; passId only names the file.
+      ApiConfig.myLoBadgeDownloadPath,
       accept: 'application/pdf',
     );
     return _pdfBytes(bytes);

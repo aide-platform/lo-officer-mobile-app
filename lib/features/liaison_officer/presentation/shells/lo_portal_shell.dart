@@ -1,10 +1,11 @@
 ﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
-import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/device_downloads.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
@@ -21,7 +22,6 @@ import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_notifications_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_profile_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_tasks_screen.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/screens/notifications_inbox_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -41,12 +41,10 @@ class LoPortalShell extends StatefulWidget {
 
 class _LoPortalShellState extends State<LoPortalShell> {
   int _index = 0;
-  int _unread = 0;
 
   @override
   void initState() {
     super.initState();
-    _refreshUnread();
     LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabDelegates);
     PushNotificationService.instance.bindDeepLink(_openPushLink);
   }
@@ -81,14 +79,6 @@ class _LoPortalShellState extends State<LoPortalShell> {
     }
   }
 
-  Future<void> _refreshUnread() async {
-    try {
-      final n = await AppDependencies.instance.notificationsRepository
-          .unreadCount();
-      if (mounted) setState(() => _unread = n);
-    } catch (_) {}
-  }
-
   void _openProfile(BuildContext context, {required bool forceWizard}) {
     LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabProfile);
     final bloc = context.read<LoPortalBloc>();
@@ -106,40 +96,33 @@ class _LoPortalShellState extends State<LoPortalShell> {
     );
   }
 
-  void _openInbox(BuildContext context) {
-    Navigator.of(context)
-        .push(
-          MaterialPageRoute<void>(
-            builder: (_) => NotificationsInboxScreen(
-              onOpenDeepLink: (link) {
-                LoFirebaseMonitor.instance.logNotificationOpen(link);
-                if (link.toLowerCase().contains('task')) {
-                  setState(() => _index = 1);
-                } else if (link.toLowerCase().contains('delegate')) {
-                  setState(() => _index = 0);
-                }
-              },
-            ),
-          ),
-        )
-        .then((_) => _refreshUnread());
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<LoPortalBloc, LoPortalState>(
       listener: (context, state) async {
         final bloc = context.read<LoPortalBloc>();
         Object? shareError;
+        String? savedName;
+        String? savedHandle;
         if (state.lastDownloadBytes != null &&
             state.lastDownloadBytes!.isNotEmpty) {
           try {
             final bytes = state.lastDownloadBytes!;
             final name = _safeDownloadFilename(state.lastDownloadFilename);
-            final dir = await getTemporaryDirectory();
-            final file = File('${dir.path}/$name');
-            await file.writeAsBytes(bytes);
-            await Share.shareXFiles([XFile(file.path)], text: name);
+            if (state.lastDownloadSaveToDevice) {
+              savedHandle = await DeviceDownloads.save(
+                bytes: bytes,
+                filename: name,
+              );
+              savedName = name;
+            } else {
+              final dir = await getTemporaryDirectory();
+              final file = File('${dir.path}/$name');
+              await file.writeAsBytes(bytes);
+              await Share.shareXFiles([XFile(file.path)], text: name);
+            }
+          } on PlatformException catch (e) {
+            shareError = e.message ?? e.code;
           } catch (e) {
             shareError = e;
           }
@@ -153,6 +136,33 @@ class _LoPortalShellState extends State<LoPortalShell> {
             SnackBar(
               behavior: SnackBarBehavior.floating,
               content: Text(apiErrorMessage(shareError)),
+            ),
+          );
+        } else if (savedName != null && Platform.isAndroid) {
+          final handle = savedHandle;
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text('Saved to Downloads: $savedName'),
+              action: handle == null
+                  ? null
+                  : SnackBarAction(
+                      label: 'Open',
+                      onPressed: () async {
+                        final opened = await DeviceDownloads.open(handle);
+                        if (!opened) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              behavior: SnackBarBehavior.floating,
+                              content: Text(
+                                'No app found to open PDF. Find it in Downloads.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
             ),
           );
         } else if (state.infoMessage != null) {
@@ -207,7 +217,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
       const LoDelegatesScreen(),
       const LoTasksScreen(),
       const LoHelplinesScreen(),
-      LoNotificationsScreen(onOpenInbox: () => _openInbox(context)),
+      const LoNotificationsScreen(),
     ];
     final showCacheBanner =
         state.status == LoPortalStatus.ready &&
@@ -259,22 +269,6 @@ class _LoPortalShellState extends State<LoPortalShell> {
           ],
         ),
         actions: [
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: IconButton(
-              tooltip: 'Notifications',
-              onPressed: () => _openInbox(context),
-              icon: Badge(
-                isLabelVisible: _unread > 0,
-                label: Text('$_unread'),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
           PopupMenuButton<String>(
             tooltip: 'Account',
             icon: const Icon(
@@ -367,7 +361,7 @@ class _LoPortalShellState extends State<LoPortalShell> {
                       Expanded(
                         child: Text(
                           '$pending pending sync '
-                          '(tasks, movements, or issues)',
+                          '(tasks or movements)',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(

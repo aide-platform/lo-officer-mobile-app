@@ -4,14 +4,12 @@ import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
-import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/models/lo_itinerary.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/models/lo_movement.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_issue_report_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
 /// Optional section to scroll into view when opening delegate detail.
 enum LoDelegateFocusSection { profile, itinerary, transport, travel }
@@ -80,26 +78,6 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(delegate.fullName ?? 'Delegate'),
-        actions: [
-          IconButton(
-            tooltip: 'Report issue',
-            icon: const Icon(Icons.report_problem_outlined),
-            onPressed: () {
-              final bloc = context.read<LoPortalBloc>();
-              Navigator.of(context).push(
-                AppPageFadeRoute<void>(
-                  page: BlocProvider.value(
-                    value: bloc,
-                    child: LoIssueReportScreen(
-                      assignmentId: assignmentId,
-                      delegateName: delegate.fullName,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: BlocBuilder<LoPortalBloc, LoPortalState>(
         builder: (context, state) {
