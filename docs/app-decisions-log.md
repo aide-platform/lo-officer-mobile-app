@@ -49,6 +49,55 @@ When NIC comes online, add `scripts/run-nic.ps1` by copying `run-gcp.ps1` and sw
 
 ## 3. Change Log
 
+### 2026-11-02 — Short network error message, partial load on web
+
+**What changed**
+
+- `api_error_message.dart`: a request with no HTTP response (offline, timeout, or a web response the browser hid because it had no CORS headers) now shows "Could not reach the server…" or "The server took too long…", instead of Dio's XMLHttpRequest paragraph. Debug builds add the method and path, e.g. `(GET /app/my-lo/me/tasks)`.
+- `dio_provider.dart`: debug builds print every failed request URL and status to the console.
+- `LoPortalBloc._onLoad`: experiences, languages and issue list are optional. If one fails, the old value stays and the portal still loads. Profile, delegates and tasks are still required.
+
+**Why**
+
+- The Tasks screen on web showed the full Dio CORS text in the "Offline" banner. Checks against the GCP gateway showed CORS preflight passes for all methods and headers the app sends, and 401/200 responses carry `Access-Control-Allow-Origin`. So the failing call is one that errors on the server side without CORS headers, which only shows up with a real login. The new message names that call.
+
+**Impact for deployment**
+
+- None for the server. Use the path shown in a debug build (or the red request in browser DevTools → Network) to find the failing endpoint.
+
+### 2026-11-02 — Standard LO tasks (14-task client list)
+
+**What changed (aide-service repo)**
+
+- New DB patch `src/main/resources/db/patch_lo_standard_tasks.sql` (run before deploying):
+  - `mdms.lo_activities`: `auto_scope` (`DELEGATE` / `LO` / null) and `sort_order`. Seeds the 14 standard activities (10 delegate, 4 LO).
+  - `tdms.lo_tasks`: `lo_assign_id` now nullable, new `task_scope` and `sort_order`, `task_source` allows `SYSTEM`, unique indexes stop duplicate standard tasks.
+- `LoTaskService`:
+  - `createStandardTasks`: runs on every delegate assignment. Creates the 10 delegate tasks and, once per LO, the 4 LO tasks. Status Pending, no date or time.
+  - `removeOpenTasksFor`: runs on unassign. Removes the delegate's open tasks; completed tasks stay for history and are hidden from the LO.
+  - `syncStandardTasks`: back-fill for existing assignments.
+  - Standard tasks: Nodal Officer can change only date, time, venue and remarks. Custom tasks can be for a delegate or for the LO.
+- `LoTaskController`: `POST /app/lo-tasks/standard/sync`.
+
+**What changed (aide-ui repo)**
+
+- Task Management: "Generate standard tasks" button, "Task for: a delegate / the LO" choice, locked edit form for standard tasks, "Standard" and "LO task" badges, and an "LO progress" view (per-LO totals, then task-wise status per delegate and for LO tasks).
+- Activity Master dialog: badge on auto-assigned activities.
+
+**What changed (mobile)**
+
+- `LoTaskDto`: `taskScope`, `sortOrder`. Tasks screen shows "My tasks" (LO tasks) first, then each delegate, in client order.
+
+**Why (client answers, 2026-11-02)**
+
+- Tasks are status updates only, no forms. No fixed order. No date/time on auto-created tasks, but the LO Committee Nodal Officer can set it. One set of tasks per VIP covers the family. Delegate tasks appear only after the delegate is assigned. Nodal can still add custom tasks. Nodal needs per-LO progress and task-wise status.
+- Decisions made without client input: LO tasks are created on the LO's first delegate assignment. Re-assigning a delegate creates a fresh set. No email or push per standard task (the "delegate assigned" push already goes out).
+
+**Impact for deployment**
+
+- Run `patch_lo_standard_tasks.sql` before the new aide-service starts; otherwise task queries fail on missing columns.
+- After deploy, click "Generate standard tasks" once to back-fill current assignments.
+
 ### 2026-11-02 — "Download badge" saves to Downloads instead of opening share sheet
 
 **What changed**

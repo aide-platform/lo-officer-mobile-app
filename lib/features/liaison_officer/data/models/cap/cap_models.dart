@@ -370,7 +370,13 @@ class LoTaskDto {
   final String? loAssignId;
   final String? delegatePersonId;
   final String? delegateName;
+
+  /// `DELEGATE` (tied to [loAssignId]) or `LO` (officer's own task, e.g. LO kit).
+  final String? taskScope;
   final String? taskSource;
+
+  /// Display order of standard tasks (client list 1–14); null for others.
+  final int? sortOrder;
   final String? activityId;
   final String? taskTitle;
   final String? taskDescription;
@@ -388,7 +394,9 @@ class LoTaskDto {
     this.loAssignId,
     this.delegatePersonId,
     this.delegateName,
+    this.taskScope,
     this.taskSource,
+    this.sortOrder,
     this.activityId,
     this.taskTitle,
     this.taskDescription,
@@ -407,7 +415,9 @@ class LoTaskDto {
     loAssignId: json['loAssignId']?.toString(),
     delegatePersonId: json['delegatePersonId']?.toString(),
     delegateName: json['delegateName']?.toString(),
+    taskScope: json['taskScope']?.toString(),
     taskSource: json['taskSource']?.toString(),
+    sortOrder: (json['sortOrder'] as num?)?.toInt(),
     activityId: json['activityId']?.toString(),
     taskTitle: json['taskTitle']?.toString(),
     taskDescription: json['taskDescription']?.toString(),
