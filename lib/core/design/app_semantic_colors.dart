@@ -36,7 +36,8 @@ class AppSemanticColors {
 
   Color get inputFill => AppColors.inputFill(_isDark);
 
-  Color get accent => _isDark ? AppTheme.activeAccent : AppTheme.purpleAccent;
+  /// Palette accent (contrast-adjusted in [AppTheme.themeFor]).
+  Color get accent => _scheme.primary;
 
   Color get onAccent => Colors.white;
 

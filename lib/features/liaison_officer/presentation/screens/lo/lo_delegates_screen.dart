@@ -10,8 +10,6 @@ import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_po
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegate_detail_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegate_sheets.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
-import 'package:liaison_officer/theme/app_theme.dart';
-
 class LoDelegatesScreen extends StatefulWidget {
   const LoDelegatesScreen({super.key});
 
@@ -285,7 +283,7 @@ class _DelegateCard extends StatelessWidget {
           Text(
             'Arr ${arr.isEmpty ? '—' : arr}',
             style: TextStyle(
-              color: AppTheme.activeAccent,
+              color: Theme.of(context).colorScheme.primary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -293,7 +291,7 @@ class _DelegateCard extends StatelessWidget {
           Text(
             'Dep ${dep.isEmpty ? '—' : dep}',
             style: TextStyle(
-              color: AppTheme.activeAccent,
+              color: Theme.of(context).colorScheme.primary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -306,7 +304,7 @@ class _DelegateCard extends StatelessWidget {
                 onPressed: onOpenDetail,
                 icon: Icon(
                   Icons.visibility_outlined,
-                  color: AppTheme.activeAccent,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               IconButton(
@@ -314,7 +312,7 @@ class _DelegateCard extends StatelessWidget {
                 onPressed: onOpenEvents,
                 icon: Icon(
                   Icons.calendar_month_outlined,
-                  color: AppTheme.activeAccent,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               IconButton(
@@ -327,7 +325,7 @@ class _DelegateCard extends StatelessWidget {
                   fit: BoxFit.contain,
                   fallback: Icon(
                     Icons.directions_car_outlined,
-                    color: AppTheme.activeAccent,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -336,7 +334,7 @@ class _DelegateCard extends StatelessWidget {
                 onPressed: onOpenArrival,
                 icon: Icon(
                   Icons.flight_land_outlined,
-                  color: AppTheme.activeAccent,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],

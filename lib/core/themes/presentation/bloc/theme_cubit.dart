@@ -37,7 +37,11 @@ class ThemeCubit extends Cubit<AppThemeSettings> {
     await _persist(state.copyWith(font: font));
   }
 
-  Future<void> toggle() => setTheme(
-        state.mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
-      );
+  /// [current] is the brightness on screen; needed when mode is system.
+  Future<void> toggle([Brightness? current]) {
+    final isDark = state.mode == ThemeMode.system
+        ? current == Brightness.dark
+        : state.mode == ThemeMode.dark;
+    return setTheme(isDark ? ThemeMode.light : ThemeMode.dark);
+  }
 }

@@ -240,11 +240,12 @@ class PushNotificationService {
 
   /// Cancel prior task reminders and schedule new ones at
   /// `scheduledAt - leadMinutes`. Shows immediately if already within window.
+  /// No-op on web: `flutter_local_notifications` has no `zonedSchedule` there.
   Future<void> scheduleTaskLeadReminders({
     required List<LoTaskDto> tasks,
     required int leadMinutes,
   }) async {
-    if (!_localReady) return;
+    if (!_localReady || kIsWeb) return;
     try {
       await _plugin.cancelAll();
     } catch (_) {}

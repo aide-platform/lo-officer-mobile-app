@@ -288,15 +288,19 @@ class _LoPortalShellState extends State<LoPortalShell> {
                 case 'help':
                   openHelpSupport(context);
                 case 'theme':
-                  context.read<ThemeCubit>().toggle();
+                  context
+                      .read<ThemeCubit>()
+                      .toggle(Theme.of(context).brightness);
                 case 'logout':
-                  performLogout(context);
+                  confirmLogout(context).then((ok) {
+                    if (ok && context.mounted) performLogout(context);
+                  });
               }
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'profile', child: Text('My Profile')),
               PopupMenuItem(value: 'help', child: Text('Help & Support')),
-              PopupMenuItem(value: 'theme', child: Text('Toggle theme')),
+              // PopupMenuItem(value: 'theme', child: Text('Toggle theme')),
               PopupMenuItem(value: 'logout', child: Text('Logout')),
             ],
           ),

@@ -9,7 +9,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/widgets/helpline_numbers_card.dart';
-import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -453,13 +452,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         children: [
-                          Icon(s.icon, size: 18, color: AppTheme.activeAccent),
+                          Icon(s.icon, size: 18, color: Theme.of(context).colorScheme.primary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               s.title,
                               style: TextStyle(
-                                color: AppTheme.activeAccent,
+                                color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -511,17 +510,17 @@ class _WorkflowChip extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.activeAccent.withValues(alpha: 0.1),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.activeAccent.withValues(alpha: 0.35),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
         ),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: AppTheme.activeAccent,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             child: Text(
               step,
               style: const TextStyle(
@@ -582,7 +581,7 @@ class _HelpSectionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(section.icon, color: AppTheme.activeAccent),
+              Icon(section.icon, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -654,7 +653,7 @@ class _HelpSectionCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 10,
-                      backgroundColor: AppTheme.activeAccent,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
                         '${e.key + 1}',
                         style: const TextStyle(
@@ -701,7 +700,7 @@ class _HelpSectionCard extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.6,
-          color: AppTheme.activeAccent,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -716,7 +715,7 @@ class _ReqBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final required = label.toLowerCase().contains('required');
-    final color = required ? const Color(0xFFC62828) : AppTheme.activeAccent;
+    final color = required ? const Color(0xFFC62828) : Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(

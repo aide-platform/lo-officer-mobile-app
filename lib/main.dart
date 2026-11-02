@@ -41,11 +41,6 @@ Future<void> main() async {
   final themeCubit = await ThemeCubit.create();
   final session = await SessionStore.load();
   await FcmDeviceRegistrar.registerIfSignedIn();
-  SystemChrome.setSystemUIOverlayStyle(
-    themeCubit.state.mode == ThemeMode.light
-        ? SystemUiOverlayStyle.dark
-        : SystemUiOverlayStyle.light,
-  );
   runApp(LiaisonOfficerApp(
     themeCubit: themeCubit,
     initialSession: session,
@@ -73,11 +68,6 @@ class LiaisonOfficerApp extends StatelessWidget {
       ],
       child: BlocBuilder<ThemeCubit, AppThemeSettings>(
         builder: (context, settings) {
-          SystemChrome.setSystemUIOverlayStyle(
-            settings.mode == ThemeMode.light
-                ? SystemUiOverlayStyle.dark
-                : SystemUiOverlayStyle.light,
-          );
           return MaterialApp(
             title: 'Aero India LO',
             debugShowCheckedModeBanner: false,
@@ -85,6 +75,11 @@ class LiaisonOfficerApp extends StatelessWidget {
             darkTheme: AppTheme.themeFor(settings.palette, dark: true),
             themeMode: settings.mode,
             builder: (context, child) {
+              SystemChrome.setSystemUIOverlayStyle(
+                Theme.of(context).brightness == Brightness.dark
+                    ? SystemUiOverlayStyle.light
+                    : SystemUiOverlayStyle.dark,
+              );
               final mq = MediaQuery.of(context);
               return MediaQuery(
                 data: mq.copyWith(

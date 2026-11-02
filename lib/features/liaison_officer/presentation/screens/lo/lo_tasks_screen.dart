@@ -7,8 +7,6 @@ import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
-import 'package:liaison_officer/theme/app_theme.dart';
-
 class LoTasksScreen extends StatefulWidget {
   const LoTasksScreen({super.key});
 
@@ -424,7 +422,7 @@ class _TaskTile extends StatelessWidget {
           IconButton(
             tooltip: 'Update status',
             onPressed: () => _updateStatus(context),
-            icon: Icon(Icons.sync_outlined, color: AppTheme.activeAccent),
+            icon: Icon(Icons.sync_outlined, color: Theme.of(context).colorScheme.primary),
           ),
         ],
       ),

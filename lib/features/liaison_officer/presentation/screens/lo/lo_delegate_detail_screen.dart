@@ -13,8 +13,6 @@ import 'package:liaison_officer/features/liaison_officer/domain/models/lo_moveme
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_issue_report_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
-import 'package:liaison_officer/theme/app_theme.dart';
-
 /// Optional section to scroll into view when opening delegate detail.
 enum LoDelegateFocusSection { profile, itinerary, transport, travel }
 
@@ -469,7 +467,7 @@ class _ItineraryTile extends StatelessWidget {
             radius: 18,
             backgroundColor: AppStatusPalette.forLabel(item.kind.name)
                 .withValues(alpha: 0.15),
-            child: Icon(_icon, size: 18, color: AppTheme.activeAccent),
+            child: Icon(_icon, size: 18, color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(

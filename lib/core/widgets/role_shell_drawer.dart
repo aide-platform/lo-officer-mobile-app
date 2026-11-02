@@ -38,6 +38,7 @@ class RoleShellDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Drawer(
       child: SafeArea(
         top: false,
@@ -47,7 +48,7 @@ class RoleShellDrawer extends StatelessWidget {
               name: _name,
               role: roleLabel,
               subtitle: email,
-              accentColor: AppTheme.royalBlue,
+              accentColor: Theme.of(context).colorScheme.primary,
               profileRows: [
                 ProfileInfoRow(
                   icon: Icons.email_outlined,
@@ -93,12 +94,13 @@ class RoleShellDrawer extends StatelessWidget {
                   const Divider(),
                   ...navItems.map(
                     (item) => ListTile(
+                      selected: item.selected,
                       leading: AnimatedScale(
                         scale: item.selected ? 1.15 : 1,
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutBack,
                         child: item.asset == null
-                            ? Icon(item.icon, color: AppTheme.royalBlue)
+                            ? Icon(item.icon, color: primary)
                             : SafeAssetImage(
                                 assetPath: item.asset!,
                                 width: 24,
@@ -114,10 +116,7 @@ class RoleShellDrawer extends StatelessWidget {
                     ),
                   ),
                   ListTile(
-                    leading: Icon(
-                      Icons.help_outline,
-                      color: AppTheme.royalBlue,
-                    ),
+                    leading: Icon(Icons.help_outline, color: primary),
                     title: const Text('Help & Support'),
                     onTap: () {
                       final bloc = context.read<LoPortalBloc>();
@@ -126,12 +125,9 @@ class RoleShellDrawer extends StatelessWidget {
                     },
                   ),
                   ListTile(
-                    leading: Icon(
-                      Icons.settings_outlined,
-                      color: AppTheme.royalBlue,
-                    ),
+                    leading: Icon(Icons.settings_outlined, color: primary),
                     title: const Text('Settings'),
-                    subtitle: const Text('Color theme · Font size'),
+                    subtitle: const Text('Appearance · Color theme · Font size'),
                     onTap: () {
                       Navigator.pop(context);
                       showAppSettingsSheet(context);
@@ -147,7 +143,9 @@ class RoleShellDrawer extends StatelessWidget {
                 color: Colors.redAccent,
               ),
               title: const Text('Logout'),
-              onTap: () {
+              onTap: () async {
+                if (!await confirmLogout(context)) return;
+                if (!context.mounted) return;
                 Navigator.pop(context);
                 performLogout(context);
               },

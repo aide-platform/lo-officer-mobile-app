@@ -113,7 +113,9 @@ class GradientHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final header = theme.appBarTheme.backgroundColor ?? AppTheme.navy;
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -125,10 +127,8 @@ class GradientHeader extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        gradient: isDark
-            ? AppTheme.brandHeaderGradient
-            : AppTheme.lightPurpleGradient,
-        boxShadow: AppTheme.glowShadow(AppTheme.royalBlue, opacity: 0.18),
+        gradient: AppTheme.headerGradient(header, dark: isDark),
+        boxShadow: AppTheme.glowShadow(header, opacity: 0.18),
       ),
       child: Row(
         children: [
@@ -217,7 +217,7 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppTheme.activeAccent;
+    final c = color ?? Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -263,7 +263,11 @@ class AppEmptyState extends StatelessWidget {
                 fit: BoxFit.contain,
               )
             else
-              Icon(icon, size: 48, color: AppTheme.activeAccent),
+              Icon(
+                icon,
+                size: 48,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             if (action != null) ...[const SizedBox(height: 16), action!],
@@ -404,16 +408,14 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 52,
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          gradient: isDark
-              ? AppTheme.purpleGradient
-              : AppTheme.lightPurpleGradient,
+          gradient: AppTheme.accentGradient(scheme),
         ),
         child: Material(
           color: Colors.transparent,
@@ -422,18 +424,18 @@ class GradientButton extends StatelessWidget {
             onTap: loading ? null : onPressed,
             child: Center(
               child: loading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: scheme.onPrimary,
                       ),
                     )
                   : Text(
                       label,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: scheme.onPrimary,
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
                       ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
@@ -27,6 +29,55 @@ class AppTheme {
   /// Accent when the swatch is too close to the dark bar to read.
   static Color emphasisOnDark(Color swatch, Color accent) {
     return swatch.computeLuminance() < 0.18 ? accent : swatch;
+  }
+
+  static double _contrast(Color a, Color b) {
+    final la = a.computeLuminance();
+    final lb = b.computeLuminance();
+    return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+  }
+
+  /// White or dark text, whichever reads better on [background].
+  static Color readableOn(Color background) {
+    return _contrast(Colors.white, background) >=
+            _contrast(lightTextPrimary, background)
+        ? Colors.white
+        : lightTextPrimary;
+  }
+
+  /// Palette accent nudged until it reaches 4.5:1 on [surface] (WCAG AA),
+  /// so accent text, icons and focus rings stay readable in both modes.
+  static Color _accentFor(Color accent, Color surface, {required bool dark}) {
+    var c = accent;
+    for (var i = 0; i < 10 && _contrast(c, surface) < 4.5; i++) {
+      c = Color.lerp(c, dark ? Colors.white : Colors.black, 0.1)!;
+    }
+    return c;
+  }
+
+  /// Shell header gradient from the palette header colour
+  /// (`AppBarTheme.backgroundColor`). Navy keeps the brand gradients.
+  static LinearGradient headerGradient(Color header, {required bool dark}) {
+    if (header == navy) return dark ? brandHeaderGradient : lightPurpleGradient;
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: dark
+          ? [Color.lerp(header, Colors.black, 0.35)!, header]
+          : [header, Color.lerp(header, Colors.white, 0.28)!],
+    );
+  }
+
+  /// Primary-button gradient from the theme accent (`colorScheme.primary`).
+  static LinearGradient accentGradient(ColorScheme scheme) {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        scheme.primary,
+        Color.lerp(scheme.primary, Colors.black, 0.15)!,
+      ],
+    );
   }
 
   static const Color lightBackground = Color(0xFFF4F7FC);
@@ -445,112 +496,70 @@ class AppTheme {
     );
   }
 
-  /// Build light/dark themes tinted by the selected color palette.
+  /// Build light/dark themes for the selected palette.
+  ///
+  /// Only accent-dependent tokens change per palette: `colorScheme.primary`
+  /// (buttons, switches, checkboxes, tabs, links, progress, focus) and the
+  /// header colour. Backgrounds, text, borders and status colours stay put.
   static ThemeData themeFor(AppColorPalette palette, {required bool dark}) {
-    final primary = palette.swatch;
-    final secondary = palette.accent;
-    if (!dark) {
-      final base = lightTheme;
-      return base.copyWith(
-        colorScheme: base.colorScheme.copyWith(
-          primary: primary,
-          secondary: secondary,
-        ),
-        appBarTheme: base.appBarTheme.copyWith(backgroundColor: primary),
-        listTileTheme: base.listTileTheme.copyWith(selectedColor: primary),
-        navigationBarTheme: base.navigationBarTheme.copyWith(
-          indicatorColor: primary.withValues(alpha: 0.12),
-          labelTextStyle: WidgetStateProperty.resolveWith((s) {
-            final selected = s.contains(WidgetState.selected);
-            return base.textTheme.labelMedium!.copyWith(
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected ? primary : lightTextMuted,
-            );
-          }),
-        ),
-        bottomNavigationBarTheme: base.bottomNavigationBarTheme.copyWith(
-          selectedItemColor: primary,
-        ),
-        inputDecorationTheme: base.inputDecorationTheme.copyWith(
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            borderSide: BorderSide(color: primary, width: 1.5),
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(48, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(48, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-          ),
-        ),
-      );
-    }
-    final base = darkTheme;
-    final emphasis = emphasisOnDark(primary, secondary);
+    final base = dark ? darkTheme : lightTheme;
+    final header = palette.swatch;
+    final accent = _accentFor(
+      palette.accent,
+      dark ? cardBgColor : lightBackground,
+      dark: dark,
+    );
+    final onAccent = readableOn(accent);
+    final muted = dark ? textMuted : lightTextMuted;
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadii.md),
+    );
+
     return base.copyWith(
       colorScheme: base.colorScheme.copyWith(
-        primary: primary,
-        secondary: secondary,
+        primary: accent,
+        onPrimary: onAccent,
+        secondary: palette.accent,
+        onSecondary: readableOn(palette.accent),
       ),
-      appBarTheme: base.appBarTheme.copyWith(
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-        titleTextStyle: base.textTheme.titleLarge?.copyWith(color: Colors.white),
+      appBarTheme: base.appBarTheme.copyWith(backgroundColor: header),
+      listTileTheme: base.listTileTheme.copyWith(
+        selectedColor: accent,
+        selectedTileColor: accent.withValues(alpha: dark ? 0.16 : 0.10),
       ),
-      listTileTheme: base.listTileTheme.copyWith(selectedColor: emphasis),
       navigationBarTheme: base.navigationBarTheme.copyWith(
-        indicatorColor: emphasis.withValues(alpha: 0.28),
+        indicatorColor: accent.withValues(alpha: dark ? 0.28 : 0.14),
         labelTextStyle: WidgetStateProperty.resolveWith((s) {
           final selected = s.contains(WidgetState.selected);
           return base.textTheme.labelMedium!.copyWith(
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? emphasis : textMuted,
+            color: selected ? accent : muted,
           );
         }),
       ),
       bottomNavigationBarTheme: base.bottomNavigationBarTheme.copyWith(
-        selectedItemColor: emphasis,
-        unselectedItemColor: textMuted,
+        selectedItemColor: accent,
       ),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
-        fillColor: darkInputFill,
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: BorderSide(color: emphasis, width: 1.5),
+          borderSide: BorderSide(color: accent, width: 1.5),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
+          backgroundColor: accent,
+          foregroundColor: onAccent,
           minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
+          shape: buttonShape,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
+          backgroundColor: accent,
+          foregroundColor: onAccent,
           minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
+          shape: buttonShape,
         ),
       ),
     );

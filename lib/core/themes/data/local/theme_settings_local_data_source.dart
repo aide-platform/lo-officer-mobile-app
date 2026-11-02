@@ -28,7 +28,7 @@ extension AppColorPaletteX on AppColorPalette {
         AppColorPalette.midnightTeal => 'Midnight Teal',
       };
 
-  /// Preview swatch (primary).
+  /// Header colour (app bar, shell header).
   Color get swatch => switch (this) {
         AppColorPalette.navyGold => const Color(0xFF0C1A3A),
         AppColorPalette.oceanBreeze => const Color(0xFF0E7490),
@@ -40,22 +40,23 @@ extension AppColorPaletteX on AppColorPalette {
         AppColorPalette.midnightTeal => const Color(0xFF134E4A),
       };
 
+  /// Primary accent: buttons, selected controls, links, focus.
   Color get accent => switch (this) {
-        AppColorPalette.navyGold => const Color(0xFFC9A84C),
-        AppColorPalette.oceanBreeze => const Color(0xFF22D3EE),
-        AppColorPalette.emerald => const Color(0xFF34D399),
-        AppColorPalette.saffron => const Color(0xFFFF9933),
-        AppColorPalette.slate => const Color(0xFF94A3B8),
-        AppColorPalette.royalPurple => const Color(0xFFA78BFA),
-        AppColorPalette.crimson => const Color(0xFFF87171),
-        AppColorPalette.midnightTeal => const Color(0xFF2DD4BF),
+        AppColorPalette.navyGold => const Color(0xFFD5A52A),
+        AppColorPalette.oceanBreeze => const Color(0xFF18BFD0),
+        AppColorPalette.emerald => const Color(0xFF159B69),
+        AppColorPalette.saffron => const Color(0xFFF58A32),
+        AppColorPalette.slate => const Color(0xFF718096),
+        AppColorPalette.royalPurple => const Color(0xFF8045DB),
+        AppColorPalette.crimson => const Color(0xFFE84355),
+        AppColorPalette.midnightTeal => const Color(0xFF20BFAE),
       };
 
   static AppColorPalette fromId(String? id) {
     for (final p in AppColorPalette.values) {
       if (p.id == id) return p;
     }
-    return AppColorPalette.navyGold;
+    return AppColorPalette.midnightTeal;
   }
 }
 
@@ -84,8 +85,8 @@ extension FontSizePresetX on FontSizePreset {
 
 class AppThemeSettings {
   const AppThemeSettings({
-    this.mode = ThemeMode.light,
-    this.palette = AppColorPalette.navyGold,
+    this.mode = ThemeMode.system,
+    this.palette = AppColorPalette.midnightTeal,
     this.font = FontSizePreset.medium,
   });
 
@@ -121,10 +122,14 @@ class ThemeSettingsLocalDataSource {
       'system' => ThemeMode.system,
       _ => fallback.mode,
     };
+    final paletteId = prefs.getString(_paletteKey);
+    final fontId = prefs.getString(_fontKey);
     return AppThemeSettings(
       mode: mode,
-      palette: AppColorPaletteX.fromId(prefs.getString(_paletteKey)),
-      font: FontSizePresetX.fromId(prefs.getString(_fontKey)),
+      palette: paletteId == null
+          ? fallback.palette
+          : AppColorPaletteX.fromId(paletteId),
+      font: fontId == null ? fallback.font : FontSizePresetX.fromId(fontId),
     );
   }
 
