@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
@@ -17,39 +18,108 @@ class HelplineNumbersCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = LoHelplineDto.visible(helplines);
     if (visible.isEmpty) return const SizedBox.shrink();
-    final iconColor = Theme.of(context).colorScheme.primary;
+    final colors = context.semantic;
+    final accent = colors.accent;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Helplines',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 4),
-          for (final line in visible) ...[
-            if (line.label.trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 2),
-                child: Text(
-                  line.label.trim(),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: 0.1),
+                ),
+                child: Icon(
+                  Icons.phone_in_talk_outlined,
+                  size: 19,
+                  color: accent,
                 ),
               ),
-            for (final contact in line.contacts)
-              InkWell(
-                onTap: () => _call(context, contact.contactNumber),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Icon(Icons.phone, size: 20, color: iconColor),
-                      const SizedBox(width: 6),
-                      Flexible(child: Text(contact.contactNumber.trim())),
-                    ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Helplines',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${visible.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final line in visible) ...[
+            if (line.label.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 6),
+                child: Text(
+                  line.label.trim(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final contact in line.contacts)
+                  if (contact.contactNumber.trim().isNotEmpty)
+                    Material(
+                      color: accent.withValues(alpha: 0.1),
+                      shape: const StadiumBorder(),
+                      child: InkWell(
+                        customBorder: const StadiumBorder(),
+                        onTap: () => _call(context, contact.contactNumber),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.call, size: 16, color: accent),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  contact.contactNumber.trim(),
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
           ],
         ],
       ),
@@ -57,7 +127,9 @@ class HelplineNumbersCard extends StatelessWidget {
   }
 
   static Future<void> _call(BuildContext context, String phone) async {
-    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureHelplineCall);
+    LoFirebaseMonitor.instance.logFeature(
+      LoMonitoringEvents.featureHelplineCall,
+    );
     final ok = await LoContactActions.call(phone);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

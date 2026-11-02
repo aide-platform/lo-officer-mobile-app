@@ -1,12 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
+import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/widgets/helpline_numbers_card.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,10 +34,7 @@ void openHelpSupport(BuildContext context, {LoPortalBloc? bloc}) {
     MaterialPageRoute<void>(
       builder: (_) => portal == null
           ? const HelpSupportScreen()
-          : BlocProvider.value(
-              value: portal,
-              child: const HelpSupportScreen(),
-            ),
+          : BlocProvider.value(value: portal, child: const HelpSupportScreen()),
     ),
   );
 }
@@ -51,6 +53,38 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   late final Map<String, GlobalKey> _sectionKeys = {
     for (final s in _sections) s.id: GlobalKey(),
   };
+  final _helplinesKey = GlobalKey();
+  final _gettingStartedKey = GlobalKey();
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  static bool _matches(_HelpSection s, String q) {
+    final hay = [
+      s.title,
+      s.purpose,
+      s.whereToFind,
+      s.note ?? '',
+      ...s.steps,
+      for (final f in s.fields) '${f.$1} ${f.$3}',
+      for (final a in s.actions) '${a.$1} ${a.$2}',
+    ].join(' ').toLowerCase();
+    return hay.contains(q);
+  }
+
+  int _helplineCount(BuildContext context) {
+    try {
+      final state = context.read<LoPortalBloc>().state;
+      return LoHelplineDto.visible(state.helplines).length;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   static const _overview = <(String, String)>[
     (
@@ -315,12 +349,22 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Future<void> _shareManual() async {
     try {
       final markdown = await rootBundle.loadString(_manualAsset);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/lo-officer-user-manual.md');
-      await file.writeAsString(markdown);
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'Liaison Officer user manual');
+      const name = 'lo-officer-user-manual.md';
+      final XFile manual;
+      if (kIsWeb) {
+        // No temp directory on web; share_plus shares or downloads the bytes.
+        manual = XFile.fromData(
+          Uint8List.fromList(utf8.encode(markdown)),
+          name: name,
+          mimeType: 'text/markdown',
+        );
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$name');
+        await file.writeAsString(markdown);
+        manual = XFile(file.path);
+      }
+      await Share.shareXFiles([manual], text: 'Liaison Officer user manual');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -361,35 +405,503 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           icon: const Icon(Icons.download_outlined, color: Colors.white),
         ),
       ],
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+      body: Builder(
+        builder: (context) {
+          final colors = context.semantic;
+          final q = _query.trim().toLowerCase();
+          final searching = q.isNotEmpty;
+          final topics = searching
+              ? _sections.where((s) => _matches(s, q)).toList()
+              : _sections;
+          final helplines = _helplineCount(context);
+          // Non-lazy so quick tiles can ensureVisible() any section.
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _HelpHero(
+                  controller: _searchController,
+                  query: _query,
+                  onChanged: (v) => setState(() => _query = v),
+                  onClear: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
+                if (!searching) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Row(
+                      spacing: 8,
+                      children: [
+                        if (helplines > 0)
+                          Expanded(
+                            child: _QuickTile(
+                              icon: Icons.phone_in_talk_outlined,
+                              label: 'Helplines',
+                              onTap: () => _scrollTo(_helplinesKey),
+                            ),
+                          ),
+                        Expanded(
+                          child: _QuickTile(
+                            icon: Icons.download_outlined,
+                            label: 'User manual',
+                            onTap: _shareManual,
+                          ),
+                        ),
+                        Expanded(
+                          child: _QuickTile(
+                            icon: Icons.rocket_launch_outlined,
+                            label: 'Getting started',
+                            onTap: () => _scrollTo(_gettingStartedKey),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  KeyedSubtree(
+                    key: _helplinesKey,
+                    child: const HelplineNumbersSection(),
+                  ),
+                  KeyedSubtree(
+                    key: _gettingStartedKey,
+                    child: const _SectionHeading(
+                      icon: Icons.rocket_launch_outlined,
+                      title: 'Quick Overview',
+                      subtitle:
+                          'The whole LO Committee flow, in the order you\'ll use it.',
+                    ),
+                  ),
+                  AppCard(child: _Timeline(items: _overview)),
+                  const _SectionHeading(
+                    icon: Icons.account_tree_outlined,
+                    title: 'End-to-end workflow',
+                    subtitle:
+                        'How the LO screens connect from login through follow-up.',
+                  ),
+                  AppCard(
+                    child: Column(
+                      spacing: 8,
+                      children: [
+                        for (final w in _workflow)
+                          _WorkflowChip(step: w.$1, label: w.$2),
+                      ],
+                    ),
+                  ),
+                ],
+                _SectionHeading(
+                  icon: Icons.menu_book_outlined,
+                  title: searching ? 'Search results' : 'Help topics',
+                  count: topics.length,
+                ),
+                if (topics.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: AppEmptyState(
+                      icon: Icons.search_off_rounded,
+                      message: 'No help topics match "${_query.trim()}".',
+                    ),
+                  )
+                else
+                  for (final s in topics)
+                    KeyedSubtree(
+                      key: _sectionKeys[s.id],
+                      child: _HelpSectionCard(
+                        key: ValueKey('${s.id}-$searching'),
+                        section: s,
+                        initiallyExpanded: searching,
+                      ),
+                    ),
+                if (!searching)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: _InfoNote(
+                      text:
+                          'NOTE: This app is for Liaison Officers only. '
+                          'Use Delegates · Tasks · Alerts, plus Profile, Help, and Theme from the account menu. '
+                          'Content mirrors the live Help & Support guide.',
+                      color: colors.accent,
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: FilledButton.icon(
+                    onPressed: _shareManual,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('Download user manual'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HelpHero extends StatelessWidget {
+  const _HelpHero({
+    required this.controller,
+    required this.query,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final String query;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final accent = colors.accent;
+    final pill = BorderRadius.circular(28);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.06),
+            accent.withValues(alpha: 0.16),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const HelplineNumbersSection(),
-          AppCard(
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.support_agent_rounded, color: accent),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'How can we help?',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Guides for the Liaison Officer app and portal.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 56,
+                height: 52,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      child: Icon(
+                        Icons.help_rounded,
+                        size: 44,
+                        color: accent.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Icon(
+                        Icons.chat_bubble_rounded,
+                        size: 24,
+                        color: accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: controller,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: 'Search help topics…',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear',
+                      onPressed: onClear,
+                      icon: const Icon(Icons.clear),
+                    ),
+              filled: true,
+              fillColor: colors.surface,
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: pill,
+                borderSide: BorderSide(color: colors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: pill,
+                borderSide: BorderSide(color: colors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: pill,
+                borderSide: BorderSide(color: accent, width: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickTile extends StatelessWidget {
+  const _QuickTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        decoration: AppTheme.glassCardDecoration(radius: 16, isDark: isDark),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.accent.withValues(alpha: 0.1),
+                  ),
+                  child: Icon(icon, color: colors.accent),
+                ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.count,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final int? count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.accent.withValues(alpha: 0.1),
+            ),
+            child: Icon(icon, size: 19, color: colors.accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Quick Overview',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (count != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'The whole LO Committee flow, in the order you\'ll use it.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Timeline extends StatelessWidget {
+  const _Timeline({required this.items});
+
+  final List<(String, String)> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final accent = colors.accent;
+    return Column(
+      children: [
+        for (var i = 0; i < items.length; i++)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accent,
+                        ),
+                        child: Text(
+                          items[i].$1.split(' · ').first,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      if (i < items.length - 1)
+                        Expanded(
+                          child: Container(
+                            width: 2,
+                            color: accent.withValues(alpha: 0.25),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                ..._overview.map(
-                  (t) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i < items.length - 1 ? 14 : 0,
+                      top: 2,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          t.$1,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          items[i].$1.contains(' · ')
+                              ? items[i].$1.split(' · ').skip(1).join(' · ')
+                              : items[i].$1,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: colors.textPrimary,
+                          ),
                         ),
-                        Text(t.$2),
+                        const SizedBox(height: 2),
+                        Text(
+                          items[i].$2,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.4,
+                            color: colors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -397,99 +909,41 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               ],
             ),
           ),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'End-to-end workflow',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'How the LO screens connect from login through follow-up.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                Column(
-                  children: [
-                    for (var i = 0; i < _workflow.length; i++) ...[
-                      _WorkflowChip(
-                        step: _workflow[i].$1,
-                        label: _workflow[i].$2,
-                      ),
-                      if (i < _workflow.length - 1)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Icon(
-                            Icons.arrow_downward,
-                            size: 18,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Contents',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                ..._sections.map(
-                  (s) => InkWell(
-                    onTap: () => _scrollTo(_sectionKeys[s.id]!),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          Icon(s.icon, size: 18, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              s.title,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ..._sections.map(
-            (s) => KeyedSubtree(
-              key: _sectionKeys[s.id],
-              child: _HelpSectionCard(section: s),
-            ),
-          ),
-          AppCard(
+      ],
+    );
+  }
+}
+
+class _InfoNote extends StatelessWidget {
+  const _InfoNote({required this.text, required this.color});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 20, color: color),
+          const SizedBox(width: 10),
+          Expanded(
             child: Text(
-              'NOTE: This app is for Liaison Officers only. '
-              'Use Delegates · Tasks · Alerts, plus Profile, Help, and Theme from the account menu. '
-              'Content mirrors the live Help & Support guide.',
-              style: Theme.of(context).textTheme.bodySmall,
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: colors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -506,25 +960,26 @@ class _WorkflowChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final accent = colors.accent;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+        color: accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
-        ),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 12,
-            backgroundColor: Theme.of(context).colorScheme.primary,
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
             child: Text(
               step,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -534,7 +989,11 @@ class _WorkflowChip extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: colors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -568,125 +1027,188 @@ class _HelpSection {
 }
 
 class _HelpSectionCard extends StatelessWidget {
-  const _HelpSectionCard({required this.section});
+  const _HelpSectionCard({
+    super.key,
+    required this.section,
+    this.initiallyExpanded = false,
+  });
 
   final _HelpSection section;
+  final bool initiallyExpanded;
+
+  String get _summary {
+    final p = section.purpose.trim();
+    final dot = p.indexOf('. ');
+    return dot > 0 ? p.substring(0, dot + 1) : p;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final colors = context.semantic;
+    final accent = colors.accent;
+    final muted = colors.textSecondary;
+    final body = TextStyle(
+      fontSize: 13,
+      height: 1.45,
+      color: colors.textPrimary,
+    );
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(section.icon, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  section.title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          tilePadding: EdgeInsets.zero,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          iconColor: colors.textPrimary,
+          collapsedIconColor: colors.textPrimary,
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          childrenPadding: const EdgeInsets.fromLTRB(2, 0, 2, 14),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withValues(alpha: 0.1),
+            ),
+            child: Icon(section.icon, size: 20, color: accent),
           ),
-          const SizedBox(height: 12),
-          _label(context, 'PURPOSE'),
-          Text(section.purpose),
-          const SizedBox(height: 10),
-          _label(context, 'WHERE TO FIND IT'),
-          Text(section.whereToFind),
-          if (section.fields.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _label(context, 'FIELDS'),
-            ...section.fields.map(
-              (f) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            f.$1,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+          title: Text(
+            section.title,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: colors.textPrimary,
+            ),
+          ),
+          subtitle: Text(
+            _summary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: muted),
+          ),
+          children: [
+            Divider(height: 1, color: colors.border),
+            const SizedBox(height: 12),
+            _label(context, 'PURPOSE'),
+            Text(section.purpose, style: body),
+            const SizedBox(height: 12),
+            _label(context, 'WHERE TO FIND IT'),
+            Text(section.whereToFind, style: body),
+            if (section.fields.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _label(context, 'FIELDS'),
+              for (final f in section.fields)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              f.$1,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
+                              ),
+                            ),
                           ),
-                        ),
-                        _ReqBadge(label: f.$2),
-                      ],
-                    ),
-                    Text(f.$3, style: TextStyle(color: muted, fontSize: 13)),
-                  ],
+                          const SizedBox(width: 8),
+                          _ReqBadge(label: f.$2),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(f.$3, style: TextStyle(color: muted, fontSize: 13)),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
-          if (section.actions.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _label(context, 'AVAILABLE ACTIONS'),
-            ...section.actions.map(
-              (a) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      a.$1,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    Text(a.$2, style: TextStyle(color: muted, fontSize: 13)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (section.steps.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _label(context, 'STEP-BY-STEP'),
-            ...section.steps.asMap().entries.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 10,
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: Text(
-                        '${e.key + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+            ],
+            if (section.actions.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _label(context, 'AVAILABLE ACTIONS'),
+              for (final a in section.actions)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          Icons.touch_app_outlined,
+                          size: 16,
+                          color: accent,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(e.value)),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              a.$1,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              a.$2,
+                              style: TextStyle(color: muted, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+            ],
+            if (section.steps.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _label(context, 'STEP-BY-STEP'),
+              for (var i = 0; i < section.steps.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accent,
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(section.steps[i], style: body)),
+                    ],
+                  ),
+                ),
+            ],
+            if ((section.note ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _InfoNote(text: section.note!, color: AppTheme.saffron),
+            ],
           ],
-          if ((section.note ?? '').isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFE082)),
-              ),
-              child: Text(
-                section.note!,
-                style: const TextStyle(color: Color(0xFF5D4037), fontSize: 13),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -700,7 +1222,7 @@ class _HelpSectionCard extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.6,
-          color: Theme.of(context).colorScheme.primary,
+          color: context.semantic.accent,
         ),
       ),
     );
@@ -715,7 +1237,9 @@ class _ReqBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final required = label.toLowerCase().contains('required');
-    final color = required ? const Color(0xFFC62828) : Theme.of(context).colorScheme.primary;
+    final color = required
+        ? const Color(0xFFC62828)
+        : Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
