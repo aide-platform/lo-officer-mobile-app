@@ -824,6 +824,21 @@ class _TricolorBar extends StatelessWidget {
   }
 }
 
+/// CAP CAPTCHA codes are always 6 uppercase letters / digits.
+const _captchaLength = 6;
+
+class _UpperCaseFormatter extends TextInputFormatter {
+  const _UpperCaseFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
+  }
+}
+
 class _CaptchaBlock extends StatelessWidget {
   const _CaptchaBlock({
     required this.imageBase64,
@@ -906,6 +921,13 @@ class _CaptchaBlock extends StatelessWidget {
         TextFormField(
           controller: controller,
           textCapitalization: TextCapitalization.characters,
+          autocorrect: false,
+          enableSuggestions: false,
+          inputFormatters: [
+            const _UpperCaseFormatter(),
+            FilteringTextInputFormatter.allow(RegExp('[A-Z0-9]')),
+            LengthLimitingTextInputFormatter(_captchaLength),
+          ],
           style: const TextStyle(
             color: AppTheme.navy,
             letterSpacing: 1.2,
@@ -915,8 +937,14 @@ class _CaptchaBlock extends StatelessWidget {
             hint: 'ENTER CAPTCHA',
             prefix: Icons.shield_outlined,
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'CAPTCHA required' : null,
+          validator: (v) {
+            final value = v?.trim() ?? '';
+            if (value.isEmpty) return 'CAPTCHA required';
+            if (value.length != _captchaLength) {
+              return 'CAPTCHA must be $_captchaLength characters';
+            }
+            return null;
+          },
         ),
       ],
     );
