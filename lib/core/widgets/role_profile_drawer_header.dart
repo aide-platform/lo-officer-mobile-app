@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import '../design/app_colors.dart';
 import '../design/contrast.dart';
+import '../../theme/app_theme.dart';
 
 class DrawerStatPill {
   final String label;
@@ -32,6 +33,7 @@ class RoleProfileDrawerHeader extends StatelessWidget {
   final List<ProfileInfoRow> profileRows;
   final Widget? badge; // e.g. active/duty chip
   final VoidCallback? onAvatarTap;
+  final VoidCallback? onClose;
 
   const RoleProfileDrawerHeader({
     super.key,
@@ -43,57 +45,68 @@ class RoleProfileDrawerHeader extends StatelessWidget {
     this.profileRows = const [],
     this.badge,
     this.onAvatarTap,
+    this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final header = theme.appBarTheme.backgroundColor ?? AppTheme.navy;
+    final topInset = MediaQuery.paddingOf(context).top;
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFE87820), // saffron
-            Color(0xFF0C1A3A), // navy
-            Color(0xFF128807), // india green
-          ],
-          stops: [0.0, 0.45, 1.0],
+    return ClipPath(
+      clipper: _CurvedBottomClipper(),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: AppTheme.headerGradient(header, dark: isDark),
         ),
-      ),
-      child: Stack(
+        child: Stack(
         children: [
           // Decorative circles
           Positioned(
-            top: -20,
-            right: -20,
+            top: -30,
+            right: -30,
             child: Container(
-              width: 120,
-              height: 120,
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.07),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -40,
+            right: 40,
+            child: Container(
+              width: 110,
+              height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
-          Positioned(
-            bottom: -30,
-            left: 60,
-            child: Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04),
+          if (onClose != null)
+            Positioned(
+              top: topInset + 8,
+              right: 8,
+              child: IconButton(
+                tooltip: 'Close menu',
+                onPressed: onClose,
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.15),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.close_rounded),
               ),
             ),
-          ),
 
           // Content
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 52, 20, 20),
+            padding: EdgeInsets.fromLTRB(20, topInset + 44, 20, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -123,8 +136,8 @@ class RoleProfileDrawerHeader extends StatelessWidget {
                             name,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
                               letterSpacing: 0.2,
                             ),
                             maxLines: 1,
@@ -134,20 +147,35 @@ class RoleProfileDrawerHeader extends StatelessWidget {
                           Text(
                             role,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           if (subtitle != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              subtitle!,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 11,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.mail_outline_rounded,
+                                  size: 15,
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    subtitle!,
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                           if (badge != null) ...[
@@ -173,6 +201,7 @@ class RoleProfileDrawerHeader extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -235,35 +264,32 @@ class _Avatar extends StatelessWidget {
   final Color accentColor;
   const _Avatar({required this.name, required this.accentColor});
 
+  String get _initials {
+    final parts = name
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .take(2)
+        .map((s) => s[0].toUpperCase())
+        .join();
+    return parts.isEmpty ? '?' : parts;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 66,
-      height: 66,
+      width: 72,
+      height: 72,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.gold, width: 2.5),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gold.withValues(alpha: 0.4),
-            blurRadius: 14,
-            spreadRadius: 1,
-          ),
-        ],
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.25),
-            Colors.white.withValues(alpha: 0.08)
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        border: Border.all(color: Colors.white, width: 2.5),
+        color: Colors.white.withValues(alpha: 0.12),
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Center(
             child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              _initials,
               style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
@@ -272,21 +298,38 @@ class _Avatar extends StatelessWidget {
             ),
           ),
           Positioned(
-            bottom: 1,
-            right: 1,
+            bottom: 2,
+            right: 0,
             child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                color: AppColors.gold,
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppTheme.indiaGreen,
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.5),
               ),
-              child: const Icon(Icons.edit, size: 9, color: Colors.white),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _CurvedBottomClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+    return Path()
+      ..lineTo(0, h - 12)
+      ..quadraticBezierTo(w * 0.45, h + 6, w, h - 30)
+      ..lineTo(w, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class _ProfileSheet extends StatelessWidget {

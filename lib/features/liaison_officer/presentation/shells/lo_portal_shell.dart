@@ -1,9 +1,10 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/device_downloads.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
@@ -282,9 +283,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
                 case 'help':
                   openHelpSupport(context);
                 case 'theme':
-                  context
-                      .read<ThemeCubit>()
-                      .toggle(Theme.of(context).brightness);
+                  context.read<ThemeCubit>().toggle(
+                    Theme.of(context).brightness,
+                  );
                 case 'logout':
                   confirmLogout(context).then((ok) {
                     if (ok && context.mounted) performLogout(context);
@@ -387,19 +388,13 @@ class _LoPortalShellState extends State<LoPortalShell> {
         ),
         destinations: [
           NavigationDestination(
-            icon: const _NavMark(asset: AppAssetManager.iconDelegate),
-            selectedIcon: const _NavMark(
-              asset: AppAssetManager.iconDelegate,
-              selected: true,
-            ),
+            icon: const _NavMark(icon: Icons.groups_outlined),
+            selectedIcon: const _NavMark(icon: Icons.groups, selected: true),
             label: 'Delegates',
           ),
           NavigationDestination(
-            icon: const _NavMark(asset: AppAssetManager.iconTask),
-            selectedIcon: const _NavMark(
-              asset: AppAssetManager.iconTask,
-              selected: true,
-            ),
+            icon: const _NavMark(icon: Icons.task_alt_outlined),
+            selectedIcon: const _NavMark(icon: Icons.task_alt, selected: true),
             label: 'Tasks',
           ),
           NavigationDestination(
@@ -411,9 +406,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
             label: 'Helplines',
           ),
           NavigationDestination(
-            icon: const _NavMark(asset: AppAssetManager.iconAlert),
+            icon: const _NavMark(icon: Icons.notifications_outlined),
             selectedIcon: const _NavMark(
-              asset: AppAssetManager.iconAlert,
+              icon: Icons.notifications,
               selected: true,
             ),
             label: 'Alerts',
@@ -427,10 +422,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
 }
 
 class _NavMark extends StatefulWidget {
-  const _NavMark({this.asset, this.icon, this.selected = false});
+  const _NavMark({required this.icon, this.selected = false});
 
-  final String? asset;
-  final IconData? icon;
+  final IconData icon;
   final bool selected;
 
   @override
@@ -452,14 +446,12 @@ class _NavMarkState extends State<_NavMark> {
 
   @override
   Widget build(BuildContext context) {
-    final child = widget.asset != null
-        ? SafeAssetImage(
-            assetPath: widget.asset!,
-            width: 24,
-            height: 24,
-            fit: BoxFit.contain,
-          )
-        : Icon(widget.icon);
+    final child = Icon(
+      widget.icon,
+      color: widget.selected
+          ? Theme.of(context).colorScheme.primary
+          : context.semantic.textSecondary,
+    );
     return AnimatedScale(
       scale: _scale,
       duration: const Duration(milliseconds: 220),
