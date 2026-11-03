@@ -50,6 +50,10 @@ class PushNotificationService {
 
   void Function(String link)? onDeepLink;
   void Function(String token)? onToken;
+
+  /// Called with the push link (may be null) whenever a message arrives
+  /// while the app is in the foreground, so the shell can refresh data.
+  void Function(String? link)? onForegroundPush;
   String? pendingDeepLink;
   bool _fcmReady = false;
   bool _localReady = false;
@@ -212,6 +216,7 @@ class PushNotificationService {
       channelName: _pushChannelName,
       channelDesc: _pushChannelDesc,
     );
+    onForegroundPush?.call(link);
   }
 
   String? _linkOf(RemoteMessage message) {

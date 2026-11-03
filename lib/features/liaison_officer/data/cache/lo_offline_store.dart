@@ -230,11 +230,19 @@ class LoOfflineStore {
     return all.where((e) => !e.synced).toList();
   }
 
-  /// Task queue + movement queue + unsynced issues.
+  /// Task queue + movement queue. Issue reports are no longer part of the
+  /// app (aide-service has no `/app/my-lo/me/issues`), so old unsynced
+  /// issues must not keep the "pending sync" banner up.
   static Future<int> pendingSyncCount() async {
     final tasks = await peekQueue();
     final movements = await peekMovementQueue();
-    final issues = await listPendingIssues();
-    return tasks.length + movements.length + issues.length;
+    return tasks.length + movements.length;
+  }
+
+  /// Removes issue reports saved by older app versions.
+  static Future<void> clearIssues() async {
+    try {
+      await box.delete(_issuesKey);
+    } catch (_) {}
   }
 }

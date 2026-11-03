@@ -99,10 +99,12 @@ class LoPortalCache {
   /// same key is left in place and no new row is written — this stops
   /// recurring background refreshes from stacking duplicates for the same
   /// underlying event (e.g. one upcoming-task reminder per task).
+  /// [at] (ISO-8601) overrides the timestamp, e.g. a server send time.
   static Future<void> pushAlert({
     required String title,
     required String body,
     String? dedupeKey,
+    String? at,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final existing = prefs.getString(_alertsKey);
@@ -118,10 +120,19 @@ class LoPortalCache {
       'key': ?dedupeKey,
       'title': title,
       'body': body,
-      'at': DateTime.now().toIso8601String(),
+      'at': at ?? DateTime.now().toIso8601String(),
       'read': false,
     });
+    // Newest first by timestamp, so an older server message added late
+    // does not jump above fresher local alerts.
+    list.sort((a, b) => _alertTime(b).compareTo(_alertTime(a)));
     await prefs.setString(_alertsKey, jsonEncode(list.take(50).toList()));
+  }
+
+  static DateTime _alertTime(dynamic entry) {
+    final raw = entry is Map ? entry['at']?.toString() : null;
+    return (raw == null ? null : DateTime.tryParse(raw))?.toUtc() ??
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
   }
 
   static Future<void> saveHelplines(List<LoHelplineDto> items) async {

@@ -67,4 +67,7 @@ abstract class LoPortalRepository {
 
   /// Active helplines from `GET /app/lo-help-lines/active`. Empty when none or 404.
   Future<List<LoHelplineDto>> getHelplines();
+
+  /// LO Committee broadcasts from `GET /app/my-lo/me/broadcasts`. Empty on 404.
+  Future<List<LoBroadcastDto>> getMyBroadcasts();
 }

@@ -623,6 +623,28 @@ class LoHelplineContactDto {
 }
 
 /// Help-line label from `GET /app/lo-help-lines/active`.
+/// LO Committee push broadcast addressed to the signed-in officer.
+class LoBroadcastDto {
+  final String id;
+  final String title;
+  final String body;
+  final String? createdAt;
+
+  const LoBroadcastDto({
+    required this.id,
+    required this.title,
+    required this.body,
+    this.createdAt,
+  });
+
+  factory LoBroadcastDto.fromJson(Map<String, dynamic> json) => LoBroadcastDto(
+    id: json['id']?.toString() ?? '',
+    title: json['title']?.toString() ?? '',
+    body: json['body']?.toString() ?? '',
+    createdAt: json['createdAt']?.toString(),
+  );
+}
+
 class LoHelplineDto {
   final String id;
   final String label;
