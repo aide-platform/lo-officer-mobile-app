@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:liaison_officer/core/design/app_asset_manager.dart';
+import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
@@ -311,19 +312,144 @@ class AppSectionHeader extends StatelessWidget {
   }
 }
 
-class AppLoading extends StatelessWidget {
+/// Branded full-page loader: Aero India badge inside a spinning ring.
+class AppLoading extends StatefulWidget {
   const AppLoading({super.key, this.label});
 
   final String? label;
 
   @override
+  State<AppLoading> createState() => _AppLoadingState();
+}
+
+class _AppLoadingState extends State<AppLoading>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final accent = colors.accent;
+    final title = widget.label?.replaceAll(RegExp(r'(…|\.{3})\s*$'), '').trim();
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
-          if (label != null) ...[const SizedBox(height: 12), Text(label!)],
+          SizedBox(
+            width: 168,
+            height: 168,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.18),
+                        blurRadius: 40,
+                        spreadRadius: 3,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 5,
+                    strokeCap: StrokeCap.round,
+                    color: accent,
+                    backgroundColor: accent.withValues(alpha: 0.14),
+                  ),
+                ),
+                AnimatedBuilder(
+                  animation: _pulse,
+                  builder: (context, child) {
+                    final t = Curves.easeInOut.transform(
+                      1 - (2 * _pulse.value - 1).abs(),
+                    );
+                    return Transform.scale(
+                      scale: 0.96 + 0.04 * t,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    width: 128,
+                    height: 128,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const SafeAssetImage(
+                      assetPath: AppAssetManager.aeroIndiaLogo,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (title != null && title.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AnimatedBuilder(
+                  animation: _pulse,
+                  builder: (context, _) {
+                    final active = (_pulse.value * 3).floor() % 3;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 0; i < 3; i++)
+                          Container(
+                            width: 7,
+                            height: 7,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accent.withValues(
+                                alpha: i == active ? 1 : 0.3,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Please wait a moment',
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            ),
+          ],
         ],
       ),
     );
