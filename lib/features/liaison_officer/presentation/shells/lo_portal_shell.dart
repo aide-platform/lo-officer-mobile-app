@@ -48,6 +48,14 @@ class _LoPortalShellState extends State<LoPortalShell> {
     super.initState();
     LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabDelegates);
     PushNotificationService.instance.bindDeepLink(_openPushLink);
+    PushNotificationService.instance.onForegroundPush = _onForegroundPush;
+  }
+
+  void _onForegroundPush(String? link) {
+    if (!mounted) return;
+    if (link != null && link.toLowerCase().startsWith('broadcast:')) {
+      context.read<LoPortalBloc>().add(LoPortalAlertsRefreshRequested());
+    }
   }
 
   void _selectTab(int index) {
@@ -66,6 +74,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
   @override
   void dispose() {
     PushNotificationService.instance.bindDeepLink(null);
+    if (PushNotificationService.instance.onForegroundPush == _onForegroundPush) {
+      PushNotificationService.instance.onForegroundPush = null;
+    }
     super.dispose();
   }
 
@@ -73,7 +84,10 @@ class _LoPortalShellState extends State<LoPortalShell> {
     if (!mounted) return;
     LoFirebaseMonitor.instance.logNotificationOpen(link);
     final lower = link.toLowerCase();
-    if (lower.contains('task')) {
+    if (lower.startsWith('broadcast:')) {
+      _selectTab(3);
+      context.read<LoPortalBloc>().add(LoPortalAlertsRefreshRequested());
+    } else if (lower.contains('task')) {
       setState(() => _index = 1);
     } else if (lower.contains('delegate')) {
       setState(() => _index = 0);
@@ -372,6 +386,14 @@ class _LoPortalShellState extends State<LoPortalShell> {
                         ),
                       ),
                       TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onTertiaryContainer,
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         onPressed: () => context.read<LoPortalBloc>().add(
                           LoPortalLoadRequested(),
                         ),

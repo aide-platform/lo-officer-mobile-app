@@ -116,6 +116,9 @@ class ApiConfig {
   /// Sub-Nodal role, so an LO gets 403 there.
   static const String myLoBadgeDownloadPath = '/app/my-lo/me/badge/download';
 
+  /// LO Committee push broadcasts sent to me (also shown under Alerts).
+  static const String myLoBroadcastsPath = '/app/my-lo/me/broadcasts';
+
   // ── Notifications (in-app feed) ──────────────────────────────
   static const String notificationsMinePath = '/app/notifications/mine';
   static String notificationReadPath(String id) =>

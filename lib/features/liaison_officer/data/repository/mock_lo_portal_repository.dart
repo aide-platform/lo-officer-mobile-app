@@ -448,4 +448,14 @@ class MockLoPortalRepository implements LoPortalRepository {
       ],
     ),
   ];
+
+  @override
+  Future<List<LoBroadcastDto>> getMyBroadcasts() async => const [
+    LoBroadcastDto(
+      id: 'bc-1',
+      title: 'Reporting time',
+      body: 'All LOs report at the LO desk by 07:30 tomorrow.',
+      createdAt: '2026-11-03T09:00:00+05:30',
+    ),
+  ];
 }

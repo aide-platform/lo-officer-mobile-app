@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/network/api_exception.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
@@ -179,6 +181,7 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
           );
         }
       }
+      await _syncBroadcastAlerts();
       final refreshedAlerts = await LoPortalCache.loadAlerts();
       await PushNotificationService.instance.scheduleTaskLeadReminders(
         tasks: tasks,
@@ -243,8 +246,10 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
             statusCode: statusCode,
             remarks: item['remarks']?.toString(),
           );
-        } catch (_) {
-          remaining.add(item);
+        } catch (e) {
+          // Keep only for network/server trouble. A 4xx (task removed,
+          // already completed, not mine) will never succeed, so drop it.
+          if (_isRetryable(e)) remaining.add(item);
         }
       }
       await LoOfflineStore.replaceQueue(remaining);
@@ -266,21 +271,33 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
             assignmentId: assignmentId,
             body: body,
           );
-        } catch (_) {
-          remaining.add(item);
+        } catch (e) {
+          if (_isRetryable(e)) remaining.add(item);
         }
       }
       await LoOfflineStore.replaceMovementQueue(remaining);
     }
 
-    final pendingIssues = await LoOfflineStore.listPendingIssues();
-    for (final issue in pendingIssues) {
-      try {
-        await repository.reportIssue(issue);
-      } catch (_) {
-        // Left unsynced in Hive for next flush / manual retry.
-      }
+    // Issue reporting was removed from the app; drop what older builds saved.
+    await LoOfflineStore.clearIssues();
+  }
+
+  /// True when a queued write failed for a reason that may pass later:
+  /// no response (offline, timeout), 408, 429 or 5xx.
+  static bool _isRetryable(Object e) {
+    int? status;
+    if (e is DioException) {
+      status = e.response?.statusCode;
+      final inner = e.error;
+      if (status == null && inner is ApiException) status = inner.statusCode;
+      if (status == null) return true;
+    } else if (e is ApiException) {
+      status = e.statusCode;
+      if (status == null) return false; // server answered success=false
+    } else {
+      return true;
     }
+    return status == 408 || status == 429 || status >= 500;
   }
 
   Future<void> _onSaveProfile(
@@ -591,7 +608,25 @@ class LoPortalBloc extends Bloc<LoPortalEvent, LoPortalState> {
     LoPortalAlertsRefreshRequested event,
     Emitter<LoPortalState> emit,
   ) async {
+    await _syncBroadcastAlerts();
     emit(state.copyWith(alerts: await LoPortalCache.loadAlerts()));
+  }
+
+  /// Copies LO Committee broadcasts into local alerts, one row per message,
+  /// so a push that was missed or dismissed still shows under Alerts.
+  Future<void> _syncBroadcastAlerts() async {
+    final broadcasts = await _orElse(
+      repository.getMyBroadcasts,
+      const <LoBroadcastDto>[],
+    );
+    for (final b in broadcasts) {
+      await LoPortalCache.pushAlert(
+        dedupeKey: 'broadcast:${b.id}',
+        title: b.title.isEmpty ? 'LO Committee' : b.title,
+        body: b.body,
+        at: b.createdAt,
+      );
+    }
   }
 
   Future<void> _onUpload(
