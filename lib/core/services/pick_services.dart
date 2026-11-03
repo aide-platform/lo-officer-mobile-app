@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 class PickedFileBytes {
@@ -31,7 +30,11 @@ class FilePickService {
     return PickedFileBytes(
       bytes: f.bytes!,
       filename: f.name,
-      mimeType: 'application/pdf',
+      mimeType: f.name.toLowerCase().endsWith('.pdf')
+          ? 'application/pdf'
+          : f.name.toLowerCase().endsWith('.docx')
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : 'application/msword',
     );
   }
 
@@ -72,7 +75,7 @@ class ImagePickService {
     if (x == null) return null;
     final bytes = await x.readAsBytes();
     final name = x.name.isNotEmpty ? x.name : 'image.jpg';
-    return PickedFileBytes(bytes: bytes, filename: name, mimeType: 'image/jpeg');
+    return PickedFileBytes(bytes: bytes, filename: name, mimeType: _mimeFor(name));
   }
 
   /// Shows a chooser for camera vs gallery, then picks.
@@ -101,6 +104,34 @@ class ImagePickService {
       ),
     );
     if (source == null) return null;
-    return pickImage(source: source);
+    try {
+      return await pickImage(source: source);
+    } on PlatformException catch (e) {
+      // Camera / photos permission denied, or no camera on the device.
+      if (context.mounted) {
+        final denied = e.code.contains('access_denied');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              denied
+                  ? 'Permission denied. Allow camera / photos access in Settings.'
+                  : 'Could not open the ${source == ImageSource.camera ? 'camera' : 'gallery'}.',
+            ),
+          ),
+        );
+      }
+      return null;
+    }
+  }
+
+  /// Mime type from the file name, so a WebP / GIF is not sent as JPEG.
+  static String _mimeFor(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.heic') || lower.endsWith('.heif')) return 'image/heic';
+    return 'image/jpeg';
   }
 }

@@ -262,6 +262,9 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   bool _languagesSeeded = false;
 
   final Map<LoUploadKind, String> _uploadNames = {};
+  int _seenUploadFailureSeq = 0;
+  DateTime? _lastSubmitAt;
+  String? _lastShownError;
   final Map<LoUploadKind, Uint8List> _uploadBytes = {};
   bool _profileSaveDialogVisible = false;
   static final _phoneInput = [
@@ -310,8 +313,10 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
     _trouserLength.text = _fmtInches(p.trouserLength);
     _blazerChest.text = _fmtInches(p.blazerChest);
     _blazerSleeve.text = _fmtInches(p.blazerSleeve);
-    if (p.salutationName != null && _salutations.contains(p.salutationName)) {
-      _salutation = p.salutationName!;
+    // Keep a server value such as "Capt." instead of overwriting it with Mr.
+    final serverSalutation = p.salutationName?.trim() ?? '';
+    if (serverSalutation.isNotEmpty) {
+      _salutation = serverSalutation;
     }
     if (p.genderName != null && _genders.contains(p.genderName)) {
       _gender = p.genderName!;
@@ -354,11 +359,17 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   }
 
   Future<void> _pickDob() async {
+    final first = DateTime(1940);
+    final last = DateTime.now();
+    var initial = _dob ?? DateTime(1990);
+    // A server DOB outside the range would fail the picker's assertion.
+    if (initial.isBefore(first)) initial = first;
+    if (initial.isAfter(last)) initial = last;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _dob ?? DateTime(1990),
-      firstDate: DateTime(1940),
-      lastDate: DateTime.now(),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
     );
     if (picked == null) return;
     setState(() => _dob = picked);
@@ -1049,6 +1060,17 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
   Widget build(BuildContext context) {
     return BlocConsumer<LoPortalBloc, LoPortalState>(
       listener: (context, state) {
+        if (state.failedUploadSeq != _seenUploadFailureSeq) {
+          _seenUploadFailureSeq = state.failedUploadSeq;
+          final kind = state.failedUploadKind;
+          // The file never reached the server: do not show it as uploaded.
+          if (kind != null) {
+            setState(() {
+              _uploadNames.remove(kind);
+              _uploadBytes.remove(kind);
+            });
+          }
+        }
         if (state.profileSaveAck &&
             !widget.readOnly &&
             !_profileSaveDialogVisible) {
@@ -1062,8 +1084,11 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
           context.read<LoPortalBloc>().add(LoPortalClearDocumentPreview());
           _showImagePreview(bytes, name);
         }
+        // Show each error once, not again on every later emit.
         if (state.status == LoPortalStatus.failure &&
-            state.errorMessage != null) {
+            state.errorMessage != null &&
+            state.errorMessage != _lastShownError) {
+          _lastShownError = state.errorMessage;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               behavior: SnackBarBehavior.floating,
@@ -1127,7 +1152,9 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                   key: ValueKey('salutation-$_salutation'),
                   initialValue: _salutation,
                   decoration: const InputDecoration(labelText: 'Salutation'),
-                  items: _salutations
+                  // Include a stored value that is not in the default list,
+                  // otherwise the dropdown asserts on a missing value.
+                  items: {..._salutations, _salutation}
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
                   onChanged: (v) {
@@ -1145,8 +1172,9 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                 ),
                 Builder(builder: (ctx) {
                   final opts = state.genderOptions;
+                  // Unique names: a duplicate value asserts in DropdownButton.
                   final names = opts.isNotEmpty
-                      ? opts.map((o) => o.name).toList()
+                      ? opts.map((o) => o.name).toSet().toList()
                       : _genders;
                   if (opts.isNotEmpty && _genderId == null) {
                     final match = opts.where(
@@ -1160,7 +1188,7 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                       _gender = opts.first.name;
                     }
                   }
-                  return DropdownButtonFormField<String>(
+                  final dropdown = DropdownButtonFormField<String>(
                     key: ValueKey('gender-$_gender'),
                     initialValue: names.contains(_gender) ? _gender : null,
                     decoration: InputDecoration(
@@ -1183,6 +1211,25 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                               _genderId = picked.id;
                             });
                           },
+                  );
+                  if (opts.isNotEmpty) return dropdown;
+                  // Lookup failed or still loading: let the officer retry
+                  // instead of being stuck on "Gender is required".
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      dropdown,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => context.read<LoPortalBloc>().add(
+                            LoPortalGenderLookupsRequested(),
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Retry loading options'),
+                        ),
+                      ),
+                    ],
                   );
                 }),
                 if ((p?.orgName ?? '').isNotEmpty)
@@ -1319,7 +1366,10 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Pick a language',
                         ),
-                        items: state.languageOptions
+                        // Unique by name: a duplicate value asserts.
+                        items: {
+                          for (final o in state.languageOptions) o.name: o,
+                        }.values
                             .where(
                               (o) => !_draftLanguages.any(
                                 (l) => l.toLowerCase() == o.name.toLowerCase(),
@@ -1592,7 +1642,19 @@ class _LoProfileScreenState extends State<LoProfileScreen> {
                           FilledButton(
                             onPressed: state.status == LoPortalStatus.saving
                                 ? null
-                                : () => _submit(state),
+                                : () {
+                                    // A fast double tap lands before the
+                                    // bloc emits "saving".
+                                    final now = DateTime.now();
+                                    final last = _lastSubmitAt;
+                                    if (last != null &&
+                                        now.difference(last) <
+                                            const Duration(seconds: 2)) {
+                                      return;
+                                    }
+                                    _lastSubmitAt = now;
+                                    _submit(state);
+                                  },
                             child: const Text('Submit'),
                           ),
                       ],

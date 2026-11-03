@@ -250,6 +250,15 @@ class PushNotificationService {
     _dispatchLink(link);
   }
 
+  /// Cancels scheduled task reminders only. Delivered push notifications in
+  /// the tray stay (cancelAll would wipe them on every portal reload).
+  Future<void> cancelTaskReminders() async {
+    if (!_localReady || kIsWeb) return;
+    try {
+      await _plugin.cancelAllPendingNotifications();
+    } catch (_) {}
+  }
+
   /// Cancel prior task reminders and schedule new ones at
   /// `scheduledAt - leadMinutes`. Shows immediately if already within window.
   /// No-op on web: `flutter_local_notifications` has no `zonedSchedule` there.
@@ -258,9 +267,7 @@ class PushNotificationService {
     required int leadMinutes,
   }) async {
     if (!_localReady || kIsWeb) return;
-    try {
-      await _plugin.cancelAll();
-    } catch (_) {}
+    await cancelTaskReminders();
 
     final now = tz.TZDateTime.now(tz.local);
     var id = 1000;

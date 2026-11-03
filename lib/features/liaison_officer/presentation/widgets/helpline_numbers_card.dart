@@ -130,12 +130,7 @@ class HelplineNumbersCard extends StatelessWidget {
     LoFirebaseMonitor.instance.logFeature(
       LoMonitoringEvents.featureHelplineCall,
     );
-    final ok = await LoContactActions.call(phone);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to start the call.')),
-      );
-    }
+    await LoContactActions.call(phone);
   }
 }
 

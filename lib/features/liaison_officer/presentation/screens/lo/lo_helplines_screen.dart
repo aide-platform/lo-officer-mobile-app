@@ -21,14 +21,7 @@ class LoHelplinesScreen extends StatelessWidget {
         final lines = LoHelplineDto.visible(state.helplines);
         final loading = state.status == LoPortalStatus.loading && lines.isEmpty;
         return RefreshIndicator(
-          onRefresh: () async {
-            context.read<LoPortalBloc>().add(LoPortalLoadRequested());
-            await context.read<LoPortalBloc>().stream.firstWhere(
-              (s) =>
-                  s.status == LoPortalStatus.ready ||
-                  s.status == LoPortalStatus.failure,
-            );
-          },
+          onRefresh: () => refreshPortal(context),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
@@ -61,12 +54,7 @@ class LoHelplinesScreen extends StatelessWidget {
 
 Future<void> _callHelpline(BuildContext context, String phone) async {
   LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureHelplineCall);
-  final ok = await LoContactActions.call(phone);
-  if (!ok && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Unable to start the call.')),
-    );
-  }
+  await LoContactActions.call(phone);
 }
 
 String _helplineTitle(LoHelplineDto line) => line.label.trim().isEmpty
