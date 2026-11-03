@@ -288,12 +288,16 @@ class LoTravelEditor {
     BuildContext context,
     TextEditingController controller,
   ) async {
-    final existing = DateTime.tryParse(controller.text);
+    final first = DateTime(2020);
+    final last = DateTime(2035);
+    var initial = DateTime.tryParse(controller.text) ?? DateTime.now();
+    if (initial.isBefore(first)) initial = first;
+    if (initial.isAfter(last)) initial = last;
     final picked = await showDatePicker(
       context: context,
-      initialDate: existing ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
     );
     if (picked == null) return;
     final y = picked.year.toString().padLeft(4, '0');
@@ -408,6 +412,9 @@ class LoTravelEditor {
     required BuildContext context,
   }) {
     final colors = context.semantic;
+    // Add / remove swap in a new list, so keying fields on the list identity
+    // recreates them with the right values after a leg is removed.
+    final listKey = identityHashCode(flights);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -490,38 +497,38 @@ class LoTravelEditor {
                       children: [
                         Expanded(
                           child: TextFormField(
+                            key: ValueKey('$listKey-$i-flight'),
                             initialValue: f.flightNumber,
                             decoration: const InputDecoration(
                               labelText: 'Flight number',
                             ),
+                            // Edit in place: typing does not rebuild, so a
+                            // copied list would drop the other field's edits.
                             onChanged: (v) {
-                              final next = [...flights];
-                              next[i] = ConnectingFlightDraft(
+                              flights[i] = ConnectingFlightDraft(
                                 flightNumber: v,
                                 terminal: flights[i].terminal,
                                 date: flights[i].date,
                                 time: flights[i].time,
                               );
-                              onChanged(next);
                             },
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: TextFormField(
+                            key: ValueKey('$listKey-$i-terminal'),
                             initialValue: f.terminal,
                             decoration: const InputDecoration(
                               labelText: 'Terminal',
                             ),
                             onChanged: (v) {
-                              final next = [...flights];
-                              next[i] = ConnectingFlightDraft(
+                              flights[i] = ConnectingFlightDraft(
                                 flightNumber: flights[i].flightNumber,
                                 terminal: v,
                                 date: flights[i].date,
                                 time: flights[i].time,
                               );
-                              onChanged(next);
                             },
                           ),
                         ),

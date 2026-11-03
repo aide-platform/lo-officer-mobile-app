@@ -107,10 +107,7 @@ class LoPortalCache {
     String? at,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getString(_alertsKey);
-    final list = existing == null
-        ? <dynamic>[]
-        : List<dynamic>.from(jsonDecode(existing) as List);
+    final list = _decodeAlerts(prefs.getString(_alertsKey));
     if (dedupeKey != null) {
       for (final entry in list) {
         if (entry is Map && entry['key'] == dedupeKey) return;
@@ -127,6 +124,17 @@ class LoPortalCache {
     // does not jump above fresher local alerts.
     list.sort((a, b) => _alertTime(b).compareTo(_alertTime(a)));
     await prefs.setString(_alertsKey, jsonEncode(list.take(50).toList()));
+  }
+
+  /// Stored alerts, or an empty list when the value is missing or corrupt.
+  static List<dynamic> _decodeAlerts(String? raw) {
+    if (raw == null) return <dynamic>[];
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is List ? List<dynamic>.from(decoded) : <dynamic>[];
+    } catch (_) {
+      return <dynamic>[];
+    }
   }
 
   static DateTime _alertTime(dynamic entry) {
@@ -168,13 +176,11 @@ class LoPortalCache {
 
   static Future<List<Map<String, dynamic>>> loadAlerts() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_alertsKey);
-    if (raw == null) return const [];
     // Dedupe-by-key once at read time so pre-existing duplicates (written
     // before the pushAlert dedupeKey landed) collapse to the newest entry.
     final seen = <String>{};
     final out = <Map<String, dynamic>>[];
-    for (final e in (jsonDecode(raw) as List).whereType<Map>()) {
+    for (final e in _decodeAlerts(prefs.getString(_alertsKey)).whereType<Map>()) {
       final m = Map<String, dynamic>.from(e);
       final k = m['key'];
       if (k is String && k.isNotEmpty) {

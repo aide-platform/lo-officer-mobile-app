@@ -126,7 +126,7 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                   LoPortalDelegateExtrasRequested(assignmentId),
                 );
               }
-              context.read<LoPortalBloc>().add(LoPortalLoadRequested());
+              await refreshPortal(context);
             },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -313,12 +313,16 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => LoTravelEditor.open(
-                                  context,
-                                  live,
-                                  arrivalConnecting,
-                                  departureConnecting,
-                                ),
+                                // Travel saves against the assignment; without
+                                // one the sheet would save nothing.
+                                onPressed: assignmentId == null
+                                    ? null
+                                    : () => LoTravelEditor.open(
+                                        context,
+                                        live,
+                                        arrivalConnecting,
+                                        departureConnecting,
+                                      ),
                                 style: OutlinedButton.styleFrom(
                                   minimumSize: const Size.fromHeight(48),
                                   shape: RoundedRectangleBorder(
@@ -385,18 +389,16 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
     final notes = TextEditingController();
     final location = TextEditingController();
 
+    // Shown inside the sheet: a page snackbar would sit behind it.
+    String? formError;
     bool validate() {
       if (kind == LoMovementKind.departure &&
           date.text.trim().isEmpty &&
           notes.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Departure needs a date or notes'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        formError = 'Departure needs a date or notes';
         return false;
       }
+      formError = null;
       return true;
     }
 
@@ -547,6 +549,16 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                     ),
                     maxLines: 2,
                   ),
+                  if (formError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      formError!,
+                      style: TextStyle(
+                        color: Theme.of(ctx).colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Row(
                     children: [
@@ -566,7 +578,11 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                       Expanded(
                         child: FilledButton.icon(
                           onPressed: () {
-                            if (validate()) Navigator.pop(ctx, true);
+                            if (validate()) {
+                              Navigator.pop(ctx, true);
+                            } else {
+                              setLocal(() {});
+                            }
                           },
                           style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(48),
@@ -610,12 +626,16 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
         ),
       );
     }
-    flight.dispose();
-    terminal.dispose();
-    date.dispose();
-    time.dispose();
-    notes.dispose();
-    location.dispose();
+    // The sheet's fields still read these during the close animation;
+    // disposing now throws "used after being disposed".
+    Future<void>.delayed(const Duration(milliseconds: 500), () {
+      flight.dispose();
+      terminal.dispose();
+      date.dispose();
+      time.dispose();
+      notes.dispose();
+      location.dispose();
+    });
   }
 
   static Widget _pair(Widget a, Widget b) {
@@ -637,12 +657,17 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
   }) {
     Future<void> pick() async {
       if (isDate) {
-        final existing = DateTime.tryParse(controller.text);
+        final first = DateTime(2020);
+        final last = DateTime(2035);
+        var initial = DateTime.tryParse(controller.text) ?? DateTime.now();
+        // showDatePicker asserts when initialDate is outside the range.
+        if (initial.isBefore(first)) initial = first;
+        if (initial.isAfter(last)) initial = last;
         final picked = await showDatePicker(
           context: context,
-          initialDate: existing ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2035),
+          initialDate: initial,
+          firstDate: first,
+          lastDate: last,
         );
         if (picked == null) return;
         final y = picked.year.toString().padLeft(4, '0');

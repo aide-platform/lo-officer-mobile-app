@@ -42,6 +42,8 @@ class LoPortalShell extends StatefulWidget {
 
 class _LoPortalShellState extends State<LoPortalShell> {
   int _index = 0;
+  List<int>? _handledDownload;
+  String? _lastShownError;
 
   @override
   void initState() {
@@ -119,11 +121,22 @@ class _LoPortalShellState extends State<LoPortalShell> {
         Object? shareError;
         String? savedName;
         String? savedHandle;
-        if (state.lastDownloadBytes != null &&
-            state.lastDownloadBytes!.isNotEmpty) {
+        final download = state.lastDownloadBytes;
+        final hasMessage =
+            state.infoMessage != null || state.lastDownloadBytes != null;
+        // Clear before any await: another emit during the save would run
+        // this listener again and save / share the same file twice.
+        if (hasMessage && !bloc.isClosed) bloc.add(LoPortalClearMessages());
+        if (download != null &&
+            download.isNotEmpty &&
+            !identical(download, _handledDownload)) {
+          _handledDownload = download;
           try {
-            final bytes = state.lastDownloadBytes!;
-            final name = _safeDownloadFilename(state.lastDownloadFilename);
+            final bytes = download;
+            final name = _safeDownloadFilename(
+              state.lastDownloadFilename,
+              forcePdf: state.lastDownloadSaveToDevice,
+            );
             if (state.lastDownloadSaveToDevice) {
               savedHandle = await DeviceDownloads.save(
                 bytes: bytes,
@@ -141,9 +154,6 @@ class _LoPortalShellState extends State<LoPortalShell> {
           } catch (e) {
             shareError = e;
           }
-        }
-        if (state.infoMessage != null || state.lastDownloadBytes != null) {
-          bloc.add(LoPortalClearMessages());
         }
         if (!context.mounted) return;
         if (shareError != null) {
@@ -165,7 +175,12 @@ class _LoPortalShellState extends State<LoPortalShell> {
                   : SnackBarAction(
                       label: 'Open',
                       onPressed: () async {
-                        final opened = await DeviceDownloads.open(handle);
+                        bool opened;
+                        try {
+                          opened = await DeviceDownloads.open(handle);
+                        } catch (_) {
+                          opened = false;
+                        }
                         if (!opened) {
                           messenger.showSnackBar(
                             const SnackBar(
@@ -190,7 +205,9 @@ class _LoPortalShellState extends State<LoPortalShell> {
         }
         if (state.errorMessage != null &&
             state.status == LoPortalStatus.failure &&
-            state.profile?.profileComplete == true) {
+            state.profile?.profileComplete == true &&
+            state.errorMessage != _lastShownError) {
+          _lastShownError = state.errorMessage;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               behavior: SnackBarBehavior.floating,
@@ -200,7 +217,10 @@ class _LoPortalShellState extends State<LoPortalShell> {
         }
       },
       builder: (context, state) {
-        if (state.status == LoPortalStatus.loading ||
+        // Full-screen loader only on first load; a refresh keeps the current
+        // screen (and any half-filled profile form) on screen.
+        final hasData = state.profile != null || state.delegates.isNotEmpty;
+        if ((state.status == LoPortalStatus.loading && !hasData) ||
             state.status == LoPortalStatus.initial) {
           return const Scaffold(body: AppLoading(label: 'Loading portal…'));
         }
@@ -483,11 +503,14 @@ class _NavMarkState extends State<_NavMark> {
   }
 }
 
-String _safeDownloadFilename(String? raw) {
+/// [forcePdf]: the badge is always a PDF. Shared documents keep their own
+/// extension (jpg / png), otherwise the recipient cannot open them.
+String _safeDownloadFilename(String? raw, {bool forcePdf = true}) {
   final cleaned = (raw ?? 'badge.pdf')
       .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '-')
       .replaceAll(RegExp(r'-{2,}'), '-')
       .replaceAll(RegExp(r'^[-.]+|[-.]+$'), '');
   if (cleaned.isEmpty) return 'badge.pdf';
+  if (!forcePdf && cleaned.contains('.')) return cleaned;
   return cleaned.toLowerCase().endsWith('.pdf') ? cleaned : '$cleaned.pdf';
 }

@@ -141,14 +141,7 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
           );
         }
         return RefreshIndicator(
-          onRefresh: () async {
-            context.read<LoPortalBloc>().add(LoPortalLoadRequested());
-            await context.read<LoPortalBloc>().stream.firstWhere(
-              (s) =>
-                  s.status == LoPortalStatus.ready ||
-                  s.status == LoPortalStatus.failure,
-            );
-          },
+          onRefresh: () => refreshPortal(context),
           child: state.tasks.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -697,7 +690,11 @@ class _TaskTile extends StatelessWidget {
 
   Future<void> _updateStatus(BuildContext context) async {
     if (task.id == null) return;
-    var status = task.statusCode ?? 'PENDING';
+    const allowed = {'PENDING', 'IN_PROGRESS', 'COMPLETED'};
+    // Any other server code is not a dropdown item and would assert.
+    var status = allowed.contains(task.statusCode)
+        ? task.statusCode!
+        : 'PENDING';
     final remarks = TextEditingController();
     final ok = await showAppFormSheet(
       context: context,
@@ -730,11 +727,10 @@ class _TaskTile extends StatelessWidget {
         ],
       ),
     );
-    if (ok != true || !context.mounted) {
-      remarks.dispose();
-      return;
-    }
     final note = remarks.text.trim();
+    // Dispose after the sheet's close animation stops using the field.
+    WidgetsBinding.instance.addPostFrameCallback((_) => remarks.dispose());
+    if (ok != true || !context.mounted) return;
     context.read<LoPortalBloc>().add(
       LoPortalTaskStatusUpdated(
         taskId: task.id!,
@@ -742,7 +738,6 @@ class _TaskTile extends StatelessWidget {
         remarks: note.isEmpty ? null : note,
       ),
     );
-    remarks.dispose();
   }
 
   void _showDetails(BuildContext context, String scheduled, String location) {
@@ -1035,14 +1030,6 @@ class _TaskTile extends StatelessWidget {
                   ],
                 ),
               ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Update status',
-            onPressed: () => _updateStatus(context),
-            icon: Icon(
-              Icons.sync_outlined,
-              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ],

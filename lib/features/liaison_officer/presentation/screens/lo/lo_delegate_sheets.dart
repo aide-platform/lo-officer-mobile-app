@@ -373,7 +373,9 @@ class _FamilyCard extends StatelessWidget {
                 ),
               ),
               if ((f.relation ?? '').trim().isNotEmpty)
-                _Pill(label: f.relation!, color: colors.accent),
+                Flexible(
+                  child: _Pill(label: f.relation!, color: colors.accent),
+                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -538,7 +540,7 @@ class _VehicleCard extends StatelessWidget {
                 ),
               ),
               if (category.isNotEmpty)
-                _Pill(label: category, color: colors.accent),
+                Flexible(child: _Pill(label: category, color: colors.accent)),
             ],
           ),
           if (number.isNotEmpty) ...[

@@ -53,4 +53,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/docs/lo-help-and-support-manual.md

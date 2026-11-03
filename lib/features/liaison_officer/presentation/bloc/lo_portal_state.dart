@@ -34,6 +34,11 @@ class LoPortalState {
   final List<int>? documentPreviewBytes;
   final String? documentPreviewName;
 
+  /// Kind of the last failed document upload; [failedUploadSeq] changes on
+  /// every failure so the profile screen can drop its "uploaded" mark.
+  final LoUploadKind? failedUploadKind;
+  final int failedUploadSeq;
+
   const LoPortalState({
     this.status = LoPortalStatus.initial,
     this.profile,
@@ -61,6 +66,8 @@ class LoPortalState {
     this.profileSaveAck = false,
     this.documentPreviewBytes,
     this.documentPreviewName,
+    this.failedUploadKind,
+    this.failedUploadSeq = 0,
   });
 
   LoPortalState copyWith({
@@ -90,6 +97,8 @@ class LoPortalState {
     bool? profileSaveAck,
     List<int>? documentPreviewBytes,
     String? documentPreviewName,
+    LoUploadKind? failedUploadKind,
+    int? failedUploadSeq,
     bool clearError = false,
     bool clearInfo = false,
     bool clearDownload = false,
@@ -140,6 +149,8 @@ class LoPortalState {
       documentPreviewName: clearDocumentPreview
           ? null
           : (documentPreviewName ?? this.documentPreviewName),
+      failedUploadKind: failedUploadKind ?? this.failedUploadKind,
+      failedUploadSeq: failedUploadSeq ?? this.failedUploadSeq,
     );
   }
 }

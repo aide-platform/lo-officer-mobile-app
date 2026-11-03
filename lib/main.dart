@@ -12,6 +12,7 @@ import 'package:liaison_officer/core/session/auth_session.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/core/themes/data/local/theme_settings_local_data_source.dart';
 import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
+import 'package:liaison_officer/core/utils/lo_contact_actions.dart';
 import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 import 'package:liaison_officer/features/auth/landing_splash.dart';
 import 'package:liaison_officer/features/auth/login_screen.dart';
@@ -36,11 +37,25 @@ Future<void> main() async {
   PushNotificationService.instance.onToken = (_) {
     FcmDeviceRegistrar.registerIfSignedIn();
   };
-  await PushNotificationService.instance.initialize();
+  try {
+    await PushNotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('Push init skipped: $e');
+  }
   AppDependencies.create();
   final themeCubit = await ThemeCubit.create();
-  final session = await SessionStore.load();
-  await FcmDeviceRegistrar.registerIfSignedIn();
+  AuthSession? session;
+  try {
+    session = await SessionStore.load();
+  } catch (e) {
+    // Corrupt stored session: start signed out instead of a blank screen.
+    debugPrint('Session restore failed: $e');
+  }
+  try {
+    await FcmDeviceRegistrar.registerIfSignedIn();
+  } catch (e) {
+    debugPrint('FCM register skipped: $e');
+  }
   runApp(LiaisonOfficerApp(
     themeCubit: themeCubit,
     initialSession: session,
@@ -71,6 +86,7 @@ class LiaisonOfficerApp extends StatelessWidget {
           return MaterialApp(
             title: 'Aero India LO',
             debugShowCheckedModeBanner: false,
+            scaffoldMessengerKey: LoContactActions.messengerKey,
             theme: AppTheme.themeFor(settings.palette, dark: false),
             darkTheme: AppTheme.themeFor(settings.palette, dark: true),
             themeMode: settings.mode,

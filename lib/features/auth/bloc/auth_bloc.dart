@@ -17,16 +17,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     AuthSession? restoredSession,
   })  : _repository = repository ?? AppDependencies.instance.authRepository,
         super(_initialState(restoredSession)) {
-    on<AuthCaptchaRequested>(_onCaptchaRequested);
-    on<AuthOtpRequested>(_onOtpRequested);
-    on<AuthOtpResendRequested>(_onOtpResend);
-    on<AuthOtpVerified>(_onOtpVerified);
+    on<AuthCaptchaRequested>(_guarded(_onCaptchaRequested));
+    on<AuthOtpRequested>(_guarded(_onOtpRequested));
+    on<AuthOtpResendRequested>(_guarded(_onOtpResend));
+    on<AuthOtpVerified>(_guarded(_onOtpVerified));
     on<AuthLogoutRequested>(_onLogoutRequested);
-    on<AuthSessionRestored>(_onSessionRestored);
-    on<AuthLoginRequested>(_onLoginRequested);
+    on<AuthSessionRestored>(_guarded(_onSessionRestored));
+    on<AuthLoginRequested>(_guarded(_onLoginRequested));
   }
 
   final AuthRepository _repository;
+
+  /// Any unexpected error (parse failure, storage error) ends in a failure
+  /// state instead of leaving the login screen stuck on its spinner.
+  EventHandler<E, AuthBlocState> _guarded<E extends AuthEvent>(
+    Future<void> Function(E event, Emitter<AuthBlocState> emit) handler,
+  ) {
+    return (event, emit) async {
+      try {
+        await handler(event, emit);
+      } catch (e) {
+        if (emit.isDone) return;
+        emit(state.copyWith(
+          status: AuthStatus.failure,
+          errorMessage: apiErrorMessage(
+            e,
+            fallback: 'Something went wrong. Please try again.',
+          ),
+        ));
+      }
+    };
+  }
 
   static final RegExp _emailPattern = RegExp(
     r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
@@ -241,8 +262,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthBlocState> {
     AuthLogoutRequested event,
     Emitter<AuthBlocState> emit,
   ) async {
-    await SessionStore.clear();
-    LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureLogout);
+    try {
+      await SessionStore.clear();
+      LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureLogout);
+    } catch (_) {
+      // Sign out regardless; a stale stored session fails isValid later.
+    }
     emit(const AuthBlocState(status: AuthStatus.unauthenticated));
   }
 

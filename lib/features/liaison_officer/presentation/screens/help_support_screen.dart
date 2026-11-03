@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/device_downloads.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,7 +14,8 @@ import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_mod
 import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/widgets/helpline_numbers_card.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 /// Keeps the portal bloc available when Help is pushed above the app navigator.
@@ -39,6 +40,10 @@ void openHelpSupport(BuildContext context, {LoPortalBloc? bloc}) {
   );
 }
 
+/// The downloadable user manual as PDF bytes.
+@visibleForTesting
+Future<Uint8List> buildHelpManualPdf() => _HelpSupportScreenState.buildManualPdf();
+
 /// Help & Support — portal-aligned LO walkthrough (mirrors CAP web guide).
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -48,7 +53,7 @@ class HelpSupportScreen extends StatefulWidget {
 }
 
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
-  static const _manualAsset = 'assets/docs/lo-help-and-support-manual.md';
+  static const _logoAsset = 'assets/images/aero-india-logo.png';
 
   late final Map<String, GlobalKey> _sectionKeys = {
     for (final s in _sections) s.id: GlobalKey(),
@@ -321,7 +326,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       actions: [
         (
           'Download User Manual',
-          'Web downloads a PDF; mobile shares a markdown copy via the device share sheet.',
+          'Saves a PDF copy of this guide to your Downloads folder for offline reference.',
         ),
       ],
     ),
@@ -346,42 +351,256 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ),
   ];
 
-  Future<void> _shareManual() async {
+  bool _downloading = false;
+
+  /// Builds the manual PDF from the same content shown on this screen
+  /// (aide-ui also generates its Help PDF client-side) and saves it to
+  /// Downloads like the e-badge.
+  Future<void> _downloadManual() async {
+    if (_downloading) return;
+    _downloading = true;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text('Preparing user manual…'),
+        duration: Duration(seconds: 2),
+      ),
+    );
     try {
-      final markdown = await rootBundle.loadString(_manualAsset);
-      const name = 'lo-officer-user-manual.md';
-      final XFile manual;
+      final bytes = await buildManualPdf();
+      const name = 'lo-officer-user-manual.pdf';
       if (kIsWeb) {
-        // No temp directory on web; share_plus shares or downloads the bytes.
-        manual = XFile.fromData(
-          Uint8List.fromList(utf8.encode(markdown)),
-          name: name,
-          mimeType: 'text/markdown',
-        );
-      } else {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/$name');
-        await file.writeAsString(markdown);
-        manual = XFile(file.path);
+        // No Downloads channel on web; share_plus downloads the bytes.
+        await Share.shareXFiles([
+          XFile.fromData(bytes, name: name, mimeType: 'application/pdf'),
+        ]);
+        return;
       }
-      await Share.shareXFiles([manual], text: 'Liaison Officer user manual');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text('User manual ready to share.'),
-        ),
-      );
+      final handle = await DeviceDownloads.save(bytes: bytes, filename: name);
+      if (!mounted || !Platform.isAndroid) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: const Text('Saved to Downloads: $name'),
+            action: handle == null
+                ? null
+                : SnackBarAction(
+                    label: 'Open',
+                    onPressed: () async {
+                      bool opened;
+                      try {
+                        opened = await DeviceDownloads.open(handle);
+                      } catch (_) {
+                        opened = false;
+                      }
+                      if (!opened) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            behavior: SnackBarBehavior.floating,
+                            content: Text(
+                              'No app found to open PDF. Find it in Downloads.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+          ),
+        );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(apiErrorMessage(e)),
-        ),
-      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              apiErrorMessage(e, fallback: 'Could not download the manual.'),
+            ),
+          ),
+        );
+    } finally {
+      _downloading = false;
     }
   }
+
+  @visibleForTesting
+  static Future<Uint8List> buildManualPdf() async {
+    pw.MemoryImage? logo;
+    try {
+      final data = await rootBundle.load(_logoAsset);
+      logo = pw.MemoryImage(data.buffer.asUint8List());
+    } catch (_) {}
+
+    const accent = PdfColor.fromInt(0xFF1E3A8A);
+    const muted = PdfColor.fromInt(0xFF475569);
+    final h2 = pw.TextStyle(
+      fontSize: 15,
+      fontWeight: pw.FontWeight.bold,
+      color: accent,
+    );
+    final label = pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold);
+    const body = pw.TextStyle(fontSize: 10, lineSpacing: 2);
+
+    pw.Widget table(List<String> headers, List<List<String>> rows) {
+      return pw.TableHelper.fromTextArray(
+        headers: headers.map(_pdfText).toList(),
+        data: [
+          for (final r in rows) r.map(_pdfText).toList(),
+        ],
+        headerStyle: pw.TextStyle(
+          fontSize: 9.5,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.white,
+        ),
+        headerDecoration: const pw.BoxDecoration(color: accent),
+        headerAlignment: pw.Alignment.centerLeft,
+        cellStyle: const pw.TextStyle(fontSize: 9),
+        cellPadding: const pw.EdgeInsets.all(4),
+        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+      );
+    }
+
+    pw.Widget block(String title, pw.Widget child) => pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 8),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(title, style: label),
+          pw.SizedBox(height: 3),
+          child,
+        ],
+      ),
+    );
+
+    final doc = pw.Document(
+      title: 'Liaison Officer User Manual',
+      author: 'Aero India LO Committee',
+    );
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
+        footer: (ctx) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+            style: const pw.TextStyle(fontSize: 8, color: muted),
+          ),
+        ),
+        build: (ctx) => [
+          pw.Row(
+            children: [
+              if (logo != null) ...[
+                pw.Image(logo, width: 48, height: 48),
+                pw.SizedBox(width: 12),
+              ],
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Help & Support',
+                      style: pw.TextStyle(
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                        color: accent,
+                      ),
+                    ),
+                    pw.Text(
+                      'Liaison Officer - User Manual',
+                      style: const pw.TextStyle(fontSize: 12, color: muted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          pw.Divider(color: accent, thickness: 1.2),
+          pw.Text('Quick Overview', style: h2),
+          pw.SizedBox(height: 4),
+          for (final o in _overview)
+            pw.Bullet(
+              text: _pdfText('${o.$1}: ${o.$2}'),
+              style: body,
+            ),
+          pw.SizedBox(height: 10),
+          pw.Text('End-to-end workflow', style: h2),
+          pw.SizedBox(height: 4),
+          table(
+            ['Step', 'Screen'],
+            [for (final w in _workflow) [w.$1, w.$2]],
+          ),
+          for (final s in _sections) ...[
+            pw.SizedBox(height: 14),
+            pw.Text(_pdfText(s.title), style: h2),
+            block('Purpose', pw.Text(_pdfText(s.purpose), style: body)),
+            block(
+              'Where to find it',
+              pw.Text(_pdfText(s.whereToFind), style: body),
+            ),
+            if (s.steps.isNotEmpty)
+              block(
+                'Step-by-step',
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < s.steps.length; i++)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 2),
+                        child: pw.Text(
+                          '${i + 1}. ${_pdfText(s.steps[i])}',
+                          style: body,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (s.fields.isNotEmpty)
+              block(
+                'Fields',
+                table(
+                  ['Field', 'Required', 'Description'],
+                  [for (final f in s.fields) [f.$1, f.$2, f.$3]],
+                ),
+              ),
+            if (s.actions.isNotEmpty)
+              block(
+                'Available actions',
+                table(
+                  ['Action', 'Description'],
+                  [for (final a in s.actions) [a.$1, a.$2]],
+                ),
+              ),
+            if ((s.note ?? '').trim().isNotEmpty)
+              block('Note', pw.Text(_pdfText(s.note!), style: body)),
+          ],
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Made for LO Committee - Aero India. Content mirrors the live application.',
+            style: const pw.TextStyle(fontSize: 9, color: muted),
+          ),
+        ],
+      ),
+    );
+    return doc.save();
+  }
+
+  /// Built-in PDF fonts only cover Latin-1: swap arrows and dashes, drop
+  /// anything else they cannot draw.
+  static String _pdfText(String s) => s
+      .replaceAll('→', '->')
+      .replaceAll('—', '-')
+      .replaceAll('–', '-')
+      .replaceAll('‘', "'")
+      .replaceAll('’', "'")
+      .replaceAll('“', '"')
+      .replaceAll('”', '"')
+      .replaceAll('…', '...')
+      .replaceAll(RegExp(r'[^\x09\x0A\x0D\x20-\xFF]'), '');
 
   void _scrollTo(GlobalKey key) {
     final ctx = key.currentContext;
@@ -401,7 +620,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       actions: [
         IconButton(
           tooltip: 'Download user manual',
-          onPressed: _shareManual,
+          onPressed: _downloadManual,
           icon: const Icon(Icons.download_outlined, color: Colors.white),
         ),
       ],
@@ -447,7 +666,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                           child: _QuickTile(
                             icon: Icons.download_outlined,
                             label: 'User manual',
-                            onTap: _shareManual,
+                            onTap: _downloadManual,
                           ),
                         ),
                         Expanded(
@@ -527,7 +746,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: FilledButton.icon(
-                    onPressed: _shareManual,
+                    onPressed: _downloadManual,
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
                       shape: RoundedRectangleBorder(

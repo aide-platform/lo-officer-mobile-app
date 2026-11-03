@@ -413,9 +413,11 @@ class _AlertCard extends StatelessWidget {
       context: context,
       showDragHandle: true,
       useSafeArea: true,
+      // Long broadcast messages scroll instead of overflowing.
+      isScrollControlled: true,
       builder: (ctx) {
         final colors = ctx.semantic;
-        return Padding(
+        return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,

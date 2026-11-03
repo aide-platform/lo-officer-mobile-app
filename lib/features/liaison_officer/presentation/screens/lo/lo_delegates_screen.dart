@@ -72,15 +72,18 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
         if (state.status == LoPortalStatus.loading && state.delegates.isEmpty) {
           return const AppLoading(label: 'Loading delegates…');
         }
+        // Offline on first launch: show the error, not "No delegates".
+        if (state.status == LoPortalStatus.failure &&
+            state.delegates.isEmpty &&
+            state.tasks.isEmpty) {
+          return AppErrorView(
+            message: state.errorMessage ?? 'Failed to load delegates',
+            onRetry: () =>
+                context.read<LoPortalBloc>().add(LoPortalLoadRequested()),
+          );
+        }
         return RefreshIndicator(
-          onRefresh: () async {
-            context.read<LoPortalBloc>().add(LoPortalLoadRequested());
-            await context.read<LoPortalBloc>().stream.firstWhere(
-              (s) =>
-                  s.status == LoPortalStatus.ready ||
-                  s.status == LoPortalStatus.failure,
-            );
-          },
+          onRefresh: () => refreshPortal(context),
           child: state.delegates.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -629,7 +632,9 @@ class _DelegateCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        _TypePill(label: typeLabel, color: typeColor),
+                        Flexible(
+                          child: _TypePill(label: typeLabel, color: typeColor),
+                        ),
                       ],
                     ),
                     if ((d.designation ?? '').isNotEmpty) ...[
@@ -760,6 +765,8 @@ class _TypePill extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
