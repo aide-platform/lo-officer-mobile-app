@@ -10,6 +10,7 @@ enum AppColorPalette {
   royalPurple,
   crimson,
   midnightTeal,
+  deepBlue,
 }
 
 enum FontSizePreset { small, medium, large }
@@ -26,6 +27,7 @@ extension AppColorPaletteX on AppColorPalette {
         AppColorPalette.royalPurple => 'Royal Purple',
         AppColorPalette.crimson => 'Crimson',
         AppColorPalette.midnightTeal => 'Midnight Teal',
+        AppColorPalette.deepBlue => 'Deep Blue',
       };
 
   /// Header colour (app bar, shell header).
@@ -38,6 +40,7 @@ extension AppColorPaletteX on AppColorPalette {
         AppColorPalette.royalPurple => const Color(0xFF6D28D9),
         AppColorPalette.crimson => const Color(0xFFB91C1C),
         AppColorPalette.midnightTeal => const Color(0xFF134E4A),
+        AppColorPalette.deepBlue => const Color(0xFF12356D),
       };
 
   /// Primary accent: buttons, selected controls, links, focus.
@@ -50,13 +53,14 @@ extension AppColorPaletteX on AppColorPalette {
         AppColorPalette.royalPurple => const Color(0xFF8045DB),
         AppColorPalette.crimson => const Color(0xFFE84355),
         AppColorPalette.midnightTeal => const Color(0xFF20BFAE),
+        AppColorPalette.deepBlue => const Color(0xFF12356D),
       };
 
   static AppColorPalette fromId(String? id) {
     for (final p in AppColorPalette.values) {
       if (p.id == id) return p;
     }
-    return AppColorPalette.midnightTeal;
+    return AppColorPalette.deepBlue;
   }
 }
 
@@ -86,7 +90,7 @@ extension FontSizePresetX on FontSizePreset {
 class AppThemeSettings {
   const AppThemeSettings({
     this.mode = ThemeMode.system,
-    this.palette = AppColorPalette.midnightTeal,
+    this.palette = AppColorPalette.deepBlue,
     this.font = FontSizePreset.medium,
   });
 

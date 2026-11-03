@@ -409,7 +409,7 @@ class _ProfileSheet extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        color: context.semantic.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -501,7 +501,7 @@ class _InfoRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
+                    color: context.semantic.textPrimary,
                   ),
                 ),
               ],

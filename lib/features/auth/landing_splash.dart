@@ -1,12 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/widgets/aero_india_logo.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
-/// Aero India 2027 landing — logos, event copy, and a rising runway jet.
+/// Aero India 2027 splash — glowing logo on navy, then either the
+/// sign-in CTA ([onContinue]) or a tricolour loading bar.
 class LandingSplash extends StatelessWidget {
   const LandingSplash({super.key, this.onContinue});
 
@@ -14,189 +16,198 @@ class LandingSplash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF071433),
-              Color(0xFF0E2A66),
-              Color(0xFF1E4E96),
-              Color(0xFF4C93C9),
-            ],
-          ),
-        ),
-        child: Column(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.md,
-                  AppSpacing.xl,
-                  AppSpacing.sm,
-                ),
-                child: Column(
-                  children: [
-                    SafeAssetImage(
-                      assetPath: AppAssetManager.modLogoWhite,
-                      height: 72,
-                      fit: BoxFit.contain,
-                      fallback: Text(
-                        'MINISTRY OF DEFENCE',
-                        style: textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ).animate().fadeIn(
-                      duration: AppMotion.page,
-                      curve: Curves.easeOutCubic,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    const AeroIndiaLogo(size: 96),
-                    const SizedBox(height: AppSpacing.lg),
-                    Column(
-                      children: [
-                        Text(
-                          'Aero India 2027',
-                          textAlign: TextAlign.center,
-                          style:
-                              textTheme.headlineMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                height: 1.05,
-                              ) ??
-                              const TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          "Asia's premier aerospace and defence exhibition — the official event management portal for organising committees.",
-                          textAlign: TextAlign.center,
-                          style:
-                              textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.88),
-                                height: 1.35,
-                              ) ??
-                              TextStyle(
-                                color: Colors.white.withValues(alpha: 0.88),
-                                fontSize: 14,
-                                height: 1.35,
-                              ),
-                        ),
-                      ],
-                    ).animate().fadeIn(
-                      delay: 160.ms,
-                      duration: AppMotion.page,
-                      curve: Curves.easeOutCubic,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _InfoChip(
-                          icon: Icons.calendar_today_outlined,
-                          label: '8 – 17 February 2027',
-                        ),
-                        _InfoChip(
-                          icon: Icons.location_on_outlined,
-                          label: 'Air Force Station\nYelahanka, Bengaluru',
-                        ),
-                      ],
-                    ).animate().fadeIn(
-                      delay: 240.ms,
-                      duration: AppMotion.page,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  ],
-                ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF0C1A3A), Color(0xFF071D49)],
               ),
             ),
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.2),
+                radius: 0.85,
+                colors: [Color(0x402F6BD8), Color(0x00071D49)],
+              ),
+            ),
+          ),
+          const CustomPaint(painter: _StarFieldPainter()),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Column(
                 children: [
-                  const _RisingJet(),
-                  const DecoratedBox(
+                  const Spacer(flex: 3),
+                  // The logo artwork has dark lettering, so it sits on a
+                  // light badge to stay readable on navy.
+                  Container(
+                    width: 210,
+                    height: 210,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xCC0E2A66),
-                          Color(0x000E2A66),
-                          Color(0x66000000),
-                        ],
-                        stops: [0, 0.28, 1],
-                      ),
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.94),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFF6FA8FF,
+                          ).withValues(alpha: 0.35),
+                          blurRadius: 60,
+                          spreadRadius: 4,
+                        ),
+                      ],
                     ),
+                    child: const AeroIndiaLogo(size: 150),
                   ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Column(
+                    children: [
+                      const Text(
+                        'Aero India 2027',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Liaison Officer',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 16,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
+                  ).animate().fadeIn(
+                    delay: 160.ms,
+                    duration: AppMotion.page,
+                    curve: Curves.easeOutCubic,
+                  ),
+                  const Spacer(flex: 4),
                   if (onContinue != null)
-                    Positioned(
-                      left: AppSpacing.xl,
-                      right: AppSpacing.xl,
-                      bottom: AppSpacing.xl,
-                      child:
-                          SafeArea(
-                            top: false,
-                            child: AppPressScale(
-                              child: SizedBox(
-                                height: 52,
-                                width: double.infinity,
-                                child: FilledButton(
-                                  onPressed: onContinue,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppTheme.royalBlue,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadii.lg,
-                                      ),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Continue to Sign In',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                    AppPressScale(
+                      child: SizedBox(
+                        height: 52,
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: onContinue,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.royalBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadii.lg),
                             ),
-                          ).animate().fadeIn(
-                            delay: 420.ms,
-                            duration: AppMotion.medium,
-                            curve: Curves.easeOutCubic,
                           ),
-                    )
-                  else
-                    const Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: EdgeInsets.only(bottom: 36),
-                        child: SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
+                          child: const Text(
+                            'Continue to Sign In',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
+                    ).animate().fadeIn(
+                      delay: 420.ms,
+                      duration: AppMotion.medium,
+                      curve: Curves.easeOutCubic,
+                    )
+                  else
+                    Column(
+                      children: [
+                        const _TricolorLoadingBar(),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Loading…',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 12,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
                     ),
+                  const SizedBox(height: AppSpacing.xl),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Saffron | white | green in three equal solid segments, with a moving
+/// white shimmer.
+class _TricolorLoadingBar extends StatefulWidget {
+  const _TricolorLoadingBar();
+
+  @override
+  State<_TricolorLoadingBar> createState() => _TricolorLoadingBarState();
+}
+
+class _TricolorLoadingBarState extends State<_TricolorLoadingBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 180,
+      height: 5,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: ColoredBox(color: AppTheme.saffron)),
+                Expanded(child: ColoredBox(color: Colors.white)),
+                Expanded(child: ColoredBox(color: AppTheme.indiaGreen)),
+              ],
+            ),
+            AnimatedBuilder(
+              animation: _shimmer,
+              builder: (context, child) => Align(
+                alignment: Alignment(-1.6 + 3.2 * _shimmer.value, 0),
+                child: child,
+              ),
+              child: Container(
+                width: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0),
+                      Colors.white.withValues(alpha: 0.85),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -206,60 +217,24 @@ class LandingSplash extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
+/// Faint fixed star dots behind the splash content.
+class _StarFieldPainter extends CustomPainter {
+  const _StarFieldPainter();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final rnd = math.Random(27);
+    final paint = Paint();
+    for (var i = 0; i < 46; i++) {
+      final x = rnd.nextDouble() * size.width;
+      final y = rnd.nextDouble() * size.height;
+      paint.color = Colors.white.withValues(
+        alpha: 0.12 + rnd.nextDouble() * 0.28,
+      );
+      canvas.drawCircle(Offset(x, y), 0.6 + rnd.nextDouble() * 1.0, paint);
+    }
   }
-}
-
-class _RisingJet extends StatelessWidget {
-  const _RisingJet();
 
   @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-          AppAssetManager.aeroIndiaJet,
-          fit: BoxFit.cover,
-          alignment: Alignment.bottomCenter,
-          errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFF1E4E96)),
-        )
-        .animate()
-        .fadeIn(delay: 180.ms, duration: 700.ms, curve: Curves.easeOutCubic)
-        .slideY(
-          begin: 0.22,
-          end: 0,
-          delay: 180.ms,
-          duration: 900.ms,
-          curve: Curves.easeOutCubic,
-        );
-  }
+  bool shouldRepaint(covariant _StarFieldPainter oldDelegate) => false;
 }
