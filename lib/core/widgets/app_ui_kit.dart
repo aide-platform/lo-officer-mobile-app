@@ -279,6 +279,189 @@ class AppEmptyState extends StatelessWidget {
   }
 }
 
+/// Tinted circle with a large icon, two sparkles and optional corner badges.
+class AppEmptyIllustration extends StatelessWidget {
+  const AppEmptyIllustration({
+    super.key,
+    required this.icon,
+    this.badges = const [],
+  });
+
+  final IconData icon;
+
+  /// Usually [Positioned] widgets built with [badge].
+  final List<Widget> badges;
+
+  static Widget badge(
+    BuildContext context, {
+    required IconData icon,
+    Color? color,
+    Color? iconColor,
+    double size = 28,
+  }) {
+    final colors = context.semantic;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color ?? colors.surface,
+        border: Border.all(color: colors.surface, width: 2.5),
+      ),
+      child: Icon(icon, size: size * 0.57, color: iconColor ?? Colors.white),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.semantic.accent;
+    return SizedBox(
+      width: 160,
+      height: 150,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withValues(alpha: 0.08),
+            ),
+          ),
+          Icon(icon, size: 76, color: accent),
+          Positioned(
+            right: 30,
+            top: 26,
+            child: Icon(
+              Icons.auto_awesome,
+              size: 16,
+              color: accent.withValues(alpha: 0.6),
+            ),
+          ),
+          Positioned(
+            left: 30,
+            top: 50,
+            child: Icon(
+              Icons.auto_awesome,
+              size: 12,
+              color: accent.withValues(alpha: 0.45),
+            ),
+          ),
+          ...badges,
+        ],
+      ),
+    );
+  }
+}
+
+/// Empty-list card: illustration, title, message, Refresh and a tip line.
+class AppEmptyStateCard extends StatelessWidget {
+  const AppEmptyStateCard({
+    super.key,
+    required this.illustration,
+    required this.title,
+    required this.message,
+    required this.tip,
+    required this.loading,
+    required this.onRefresh,
+  });
+
+  final Widget illustration;
+  final String title;
+  final String message;
+  final String tip;
+  final bool loading;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final accent = colors.accent;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppCard(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+          child: Column(
+            children: [
+              illustration,
+              const SizedBox(height: 20),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: loading ? null : onRefresh,
+                style: OutlinedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  side: BorderSide(color: accent, width: 1.5),
+                  foregroundColor: accent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 12,
+                  ),
+                ),
+                icon: loading
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: accent,
+                        ),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+                label: const Text(
+                  'Refresh',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: accent.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.notifications_none_rounded, size: 20, color: accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  tip,
+                  style: TextStyle(fontSize: 13, color: colors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class AppSectionHeader extends StatelessWidget {
   const AppSectionHeader({super.key, required this.title, required this.asset});
 

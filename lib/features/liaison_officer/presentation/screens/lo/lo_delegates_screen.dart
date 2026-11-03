@@ -84,12 +84,45 @@ class _LoDelegatesScreenState extends State<LoDelegatesScreen> {
           child: state.delegates.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    _DelegatesHero(),
-                    SizedBox(height: 40),
-                    AppEmptyState(
-                      icon: Icons.groups_outlined,
-                      message: 'No delegates assigned yet.',
+                  padding: const EdgeInsets.only(bottom: 24),
+                  children: [
+                    const _DelegatesHero(),
+                    AppEmptyStateCard(
+                      illustration: AppEmptyIllustration(
+                        icon: Icons.groups_rounded,
+                        badges: [
+                          Positioned(
+                            right: 26,
+                            bottom: 30,
+                            child: AppEmptyIllustration.badge(
+                              context,
+                              icon: Icons.flight_rounded,
+                              color: AppTheme.saffron,
+                              size: 32,
+                            ),
+                          ),
+                          Positioned(
+                            left: 58,
+                            bottom: 22,
+                            child: AppEmptyIllustration.badge(
+                              context,
+                              icon: Icons.badge_outlined,
+                              iconColor: context.semantic.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      title: 'No delegates assigned yet',
+                      message:
+                          'Once the LO Committee assigns delegates to you, they '
+                          'will appear here with arrival, departure and event '
+                          'details.',
+                      tip:
+                          'Pull down or tap Refresh to check for new assignments.',
+                      loading: state.status == LoPortalStatus.loading,
+                      onRefresh: () => context.read<LoPortalBloc>().add(
+                        LoPortalLoadRequested(),
+                      ),
                     ),
                   ],
                 )

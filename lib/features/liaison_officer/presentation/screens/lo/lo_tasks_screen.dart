@@ -8,6 +8,7 @@ import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/core/utils/lo_display_format.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
+import 'package:liaison_officer/theme/app_theme.dart';
 
 enum _TaskFilter { all, pending, inProgress, completed }
 
@@ -151,12 +152,14 @@ class _LoTasksScreenState extends State<LoTasksScreen> {
           child: state.tasks.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    _TasksHero(),
-                    SizedBox(height: 40),
-                    AppEmptyState(
-                      icon: Icons.assignment_outlined,
-                      message: 'No tasks assigned.',
+                  padding: const EdgeInsets.only(bottom: 24),
+                  children: [
+                    const _TasksHero(),
+                    _TasksEmptyState(
+                      loading: state.status == LoPortalStatus.loading,
+                      onRefresh: () => context.read<LoPortalBloc>().add(
+                        LoPortalLoadRequested(),
+                      ),
                     ),
                   ],
                 )
@@ -348,6 +351,50 @@ class _TasksHero extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TasksEmptyState extends StatelessWidget {
+  const _TasksEmptyState({required this.loading, required this.onRefresh});
+
+  final bool loading;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.semantic.accent;
+    return AppEmptyStateCard(
+      illustration: AppEmptyIllustration(
+        icon: Icons.assignment_outlined,
+        badges: [
+          Positioned(
+            right: 34,
+            top: 70,
+            child: AppEmptyIllustration.badge(
+              context,
+              icon: Icons.check_rounded,
+              color: AppTheme.indiaGreen,
+            ),
+          ),
+          Positioned(
+            right: 22,
+            bottom: 24,
+            child: AppEmptyIllustration.badge(
+              context,
+              icon: Icons.schedule_rounded,
+              iconColor: accent,
+              size: 34,
+            ),
+          ),
+        ],
+      ),
+      title: 'No tasks assigned yet',
+      message:
+          'When the LO Committee assigns you a task, it will show up here.',
+      tip: 'Pull down or tap Refresh to check for new tasks.',
+      loading: loading,
+      onRefresh: onRefresh,
     );
   }
 }
