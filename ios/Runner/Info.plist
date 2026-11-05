@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to take your profile photo, signature and ID document images.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Your photo library is used to pick your profile photo, signature and ID document images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Downloaded badges and manuals can be saved to your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
