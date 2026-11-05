@@ -25,10 +25,12 @@ class ApiConfig {
   ApiConfig._();
 
   /// When true, repositories use in-memory/mock implementations.
-  /// Set `--dart-define=USE_MOCK_API=false` for live CAP.
+  /// Live CAP is the default, so a build without dart-defines (e.g. an
+  /// Xcode / `flutter run` iOS build) talks to GCP. Opt in to mock data
+  /// with `--dart-define=USE_MOCK_API=true` (see `scripts/run-mock.ps1`).
   static const bool useMockApi = bool.fromEnvironment(
     'USE_MOCK_API',
-    defaultValue: true,
+    defaultValue: false,
   );
 
   /// Gateway root. Both aide-service and event-services sit under it.
