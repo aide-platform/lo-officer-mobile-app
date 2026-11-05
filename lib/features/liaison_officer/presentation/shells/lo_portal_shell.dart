@@ -147,7 +147,11 @@ class _LoPortalShellState extends State<LoPortalShell> {
               final dir = await getTemporaryDirectory();
               final file = File('${dir.path}/$name');
               await file.writeAsBytes(bytes);
-              await Share.shareXFiles([XFile(file.path)], text: name);
+              await Share.shareXFiles(
+                [XFile(file.path)],
+                text: name,
+                sharePositionOrigin: DeviceDownloads.shareOrigin(),
+              );
             }
           } on PlatformException catch (e) {
             shareError = e.message ?? e.code;
