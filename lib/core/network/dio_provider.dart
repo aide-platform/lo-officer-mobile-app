@@ -46,6 +46,11 @@ Dio createDio({String? accessToken}) {
         final data = error.response?.data;
         final parsed = _messageFromBody(data);
         if (parsed != null && parsed.isNotEmpty) message = parsed;
+        // A gateway / proxy error page (HTML) or any non-JSON body is not
+        // something to show the user; describe the failure instead.
+        if (status != null && !_isUserReadable(message)) {
+          message = _messageForStatus(status);
+        }
         handler.reject(
           DioException(
             requestOptions: error.requestOptions,
@@ -60,6 +65,39 @@ Dio createDio({String? accessToken}) {
   );
 
   return dio;
+}
+
+/// False for HTML pages and long raw bodies, which are never a real message.
+bool _isUserReadable(String message) {
+  final m = message.trim();
+  if (m.isEmpty || m.length > 300) return false;
+  return !looksLikeHtml(m);
+}
+
+/// True when [text] is (part of) an HTML document.
+bool looksLikeHtml(String text) {
+  final t = text.trimLeft().toLowerCase();
+  return t.startsWith('<!doctype') ||
+      t.startsWith('<html') ||
+      t.contains('<html') ||
+      t.contains('</head>') ||
+      t.contains('<body');
+}
+
+String _messageForStatus(int status) {
+  if (status == 502 || status == 503 || status == 504) {
+    return 'The server is temporarily unavailable. Please try again in a minute.';
+  }
+  if (status == 401 || status == 403) {
+    return 'Your session has expired or you do not have access. Please sign in again.';
+  }
+  if (status == 404) {
+    return 'This service is not available right now. Please try again later.';
+  }
+  if (status >= 500) {
+    return 'The server ran into a problem ($status). Please try again.';
+  }
+  return 'Request failed ($status). Please try again.';
 }
 
 String? _messageFromBody(Object? data) {

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
+import 'package:liaison_officer/core/network/dio_provider.dart' show looksLikeHtml;
 
 /// User-facing message from CAP / Dio failures (no DioException class dump).
 String apiErrorMessage(
@@ -49,6 +50,10 @@ String apiErrorMessage(
 
 String _humanize(String message) {
   var m = message.trim();
+  // Never show a raw HTML error page (gateway / proxy) to the user.
+  if (looksLikeHtml(m)) {
+    return 'The server is temporarily unavailable. Please try again in a minute.';
+  }
   // Strip common wrapper prefixes.
   m = m.replaceFirst(
     RegExp(r'^DioException\s*\[[^\]]*\]:\s*', caseSensitive: false),
