@@ -273,6 +273,11 @@ class MyLoAssignmentDto {
   final List<String> decorations;
   final List<MyLoFamilyDto> family;
 
+  /// Accommodation, same fields as aide-ui's LO Assignments screen.
+  final bool? countryAccommodationRequired;
+  final bool? accommodationArranged;
+  final bool? accommodationConsidered;
+
   const MyLoAssignmentDto({
     this.assignmentId,
     this.delegateType,
@@ -302,7 +307,17 @@ class MyLoAssignmentDto {
     this.passportNationality,
     this.decorations = const [],
     this.family = const [],
+    this.countryAccommodationRequired,
+    this.accommodationArranged,
+    this.accommodationConsidered,
   });
+
+  /// Same three states as aide-ui: Not Considered / Allotted / Considered.
+  String get accommodationStatus {
+    if (accommodationConsidered == false) return 'Not Considered';
+    if (accommodationArranged == true) return 'Allotted';
+    return 'Considered';
+  }
 
   factory MyLoAssignmentDto.fromJson(Map<String, dynamic> json) {
     final familyRaw = json['family'];
@@ -359,7 +374,22 @@ class MyLoAssignmentDto {
                 )
                 .toList()
           : const [],
+      countryAccommodationRequired: _boolOrNull(
+        json['countryAccommodationRequired'],
+      ),
+      accommodationArranged: _boolOrNull(json['accommodationArranged']),
+      accommodationConsidered: _boolOrNull(json['accommodationConsidered']),
     );
+  }
+
+  static bool? _boolOrNull(Object? v) {
+    if (v is bool) return v;
+    if (v is String) {
+      final s = v.trim().toLowerCase();
+      if (s == 'true') return true;
+      if (s == 'false') return false;
+    }
+    return null;
   }
 }
 

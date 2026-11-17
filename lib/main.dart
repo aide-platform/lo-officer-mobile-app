@@ -96,12 +96,27 @@ class LiaisonOfficerApp extends StatelessWidget {
                     ? SystemUiOverlayStyle.light
                     : SystemUiOverlayStyle.dark,
               );
-              final mq = MediaQuery.of(context);
-              return MediaQuery(
-                data: mq.copyWith(
-                  textScaler: TextScaler.linear(settings.font.scale),
+              // Android 15+ draws apps edge-to-edge, so screens, sheets and
+              // bottom buttons ended up under the system navigation buttons.
+              // Keep the whole app above them; the strip below is painted in
+              // the page colour so it does not look like a gap.
+              return ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: SafeArea(
+                  top: false,
+                  left: false,
+                  right: false,
+                  // Builder: read the MediaQuery SafeArea already trimmed,
+                  // or the bottom inset would be added back.
+                  child: Builder(
+                    builder: (inner) => MediaQuery(
+                      data: MediaQuery.of(inner).copyWith(
+                        textScaler: TextScaler.linear(settings.font.scale),
+                      ),
+                      child: child ?? const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
-                child: child ?? const SizedBox.shrink(),
               );
             },
             home: SplashGate(initialSession: initialSession),
