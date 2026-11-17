@@ -209,6 +209,9 @@ class LoPortalCache {
     'departureTerminal': d.departureTerminal,
     'departureDate': d.departureDate,
     'departureTime': d.departureTime,
+    'countryAccommodationRequired': d.countryAccommodationRequired,
+    'accommodationArranged': d.accommodationArranged,
+    'accommodationConsidered': d.accommodationConsidered,
     'family': d.family
         .map(
           (f) => {

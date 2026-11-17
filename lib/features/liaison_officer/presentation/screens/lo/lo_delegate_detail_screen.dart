@@ -243,6 +243,40 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
+                // Same status as aide-ui's LO Assignments screen.
+                _Section(
+                  icon: Icons.hotel_outlined,
+                  title: 'Accommodation',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 8,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _Pill(
+                          label: live.accommodationStatus,
+                          color: switch (live.accommodationStatus) {
+                            'Allotted' => const Color(0xFF047857),
+                            'Not Considered' => colors.textMuted,
+                            _ => const Color(0xFF0369A1),
+                          },
+                        ),
+                      ),
+                      if (live.countryAccommodationRequired != null)
+                        _KvGrid(
+                          entries: [
+                            (
+                              'Country accommodation',
+                              live.countryAccommodationRequired!
+                                  ? 'Required'
+                                  : 'Not required',
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 KeyedSubtree(
                   key: _itineraryKey,
                   child: _Section(
