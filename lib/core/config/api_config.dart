@@ -56,15 +56,25 @@ class ApiConfig {
       ? _aideServiceOverride
       : '$apiGatewayUrl/aideservices';
 
-  /// event-services — not called by any current LO repo. Kept here so a
-  /// future module can route its Dio client through it without inventing a
-  /// second config class.
+  /// event-services on the same gateway as aide-service. FAQ uses this.
+  /// Override with `--dart-define=EVENT_SERVICE_URL=...` only when event
+  /// services are not under [apiGatewayUrl].
   static const String _eventServiceOverride = String.fromEnvironment(
     'EVENT_SERVICE_URL',
   );
   static String get eventServiceUrl => _eventServiceOverride.isNotEmpty
       ? _eventServiceOverride
       : '$apiGatewayUrl/eventservices';
+
+  /// Public FAQ guest list. Same path the Aero India website calls.
+  static const String faqGuestPath = '/eventContent/faq/guest/get';
+
+  /// Event whose FAQs are shown. Same id the website local/GCP env uses.
+  /// Override with `--dart-define=EVENT_ID=...`.
+  static const String eventId = String.fromEnvironment(
+    'EVENT_ID',
+    defaultValue: '6a33b3bd6d5c831733add5d5',
+  );
 
   static const Duration connectTimeout = Duration(seconds: 25);
   static const Duration receiveTimeout = Duration(seconds: 30);

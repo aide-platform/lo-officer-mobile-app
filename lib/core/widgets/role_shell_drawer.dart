@@ -6,6 +6,7 @@ import 'package:liaison_officer/core/session/auth_logout.dart';
 import 'package:liaison_officer/core/widgets/app_settings_sheet.dart';
 import 'package:liaison_officer/core/widgets/role_profile_drawer_header.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
+import 'package:liaison_officer/features/faq/presentation/faq_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -111,6 +112,14 @@ class RoleShellDrawer extends StatelessWidget {
                         item.onTap();
                       },
                     ),
+                  _DrawerTile(
+                    icon: Icons.quiz_outlined,
+                    label: 'FAQs',
+                    onTap: () {
+                      Navigator.pop(context);
+                      openFaqScreen(context);
+                    },
+                  ),
                   _DrawerTile(
                     icon: Icons.help_outline_rounded,
                     label: 'Help & Support',

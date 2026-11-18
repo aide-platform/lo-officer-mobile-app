@@ -11,10 +11,14 @@ import 'package:liaison_officer/core/session/session_store.dart';
 ///
 /// Corporate proxy tip: set `NO_PROXY=35.244.48.209` (or `*`) when calling
 /// the CAP host so the WSA does not require proxy auth for this IP.
-Dio createDio({String? accessToken}) {
+Dio createDio({
+  String? accessToken,
+  String? baseUrl,
+  bool attachSession = true,
+}) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: ApiConfig.baseUrl,
+      baseUrl: baseUrl ?? ApiConfig.baseUrl,
       connectTimeout: ApiConfig.connectTimeout,
       receiveTimeout: ApiConfig.receiveTimeout,
       headers: const {
@@ -28,9 +32,11 @@ Dio createDio({String? accessToken}) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
-        final token = accessToken ?? SessionStore.current?.accessToken;
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
+        if (attachSession) {
+          final token = accessToken ?? SessionStore.current?.accessToken;
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
         }
         handler.next(options);
       },

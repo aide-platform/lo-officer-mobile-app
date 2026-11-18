@@ -1,0 +1,352 @@
+import 'package:flutter/material.dart';
+import 'package:liaison_officer/core/design/app_semantic_colors.dart';
+import 'package:liaison_officer/core/design/app_spacing.dart';
+import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/widgets/app_motion.dart';
+import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/features/faq/data/faq_repository.dart';
+import 'package:liaison_officer/features/faq/domain/faq_category.dart';
+
+void openFaqScreen(BuildContext context) {
+  Navigator.of(context).push(
+    AppPageFadeRoute<void>(page: const FaqScreen()),
+  );
+}
+
+/// Category tabs and expandable answers, same grouping as the website FAQ page.
+class FaqScreen extends StatefulWidget {
+  const FaqScreen({super.key, this.repository});
+
+  final FaqRepository? repository;
+
+  @override
+  State<FaqScreen> createState() => _FaqScreenState();
+}
+
+class _FaqScreenState extends State<FaqScreen> {
+  late final FaqRepository _repository = widget.repository ?? FaqRepository();
+  final _search = TextEditingController();
+
+  List<FaqCategory> _categories = const [];
+  String? _activeId;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final categories = await _repository.fetch();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _activeId = categories.any((c) => c.id == _activeId)
+            ? _activeId
+            : categories.firstOrNull?.id;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = apiErrorMessage(error, fallback: 'Could not load FAQs.');
+      });
+    }
+  }
+
+  FaqCategory? get _active {
+    for (final category in _categories) {
+      if (category.id == _activeId) return category;
+    }
+    return _categories.firstOrNull;
+  }
+
+  List<FaqItem> get _visibleItems {
+    final items = _active?.items ?? const <FaqItem>[];
+    final query = _search.text.trim().toLowerCase();
+    if (query.isEmpty) return items;
+    return items
+        .where(
+          (item) =>
+              item.question.toLowerCase().contains(query) ||
+              item.answer.toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? const [Color(0xFF070B18), Color(0xFF12182E)]
+                : const [Color(0xFFF4F7FC), Color(0xFFE8F1FF)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GradientHeader(title: 'FAQs'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
+                child: TextField(
+                  controller: _search,
+                  onChanged: (_) => setState(() {}),
+                  textInputAction: TextInputAction.search,
+                  style: TextStyle(color: colors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Search questions',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _search.clear();
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    filled: true,
+                    fillColor: colors.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      borderSide: BorderSide(color: colors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      borderSide: BorderSide(color: colors.border),
+                    ),
+                  ),
+                ),
+              ),
+              if (_categories.isNotEmpty)
+                SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    itemCount: _categories.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final category = _categories[index];
+                      final selected = category.id == (_active?.id);
+                      return _FaqTab(
+                        label: category.title,
+                        selected: selected,
+                        onTap: () => setState(() => _activeId = category.id),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(child: _body(colors)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _body(AppSemanticColors colors) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return _Message(
+        icon: Icons.cloud_off_rounded,
+        text: _error!,
+        actionLabel: 'Try again',
+        onAction: _load,
+      );
+    }
+    if (_categories.isEmpty) {
+      return const _Message(
+        icon: Icons.quiz_outlined,
+        text: 'No FAQs are published yet.',
+      );
+    }
+    final items = _visibleItems;
+    if (items.isEmpty) {
+      return const _Message(
+        icon: Icons.search_off_rounded,
+        text: 'No questions match your search in this category.',
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      itemCount: items.length,
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, index) {
+        return _FaqTile(item: items[index], colors: colors);
+      },
+    );
+  }
+}
+
+class _FaqTab extends StatelessWidget {
+  const _FaqTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    return Material(
+      color: selected ? colors.accent : colors.surface,
+      borderRadius: BorderRadius.circular(AppRadii.pill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        onTap: onTap,
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            border: Border.all(
+              color: selected ? colors.accent : colors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected ? colors.onAccent : colors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FaqTile extends StatelessWidget {
+  const _FaqTile({required this.item, required this.colors});
+
+  final FaqItem item;
+  final AppSemanticColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          iconColor: colors.accent,
+          collapsedIconColor: colors.textSecondary,
+          title: Text(
+            item.question,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.3,
+            ),
+          ),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Text(
+                  item.answer.isEmpty ? 'No answer provided.' : item.answer,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    height: 1.45,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Message extends StatelessWidget {
+  const _Message({
+    required this.icon,
+    required this.text,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String text;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 36, color: colors.textMuted),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, height: 1.4),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
