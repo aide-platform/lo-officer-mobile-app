@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:liaison_officer/core/design/app_asset_manager.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/device_downloads.dart';
@@ -11,15 +10,17 @@ import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
 import 'package:liaison_officer/core/session/auth_logout.dart';
-import 'package:liaison_officer/core/themes/presentation/bloc/theme_cubit.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
+import 'package:liaison_officer/core/widgets/app_settings_sheet.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
-import 'package:liaison_officer/core/widgets/role_shell_drawer.dart';
+import 'package:liaison_officer/features/faq/presentation/faq_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegates_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_helplines_screen.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_more_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_notifications_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_profile_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_tasks_screen.dart';
@@ -42,6 +43,7 @@ class LoPortalShell extends StatefulWidget {
 
 class _LoPortalShellState extends State<LoPortalShell> {
   int _index = 0;
+  bool _showMore = false;
   List<int>? _handledDownload;
   String? _lastShownError;
 
@@ -61,7 +63,10 @@ class _LoPortalShellState extends State<LoPortalShell> {
   }
 
   void _selectTab(int index) {
-    setState(() => _index = index);
+    setState(() {
+      _showMore = false;
+      _index = index;
+    });
     if (index == 0) {
       LoFirebaseMonitor.instance.logTab(LoMonitoringEvents.tabDelegates);
     } else if (index == 1) {
@@ -269,76 +274,58 @@ class _LoPortalShellState extends State<LoPortalShell> {
       duration: AppMotion.medium,
       child: AdaptiveRoleScaffold(
         title: titles[_index.clamp(0, titles.length - 1)],
-        drawer: RoleShellDrawer(
-          email: widget.email,
-          roleLabel: widget.roleLabel,
-          navItems: [
-            RoleDrawerNavItem(
-              icon: Icons.groups_outlined,
-              asset: AppAssetManager.iconDelegate,
-              selected: _index == 0,
-              label: 'Delegates',
-              onTap: () => _selectTab(0),
-            ),
-            RoleDrawerNavItem(
-              icon: Icons.task_alt_outlined,
-              asset: AppAssetManager.iconTask,
-              selected: _index == 1,
-              label: 'Tasks',
-              onTap: () => _selectTab(1),
-            ),
-            RoleDrawerNavItem(
-              icon: Icons.phone_in_talk_outlined,
-              selected: _index == 2,
-              label: 'Help Line Numbers',
-              onTap: () => _selectTab(2),
-            ),
-            RoleDrawerNavItem(
-              icon: Icons.notifications_outlined,
-              asset: AppAssetManager.iconAlert,
-              selected: _index == 3,
-              label: 'Alerts',
-              onTap: () => _selectTab(3),
-            ),
-            RoleDrawerNavItem(
-              icon: Icons.person_outline,
-              label: 'My Profile',
-              onTap: () => _openProfile(context, forceWizard: false),
-            ),
-          ],
+        header: BlocBuilder<LoPortalBloc, LoPortalState>(
+          buildWhen: (previous, next) =>
+              previous.profile != next.profile || previous.alerts != next.alerts,
+          builder: (context, portalState) {
+            final name = portalState.profile?.displayName ?? '';
+            return LiaisonBrandHeader(
+              initials: liaisonInitials(name, widget.email),
+              alertCount: portalState.alerts.length,
+              onAlerts: () => _selectTab(3),
+              onAccountTap: () => setState(() => _showMore = true),
+            );
+          },
         ),
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Account',
-            icon: const Icon(
-              Icons.account_circle_outlined,
-              color: Colors.white,
-            ),
-            onSelected: (v) {
-              switch (v) {
-                case 'profile':
-                  _openProfile(context, forceWizard: false);
-                case 'help':
-                  openHelpSupport(context);
-                case 'theme':
-                  context.read<ThemeCubit>().toggle(
-                    Theme.of(context).brightness,
+        body: _showMore
+            ? LoMoreBody(
+                email: widget.email,
+                roleLabel: widget.roleLabel,
+                profile: state.profile,
+                onBack: () => setState(() => _showMore = false),
+                onOpenProfile: () => _openProfile(context, forceWizard: false),
+                onSettings: () => showAppSettingsSheet(context),
+                onHelp: () async {
+                  final action = await openHelpSupport(
+                    context,
+                    email: widget.email,
                   );
-                case 'logout':
+                  if (!context.mounted || action == null) return;
+                  if (action == 'alerts') {
+                    _selectTab(3);
+                  } else if (action == 'more') {
+                    setState(() => _showMore = true);
+                  }
+                },
+                onFaq: () async {
+                  final action = await openFaqScreen(
+                    context,
+                    email: widget.email,
+                  );
+                  if (!context.mounted || action == null) return;
+                  if (action == 'alerts') {
+                    _selectTab(3);
+                  } else if (action == 'more') {
+                    setState(() => _showMore = true);
+                  }
+                },
+                onLogout: () {
                   confirmLogout(context).then((ok) {
                     if (ok && context.mounted) performLogout(context);
                   });
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'profile', child: Text('My Profile')),
-              PopupMenuItem(value: 'help', child: Text('Help & Support')),
-              // PopupMenuItem(value: 'theme', child: Text('Toggle theme')),
-              PopupMenuItem(value: 'logout', child: Text('Logout')),
-            ],
-          ),
-        ],
-        body: Column(
+                },
+              )
+            : Column(
           children: [
             if (showCacheBanner)
               Material(
@@ -452,10 +439,14 @@ class _LoPortalShellState extends State<LoPortalShell> {
             label: 'Helplines',
           ),
           NavigationDestination(
-            icon: const _NavMark(icon: Icons.notifications_outlined),
-            selectedIcon: const _NavMark(
+            icon: _NavMark(
+              icon: Icons.notifications_outlined,
+              badgeCount: state.alerts.length,
+            ),
+            selectedIcon: _NavMark(
               icon: Icons.notifications,
               selected: true,
+              badgeCount: state.alerts.length,
             ),
             label: 'Alerts',
           ),
@@ -468,10 +459,15 @@ class _LoPortalShellState extends State<LoPortalShell> {
 }
 
 class _NavMark extends StatefulWidget {
-  const _NavMark({required this.icon, this.selected = false});
+  const _NavMark({
+    required this.icon,
+    this.selected = false,
+    this.badgeCount = 0,
+  });
 
   final IconData icon;
   final bool selected;
+  final int badgeCount;
 
   @override
   State<_NavMark> createState() => _NavMarkState();
@@ -498,11 +494,20 @@ class _NavMarkState extends State<_NavMark> {
           ? Theme.of(context).colorScheme.primary
           : context.semantic.textSecondary,
     );
-    return AnimatedScale(
+    final scaled = AnimatedScale(
       scale: _scale,
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutBack,
       child: child,
+    );
+    final count = widget.badgeCount;
+    if (count <= 0) return scaled;
+    final label = count > 99 ? '99+' : '$count';
+    return Badge(
+      label: Text(label),
+      backgroundColor: const Color(0xFFE11D2E),
+      textColor: Colors.white,
+      child: scaled,
     );
   }
 }

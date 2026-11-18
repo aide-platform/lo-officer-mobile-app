@@ -33,6 +33,7 @@ class AppPageScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.bottomNavigationBar,
     this.drawer,
+    this.header,
   });
 
   final String title;
@@ -41,6 +42,9 @@ class AppPageScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final Widget? bottomNavigationBar;
   final Widget? drawer;
+
+  /// Replaces the gradient title bar. The widget paints its own top inset.
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) {
@@ -60,21 +64,25 @@ class AppPageScaffold extends StatelessWidget {
           ),
         ),
         child: SafeArea(
+          top: header == null,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                  0,
+              if (header != null)
+                header!
+              else
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm,
+                    AppSpacing.sm,
+                    AppSpacing.sm,
+                    0,
+                  ),
+                  child: GradientHeader(
+                    title: title,
+                    actions: actions,
+                    showMenu: drawer != null,
+                  ),
                 ),
-                child: GradientHeader(
-                  title: title,
-                  actions: actions,
-                  showMenu: drawer != null,
-                ),
-              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(

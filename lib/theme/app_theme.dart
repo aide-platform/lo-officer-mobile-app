@@ -184,10 +184,10 @@ class AppTheme {
   static TextTheme _textTheme({required bool dark}) {
     final onSurface = dark ? textPrimary : lightTextPrimary;
     final muted = dark ? textSecondary : lightTextSecondary;
-    final ui = GoogleFonts.outfitTextTheme();
+    final ui = GoogleFonts.interTextTheme();
     final display = GoogleFonts.sourceSerif4TextTheme();
 
-    TextStyle outfit(
+    TextStyle inter(
       TextStyle? base, {
       double? size,
       FontWeight? weight,
@@ -195,7 +195,7 @@ class AppTheme {
       double? height,
       double? letterSpacing,
     }) {
-      return GoogleFonts.outfit(
+      return GoogleFonts.inter(
         textStyle: base,
         fontSize: size,
         fontWeight: weight,
@@ -226,17 +226,17 @@ class AppTheme {
       displayMedium: serif(display.displayMedium, size: 32, weight: FontWeight.w700),
       displaySmall: serif(display.displaySmall, size: 28, weight: FontWeight.w600),
       headlineLarge: serif(display.headlineLarge, size: 26, weight: FontWeight.w700),
-      headlineMedium: outfit(ui.headlineMedium, size: 22, weight: FontWeight.w700),
-      headlineSmall: outfit(ui.headlineSmall, size: 20, weight: FontWeight.w700),
-      titleLarge: outfit(ui.titleLarge, size: 18, weight: FontWeight.w700),
-      titleMedium: outfit(ui.titleMedium, size: 16, weight: FontWeight.w600),
-      titleSmall: outfit(ui.titleSmall, size: 14, weight: FontWeight.w600),
-      bodyLarge: outfit(ui.bodyLarge, size: 16, weight: FontWeight.w400),
-      bodyMedium: outfit(ui.bodyMedium, size: 14, weight: FontWeight.w400),
-      bodySmall: outfit(ui.bodySmall, size: 12, weight: FontWeight.w400, color: muted),
-      labelLarge: outfit(ui.labelLarge, size: 14, weight: FontWeight.w600),
-      labelMedium: outfit(ui.labelMedium, size: 12, weight: FontWeight.w600),
-      labelSmall: outfit(
+      headlineMedium: inter(ui.headlineMedium, size: 22, weight: FontWeight.w700),
+      headlineSmall: inter(ui.headlineSmall, size: 20, weight: FontWeight.w700),
+      titleLarge: inter(ui.titleLarge, size: 18, weight: FontWeight.w700),
+      titleMedium: inter(ui.titleMedium, size: 16, weight: FontWeight.w600),
+      titleSmall: inter(ui.titleSmall, size: 14, weight: FontWeight.w600),
+      bodyLarge: inter(ui.bodyLarge, size: 16, weight: FontWeight.w400),
+      bodyMedium: inter(ui.bodyMedium, size: 14, weight: FontWeight.w400),
+      bodySmall: inter(ui.bodySmall, size: 12, weight: FontWeight.w400, color: muted),
+      labelLarge: inter(ui.labelLarge, size: 14, weight: FontWeight.w600),
+      labelMedium: inter(ui.labelMedium, size: 12, weight: FontWeight.w600),
+      labelSmall: inter(
         ui.labelSmall,
         size: 11,
         weight: FontWeight.w600,

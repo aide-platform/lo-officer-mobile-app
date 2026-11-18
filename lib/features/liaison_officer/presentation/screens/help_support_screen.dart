@@ -10,6 +10,7 @@ import 'package:liaison_officer/core/services/lo_monitoring_events.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
@@ -22,7 +23,12 @@ import 'package:share_plus/share_plus.dart';
 ///
 /// Pass [bloc] when the drawer will close before this push; [Navigator.pop]
 /// would otherwise remove the help route if it is pushed first.
-void openHelpSupport(BuildContext context, {LoPortalBloc? bloc}) {
+/// Pops `'alerts'` or `'more'` when those header actions are used.
+Future<String?> openHelpSupport(
+  BuildContext context, {
+  LoPortalBloc? bloc,
+  String email = '',
+}) {
   var resolved = bloc;
   if (resolved == null) {
     try {
@@ -31,11 +37,14 @@ void openHelpSupport(BuildContext context, {LoPortalBloc? bloc}) {
   }
   final portal = resolved;
   LoFirebaseMonitor.instance.logFeature(LoMonitoringEvents.featureHelp);
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
+  return Navigator.of(context).push<String>(
+    MaterialPageRoute<String>(
       builder: (_) => portal == null
-          ? const HelpSupportScreen()
-          : BlocProvider.value(value: portal, child: const HelpSupportScreen()),
+          ? HelpSupportScreen(email: email)
+          : BlocProvider.value(
+              value: portal,
+              child: HelpSupportScreen(email: email),
+            ),
     ),
   );
 }
@@ -46,7 +55,9 @@ Future<Uint8List> buildHelpManualPdf() => _HelpSupportScreenState.buildManualPdf
 
 /// Help & Support — portal-aligned LO walkthrough (mirrors CAP web guide).
 class HelpSupportScreen extends StatefulWidget {
-  const HelpSupportScreen({super.key});
+  const HelpSupportScreen({super.key, this.email = ''});
+
+  final String email;
 
   @override
   State<HelpSupportScreen> createState() => _HelpSupportScreenState();
@@ -613,10 +624,75 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     );
   }
 
+  LoPortalBloc? _portalOrNull(BuildContext context) {
+    try {
+      return context.read<LoPortalBloc>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final portal = _portalOrNull(context);
+    final colors = context.semantic;
     return AppPageScaffold(
       title: 'Help & Support',
+      header: portal == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                BlocBuilder<LoPortalBloc, LoPortalState>(
+                  bloc: portal,
+                  buildWhen: (previous, next) =>
+                      previous.profile != next.profile ||
+                      previous.alerts != next.alerts,
+                  builder: (context, portalState) {
+                    final name = portalState.profile?.displayName ?? '';
+                    return LiaisonBrandHeader(
+                      initials: liaisonInitials(name, widget.email),
+                      alertCount: portalState.alerts.length,
+                      onAlerts: () => Navigator.pop(context, 'alerts'),
+                      onAccountTap: () => Navigator.pop(context, 'more'),
+                    );
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 8, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(
+                          Icons.chevron_left_rounded,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Help & Support',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Download user manual',
+                        onPressed: _downloadManual,
+                        icon: Icon(
+                          Icons.download_outlined,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
       actions: [
         IconButton(
           tooltip: 'Download user manual',

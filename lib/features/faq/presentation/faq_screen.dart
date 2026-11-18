@@ -1,23 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
+import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/features/faq/data/faq_repository.dart';
 import 'package:liaison_officer/features/faq/domain/faq_category.dart';
+import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 
-void openFaqScreen(BuildContext context) {
-  Navigator.of(context).push(
-    AppPageFadeRoute<void>(page: const FaqScreen()),
+/// Opens FAQs under the same brand header as the home shell.
+///
+/// Pops `'alerts'` or `'more'` when those header actions are used.
+Future<String?> openFaqScreen(BuildContext context, {String email = ''}) {
+  final bloc = context.read<LoPortalBloc>();
+  return Navigator.of(context).push<String>(
+    AppPageFadeRoute<String>(
+      page: BlocProvider.value(
+        value: bloc,
+        child: FaqScreen(email: email),
+      ),
+    ),
   );
 }
 
 /// Category tabs and expandable answers, same grouping as the website FAQ page.
 class FaqScreen extends StatefulWidget {
-  const FaqScreen({super.key, this.repository});
+  const FaqScreen({super.key, this.repository, this.email = ''});
 
   final FaqRepository? repository;
+  final String email;
 
   @override
   State<FaqScreen> createState() => _FaqScreenState();
@@ -103,11 +116,46 @@ class _FaqScreenState extends State<FaqScreen> {
                 : const [Color(0xFFF4F7FC), Color(0xFFE8F1FF)],
           ),
         ),
-        child: SafeArea(
-          child: Column(
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const GradientHeader(title: 'FAQs'),
+              BlocBuilder<LoPortalBloc, LoPortalState>(
+                buildWhen: (previous, next) =>
+                    previous.profile != next.profile ||
+                    previous.alerts != next.alerts,
+                builder: (context, portalState) {
+                  final name = portalState.profile?.displayName ?? '';
+                  return LiaisonBrandHeader(
+                    initials: liaisonInitials(name, widget.email),
+                    alertCount: portalState.alerts.length,
+                    onAlerts: () => Navigator.pop(context, 'alerts'),
+                    onAccountTap: () => Navigator.pop(context, 'more'),
+                  );
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Back',
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.chevron_left_rounded,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'FAQs',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
@@ -174,7 +222,6 @@ class _FaqScreenState extends State<FaqScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 

@@ -555,6 +555,7 @@ class AdaptiveRoleScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.secondaryBody,
     this.drawer,
+    this.header,
   });
 
   final String title;
@@ -567,6 +568,9 @@ class AdaptiveRoleScaffold extends StatelessWidget {
   final Widget? secondaryBody;
   final Widget? drawer;
 
+  /// Shell brand bar. When set, the gradient title header is not shown.
+  final Widget? header;
+
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= Breakpoints.phone;
@@ -576,6 +580,7 @@ class AdaptiveRoleScaffold extends StatelessWidget {
         actions: actions,
         floatingActionButton: floatingActionButton,
         drawer: drawer,
+        header: header,
         body: body,
         bottomNavigationBar: NavigationBar(
           selectedIndex: selectedIndex,
@@ -620,19 +625,22 @@ class AdaptiveRoleScaffold extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.sm,
-                        AppSpacing.sm,
-                        AppSpacing.sm,
-                        0,
+                    if (header != null)
+                      header!
+                    else
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.sm,
+                          AppSpacing.sm,
+                          AppSpacing.sm,
+                          0,
+                        ),
+                        child: GradientHeader(
+                          title: title,
+                          actions: actions,
+                          showMenu: drawer != null,
+                        ),
                       ),
-                      child: GradientHeader(
-                        title: title,
-                        actions: actions,
-                        showMenu: drawer != null,
-                      ),
-                    ),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
