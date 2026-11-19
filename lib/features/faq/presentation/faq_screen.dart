@@ -8,6 +8,7 @@ import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/features/faq/data/faq_repository.dart';
 import 'package:liaison_officer/features/faq/domain/faq_category.dart';
+import 'package:liaison_officer/features/helpdesk/presentation/helpdesk_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 
 /// Opens FAQs under the same brand header as the home shell.
@@ -238,9 +239,19 @@ class _FaqScreenState extends State<FaqScreen> {
       );
     }
     if (_categories.isEmpty) {
-      return const _Message(
-        icon: Icons.quiz_outlined,
-        text: 'No FAQs are published yet.',
+      return Column(
+        children: [
+          const Expanded(
+            child: _Message(
+              icon: Icons.quiz_outlined,
+              text: 'No FAQs are published yet.',
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: _HelpdeskPrompt(onTap: _openHelpdesk),
+          ),
+        ],
       );
     }
     final items = _visibleItems;
@@ -257,12 +268,69 @@ class _FaqScreenState extends State<FaqScreen> {
         AppSpacing.lg,
         AppSpacing.xl,
       ),
-      itemCount: items.length,
+      itemCount: items.length + 1,
       separatorBuilder: (context, index) =>
           const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
+        if (index == items.length) {
+          return Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: _HelpdeskPrompt(onTap: _openHelpdesk),
+          );
+        }
         return _FaqTile(item: items[index], colors: colors);
       },
+    );
+  }
+
+  /// Help Desk opened from the FAQ "Contact Support" prompt. Header actions
+  /// chosen there close the FAQ page too.
+  Future<void> _openHelpdesk() async {
+    final action = await openHelpdeskScreen(context, email: widget.email);
+    if (!mounted || action == null) return;
+    Navigator.pop(context, action);
+  }
+}
+
+/// "Still have questions?" card that opens the Help Desk, like the
+/// attendees FAQ page. Always shown.
+class _HelpdeskPrompt extends StatelessWidget {
+  const _HelpdeskPrompt({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.semantic;
+    return AppCard(
+      margin: EdgeInsets.zero,
+      onTap: onTap,
+      child: Column(
+        children: [
+          Text(
+            'Still have questions?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "If you couldn't find the answer you were looking for, "
+            'our support team is here to help.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: onTap,
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+            label: const Text('Contact Support'),
+          ),
+        ],
+      ),
     );
   }
 }
