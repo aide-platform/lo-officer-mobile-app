@@ -8,6 +8,7 @@ import 'package:liaison_officer/features/auth/bloc/auth_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
+import 'package:liaison_officer/features/training/data/training_downloads.dart';
 
 /// Yes / No prompt shown before [performLogout]. Returns true on Yes.
 Future<bool> confirmLogout(BuildContext context) async {
@@ -156,6 +157,8 @@ Future<void> performLogout(BuildContext context) async {
       await PushNotificationService.instance.cancelTaskReminders();
       await LoPortalCache.clearOfficerData();
       await LoOfflineStore.clearOfficerData();
+      // Training videos are for the signed-in officer only.
+      await TrainingDownloads.instance.clearAll();
     } catch (_) {}
     authBloc.add(AuthLogoutRequested());
     // Wait until prefs clear completes (bloc handler awaits SessionStore.clear).
