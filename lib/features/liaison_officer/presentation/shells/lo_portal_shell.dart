@@ -16,6 +16,8 @@ import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/faq/presentation/faq_screen.dart';
+import 'package:liaison_officer/features/helpdesk/presentation/helpdesk_screen.dart';
+import 'package:liaison_officer/features/training/presentation/training_documents_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_delegates_screen.dart';
@@ -319,6 +321,19 @@ class _LoPortalShellState extends State<LoPortalShell> {
                     setState(() => _showMore = true);
                   }
                 },
+                onHelpdesk: () async {
+                  final action = await openHelpdeskScreen(
+                    context,
+                    email: widget.email,
+                  );
+                  if (!context.mounted || action == null) return;
+                  if (action == 'alerts') {
+                    _selectTab(3);
+                  } else if (action == 'more') {
+                    setState(() => _showMore = true);
+                  }
+                },
+                onTraining: () => openTrainingDocuments(context),
                 onLogout: () {
                   confirmLogout(context).then((ok) {
                     if (ok && context.mounted) performLogout(context);

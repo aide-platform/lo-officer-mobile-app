@@ -66,6 +66,35 @@ class ApiConfig {
       ? _eventServiceOverride
       : '$apiGatewayUrl/eventservices';
 
+  // ── Help desk (same tickets as the attendees app) ──
+  /// Dashboard help desk form "Liaison Officer App" (formType 16,
+  /// subFormType 11). Query types are shown when their visibilitySpot
+  /// includes this number. (The attendees app uses 8, "Attendee App Support".)
+  static const int helpdeskSubFormType = 11;
+
+  /// Tickets, the form and uploads go to aide-service (LO token), which
+  /// forwards them to eventservices / survey-services / media-services as the
+  /// LO's own EventUser. Those services reject the LO token through the
+  /// gateway. See docs/helpdesk-flow.md.
+  static const String myLoHelpdeskContextPath =
+      '/app/my-lo/me/helpdesk/context';
+  static const String myLoHelpdeskFormPath = '/app/my-lo/me/helpdesk/form';
+  static const String myLoHelpdeskAttachmentsPath =
+      '/app/my-lo/me/helpdesk/attachments';
+  static const String myLoHelpdeskQueriesPath =
+      '/app/my-lo/me/helpdesk/queries';
+  static String myLoHelpdeskQueryPath(String id) =>
+      '/app/my-lo/me/helpdesk/queries/$id';
+  static String myLoHelpdeskCommentsPath(String id) =>
+      '/app/my-lo/me/helpdesk/queries/$id/comments';
+
+  /// Event id used by the help desk. Same id the website local/GCP env uses.
+  /// Override with `--dart-define=EVENT_ID=...`.
+  static const String eventId = String.fromEnvironment(
+    'EVENT_ID',
+    defaultValue: '6a33b3bd6d5c831733add5d5',
+  );
+
   static const Duration connectTimeout = Duration(seconds: 25);
   static const Duration receiveTimeout = Duration(seconds: 30);
 
@@ -117,6 +146,14 @@ class ApiConfig {
   /// (`/app/committee/bv-quota/badge/{passId}/download`) needs a Nodal /
   /// Sub-Nodal role, so an LO gets 403 there.
   static const String myLoBadgeDownloadPath = '/app/my-lo/me/badge/download';
+
+  /// Active LO training materials (videos and documents), `?type=VIDEO|DOCUMENT`.
+  static const String myLoTrainingPath = '/app/my-lo/me/training';
+
+  /// Streams one training file. Answers `Range` requests with 206, so video
+  /// downloads can resume.
+  static String myLoTrainingDownloadPath(String id) =>
+      '/app/my-lo/me/training/$id/download';
 
   /// LO Committee push broadcasts sent to me (also shown under Alerts).
   static const String myLoBroadcastsPath = '/app/my-lo/me/broadcasts';

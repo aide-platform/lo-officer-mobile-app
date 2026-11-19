@@ -10,6 +10,7 @@ import 'package:liaison_officer/features/liaison_officer/data/repository/mock_lo
 import 'package:liaison_officer/features/liaison_officer/data/repository/mock_notifications_repository.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/lo_portal_repository.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/notifications_repository.dart';
+import 'package:liaison_officer/features/training/data/training_repository.dart';
 
 /// Simple app-wide dependency holder (constructor injection root).
 class AppDependencies {
@@ -18,12 +19,14 @@ class AppDependencies {
     required this.authRepository,
     required this.loPortalRepository,
     required this.notificationsRepository,
+    required this.trainingRepository,
   });
 
   final Dio dio;
   final AuthRepository authRepository;
   final LoPortalRepository loPortalRepository;
   final NotificationsRepository notificationsRepository;
+  final TrainingRepository trainingRepository;
 
   static AppDependencies? _instance;
 
@@ -43,6 +46,7 @@ class AppDependencies {
         authRepository: MockAuthRepository(),
         loPortalRepository: MockLoPortalRepository(),
         notificationsRepository: MockNotificationsRepository(),
+        trainingRepository: MockTrainingRepository(),
       );
     } else {
       deps = AppDependencies._(
@@ -50,6 +54,7 @@ class AppDependencies {
         authRepository: DioAuthRepository(dio: client),
         loPortalRepository: DioLoPortalRepository(dio: client),
         notificationsRepository: DioNotificationsRepository(dio: client),
+        trainingRepository: DioTrainingRepository(dio: client),
       );
     }
     _instance = deps;
