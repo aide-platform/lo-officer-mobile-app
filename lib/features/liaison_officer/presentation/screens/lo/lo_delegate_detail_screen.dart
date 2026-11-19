@@ -12,7 +12,7 @@ import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_po
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/lo/lo_travel_editor.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 
-/// Optional section to scroll into view when opening delegate detail.
+/// Optional section to open when the delegate detail screen is shown.
 enum LoDelegateFocusSection { profile, itinerary, transport, travel }
 
 class LoDelegateDetailScreen extends StatefulWidget {
@@ -29,50 +29,38 @@ class LoDelegateDetailScreen extends StatefulWidget {
   State<LoDelegateDetailScreen> createState() => _LoDelegateDetailScreenState();
 }
 
-class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
-  final _itineraryKey = GlobalKey();
-  final _transportKey = GlobalKey();
-  final _travelKey = GlobalKey();
-  bool _didScrollToFocus = false;
+class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
 
   MyLoAssignmentDto get delegate => widget.delegate;
+
+  int _tabFor(LoDelegateFocusSection? focus) {
+    return switch (focus) {
+      LoDelegateFocusSection.itinerary => 1,
+      LoDelegateFocusSection.transport => 2,
+      LoDelegateFocusSection.travel => 3,
+      _ => 0,
+    };
+  }
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: _tabFor(widget.focusSection),
+    );
     LoFirebaseMonitor.instance.logFeature(
       LoMonitoringEvents.featureDelegateDetail,
     );
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scheduleFocusScroll();
-  }
-
-  void _scheduleFocusScroll() {
-    final focus = widget.focusSection;
-    if (_didScrollToFocus || focus == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _didScrollToFocus) return;
-      final key = switch (focus) {
-        LoDelegateFocusSection.itinerary => _itineraryKey,
-        LoDelegateFocusSection.transport => _transportKey,
-        LoDelegateFocusSection.travel => _travelKey,
-        LoDelegateFocusSection.profile => null,
-      };
-      final ctx = key?.currentContext;
-      if (ctx != null) {
-        _didScrollToFocus = true;
-        Scrollable.ensureVisible(
-          ctx,
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutCubic,
-          alignment: 0.05,
-        );
-      }
-    });
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   @override
@@ -82,7 +70,6 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
       appBar: AppBar(title: Text(delegate.fullName ?? 'Delegate')),
       body: BlocBuilder<LoPortalBloc, LoPortalState>(
         builder: (context, state) {
-          _scheduleFocusScroll();
           final live = () {
             if (assignmentId == null) return delegate;
             for (final e in state.delegates) {
@@ -119,286 +106,332 @@ class _LoDelegateDetailScreenState extends State<LoDelegateDetailScreen> {
           final hasPhone =
               LoContactActions.normalizePhone(live.mobileNumber) != null;
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              if (assignmentId != null) {
-                context.read<LoPortalBloc>().add(
-                  LoPortalDelegateExtrasRequested(assignmentId),
-                );
-              }
-              await refreshPortal(context);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                _ProfileHeader(delegate: live),
-                if (hasEmail || hasPhone) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (hasEmail)
-                        Expanded(
-                          child: _RoundAction(
-                            icon: Icons.email_outlined,
-                            label: 'Email',
-                            onTap: () => LoContactActions.email(live.email),
-                          ),
-                        ),
-                      if (hasPhone) ...[
-                        Expanded(
-                          child: _RoundAction(
-                            icon: Icons.call_outlined,
-                            label: 'Call',
-                            onTap: () =>
-                                LoContactActions.call(live.mobileNumber),
-                          ),
-                        ),
-                        Expanded(
-                          child: _RoundAction(
-                            icon: Icons.sms_outlined,
-                            label: 'SMS',
-                            onTap: () =>
-                                LoContactActions.sms(live.mobileNumber),
-                          ),
-                        ),
-                        Expanded(
-                          child: _RoundAction(
-                            icon: Icons.chat_outlined,
-                            label: 'WhatsApp',
-                            onTap: () =>
-                                LoContactActions.whatsApp(live.mobileNumber),
-                          ),
-                        ),
-                      ],
+          Future<void> refresh() async {
+            if (assignmentId != null) {
+              context.read<LoPortalBloc>().add(
+                LoPortalDelegateExtrasRequested(assignmentId),
+              );
+            }
+            await refreshPortal(context);
+          }
+
+          Widget tab(List<Widget> children) {
+            return RefreshIndicator(
+              onRefresh: refresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: children,
+              ),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ProfileHeader(delegate: live),
+                    if (hasEmail || hasPhone) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          if (hasEmail)
+                            Expanded(
+                              child: _RoundAction(
+                                icon: Icons.email_outlined,
+                                label: 'Email',
+                                onTap: () => LoContactActions.email(live.email),
+                              ),
+                            ),
+                          if (hasPhone) ...[
+                            Expanded(
+                              child: _RoundAction(
+                                icon: Icons.call_outlined,
+                                label: 'Call',
+                                onTap: () =>
+                                    LoContactActions.call(live.mobileNumber),
+                              ),
+                            ),
+                            Expanded(
+                              child: _RoundAction(
+                                icon: Icons.sms_outlined,
+                                label: 'SMS',
+                                onTap: () =>
+                                    LoContactActions.sms(live.mobileNumber),
+                              ),
+                            ),
+                            Expanded(
+                              child: _RoundAction(
+                                icon: Icons.chat_outlined,
+                                label: 'WhatsApp',
+                                onTap: () => LoContactActions.whatsApp(
+                                  live.mobileNumber,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
-                  ),
-                ],
-                const SizedBox(height: 16),
-                _Section(
-                  icon: Icons.person_outline,
-                  title: 'Profile',
-                  child: _KvGrid(
-                    entries: [
-                      ('Designation', live.designation),
-                      ('Organisation', live.organisation),
-                      ('Ministry', live.ministry),
-                      ('Gender', live.gender),
-                      ('Protocol', live.protocolEquiv),
-                      ('VIP category', live.vipCategory),
-                      ('Country', live.countryName),
-                      ('Email', live.email),
-                      ('Mobile', live.mobileNumber),
-                    ],
-                  ),
+                  ],
                 ),
-                if (live.family.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _Section(
-                    icon: Icons.group_outlined,
-                    title: 'Family',
-                    count: live.family.length,
-                    child: Column(
-                      spacing: 8,
-                      children: [
-                        for (final f in live.family)
-                          _ItemCard(
-                            icon: Icons.person_outline,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+              ),
+              const SizedBox(height: 8),
+              TabBar(
+                controller: _tabs,
+                labelColor: colors.accent,
+                unselectedLabelColor: colors.textSecondary,
+                indicatorColor: colors.accent,
+                indicatorWeight: 2.5,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+                tabs: const [
+                  Tab(text: 'Profile'),
+                  Tab(text: 'Itinerary'),
+                  Tab(text: 'Transport'),
+                  Tab(text: 'Travel'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabs,
+                  children: [
+                    tab([
+                      _Section(
+                        icon: Icons.person_outline,
+                        title: 'Profile',
+                        child: _KvGrid(
+                          entries: [
+                            ('Designation', live.designation),
+                            ('Organisation', live.organisation),
+                            ('Ministry', live.ministry),
+                            ('Gender', live.gender),
+                            ('Protocol', live.protocolEquiv),
+                            ('VIP category', live.vipCategory),
+                            ('Country', live.countryName),
+                            ('Email', live.email),
+                            ('Mobile', live.mobileNumber),
+                          ],
+                        ),
+                      ),
+                      if (live.family.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _Section(
+                          icon: Icons.group_outlined,
+                          title: 'Family',
+                          count: live.family.length,
+                          child: Column(
+                            spacing: 8,
+                            children: [
+                              for (final f in live.family)
+                                _ItemCard(
+                                  icon: Icons.person_outline,
+                                  child: Row(
                                     children: [
-                                      Text(
-                                        f.fullName ?? '—',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          color: colors.textPrimary,
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              f.fullName ?? '—',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: colors.textPrimary,
+                                              ),
+                                            ),
+                                            if ((f.gender ?? '')
+                                                .trim()
+                                                .isNotEmpty)
+                                              Text(
+                                                f.gender!,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: colors.textSecondary,
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                      if ((f.gender ?? '').trim().isNotEmpty)
-                                        Text(
-                                          f.gender!,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: colors.textSecondary,
+                                      if ((f.relation ?? '').trim().isNotEmpty)
+                                        Flexible(
+                                          child: _Pill(
+                                            label: f.relation!,
+                                            color: colors.accent,
                                           ),
                                         ),
                                     ],
                                   ),
                                 ),
-                                if ((f.relation ?? '').trim().isNotEmpty)
-                                  Flexible(
-                                    child: _Pill(
-                                      label: f.relation!,
-                                      color: colors.accent,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                            ],
                           ),
+                        ),
                       ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                // Same status as aide-ui's LO Assignments screen.
-                _Section(
-                  icon: Icons.hotel_outlined,
-                  title: 'Accommodation',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 8,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: _Pill(
-                          label: live.accommodationStatus,
-                          color: switch (live.accommodationStatus) {
-                            'Allotted' => const Color(0xFF047857),
-                            'Not Considered' => colors.textMuted,
-                            _ => const Color(0xFF0369A1),
-                          },
+                      const SizedBox(height: 12),
+                      // Same status as aide-ui's LO Assignments screen.
+                      _Section(
+                        icon: Icons.hotel_outlined,
+                        title: 'Accommodation',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 8,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: _Pill(
+                                label: live.accommodationStatus,
+                                color: switch (live.accommodationStatus) {
+                                  'Allotted' => const Color(0xFF047857),
+                                  'Not Considered' => colors.textMuted,
+                                  _ => const Color(0xFF0369A1),
+                                },
+                              ),
+                            ),
+                            if (live.countryAccommodationRequired != null)
+                              _KvGrid(
+                                entries: [
+                                  (
+                                    'Country accommodation',
+                                    live.countryAccommodationRequired!
+                                        ? 'Required'
+                                        : 'Not required',
+                                  ),
+                                ],
+                              ),
+                          ],
                         ),
                       ),
-                      if (live.countryAccommodationRequired != null)
-                        _KvGrid(
-                          entries: [
-                            (
-                              'Country accommodation',
-                              live.countryAccommodationRequired!
-                                  ? 'Required'
-                                  : 'Not required',
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                KeyedSubtree(
-                  key: _itineraryKey,
-                  child: _Section(
-                    icon: Icons.route_outlined,
-                    title: 'Itinerary',
-                    count: itinerary.length,
-                    child: itinerary.isEmpty
-                        ? const _EmptyText('No itinerary items yet.')
-                        : Column(
-                            spacing: 8,
-                            children: [
-                              for (final item in itinerary)
-                                _ItineraryTile(item: item),
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                KeyedSubtree(
-                  key: _transportKey,
-                  child: _Section(
-                    icon: Icons.directions_car_outlined,
-                    title: 'Transport',
-                    count: vehicles.length,
-                    child: vehicles.isEmpty
-                        ? const _EmptyText('No vehicles assigned.')
-                        : Column(
-                            spacing: 8,
-                            children: [
-                              for (final v in vehicles)
-                                _TransportCard(vehicle: v),
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                KeyedSubtree(
-                  key: _travelKey,
-                  child: _Section(
-                    icon: Icons.flight_outlined,
-                    title: 'Travel & movement',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      spacing: 8,
-                      children: [
-                        _TravelRow(
-                          icon: Icons.flight_land_rounded,
-                          label: 'Arrival',
-                          when: LoDisplayFormat.dateAndTime(
-                            live.arrivalDate,
-                            live.arrivalTime,
-                          ),
-                          flight: live.arrivalFlight,
-                          connecting: arrivalConnecting,
-                        ),
-                        _TravelRow(
-                          icon: Icons.flight_takeoff_rounded,
-                          label: 'Departure',
-                          when: LoDisplayFormat.dateAndTime(
-                            live.departureDate,
-                            live.departureTime,
-                          ),
-                          flight: live.departureFlight,
-                          connecting: departureConnecting,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
+                    ]),
+                    tab([
+                      _Section(
+                        icon: Icons.route_outlined,
+                        title: 'Itinerary',
+                        count: itinerary.length,
+                        child: itinerary.isEmpty
+                            ? const _EmptyText('No itinerary items yet.')
+                            : Column(
+                                spacing: 8,
+                                children: [
+                                  for (final item in itinerary)
+                                    _ItineraryTile(item: item),
+                                ],
+                              ),
+                      ),
+                    ]),
+                    tab([
+                      _Section(
+                        icon: Icons.directions_car_outlined,
+                        title: 'Transport',
+                        count: vehicles.length,
+                        child: vehicles.isEmpty
+                            ? const _EmptyText('No vehicles assigned.')
+                            : Column(
+                                spacing: 8,
+                                children: [
+                                  for (final v in vehicles)
+                                    _TransportCard(vehicle: v),
+                                ],
+                              ),
+                      ),
+                    ]),
+                    tab([
+                      _Section(
+                        icon: Icons.flight_outlined,
+                        title: 'Travel & movement',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: 8,
                           children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                // Travel saves against the assignment; without
-                                // one the sheet would save nothing.
-                                onPressed: assignmentId == null
-                                    ? null
-                                    : () => LoTravelEditor.open(
-                                        context,
-                                        live,
-                                        arrivalConnecting,
-                                        departureConnecting,
-                                      ),
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(48),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  side: BorderSide(color: colors.border),
-                                  foregroundColor: colors.textPrimary,
-                                ),
-                                icon: const Icon(
-                                  Icons.edit_calendar_outlined,
-                                  size: 18,
-                                ),
-                                label: const Text('Update travel'),
+                            _TravelRow(
+                              icon: Icons.flight_land_rounded,
+                              label: 'Arrival',
+                              when: LoDisplayFormat.dateAndTime(
+                                live.arrivalDate,
+                                live.arrivalTime,
                               ),
+                              flight: live.arrivalFlight,
+                              connecting: arrivalConnecting,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: assignmentId == null
-                                    ? null
-                                    : () => _openMovementSheet(context, live),
-                                style: FilledButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(48),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                            _TravelRow(
+                              icon: Icons.flight_takeoff_rounded,
+                              label: 'Departure',
+                              when: LoDisplayFormat.dateAndTime(
+                                live.departureDate,
+                                live.departureTime,
+                              ),
+                              flight: live.departureFlight,
+                              connecting: departureConnecting,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    // Travel saves against the assignment; without
+                                    // one the sheet would save nothing.
+                                    onPressed: assignmentId == null
+                                        ? null
+                                        : () => LoTravelEditor.open(
+                                            context,
+                                            live,
+                                            arrivalConnecting,
+                                            departureConnecting,
+                                          ),
+                                    style: OutlinedButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(48),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      side: BorderSide(color: colors.border),
+                                      foregroundColor: colors.textPrimary,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.edit_calendar_outlined,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Update travel'),
                                   ),
                                 ),
-                                icon: const Icon(
-                                  Icons.directions_walk_outlined,
-                                  size: 18,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: assignmentId == null
+                                        ? null
+                                        : () =>
+                                              _openMovementSheet(context, live),
+                                    style: FilledButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(48),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.directions_walk_outlined,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Log movement'),
+                                  ),
                                 ),
-                                label: const Text('Log movement'),
-                              ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    ]),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),

@@ -495,28 +495,34 @@ class _SummaryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
               children: [
-                Icon(icon, size: 22, color: color),
-                const SizedBox(height: 8),
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 24,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$count ',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                        TextSpan(
+                          text: label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: color),
                   ),
                 ),
               ],
@@ -629,54 +635,111 @@ class _DelegateGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.semantic;
     final total = tasks.length;
-    return AppCard(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: initiallyExpanded,
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(bottom: 8),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          iconColor: colors.textPrimary,
-          collapsedIconColor: colors.textPrimary,
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent.withValues(alpha: 0.1),
-            ),
-            child: Icon(Icons.person_rounded, color: colors.accent),
+    final mine = delegate == 'My tasks';
+    final accent = colors.accent;
+    final tile = Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        iconColor: mine ? accent : colors.textPrimary,
+        collapsedIconColor: mine ? accent : colors.textPrimary,
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: accent.withValues(alpha: mine ? 0.18 : 0.1),
           ),
-          title: Text(
-            '$delegate ($total)',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: colors.textPrimary,
+          child: Icon(Icons.person_rounded, color: accent),
+        ),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                '$delegate ($total)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: mine ? accent : colors.textPrimary,
+                ),
+              ),
             ),
-          ),
-          subtitle: Row(
-            children: [
-              Icon(Icons.list_alt_rounded, size: 15, color: colors.textMuted),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '$total tasks · $pending pending · '
-                  '$inProgress in progress · $completed completed',
-                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+            if (mine) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'YOU',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
             ],
-          ),
+          ],
+        ),
+        subtitle: Row(
           children: [
-            for (final t in tasks)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _TaskTile(task: t),
+            Icon(Icons.list_alt_rounded, size: 15, color: colors.textMuted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '$total tasks · $pending pending · '
+                '$inProgress in progress · $completed completed',
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
+            ),
+          ],
+        ),
+        children: [
+          for (final t in tasks)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _TaskTile(task: t),
+            ),
+        ],
+      ),
+    );
+    if (!mine) {
+      return AppCard(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+        child: tile,
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: ColoredBox(color: accent, child: const SizedBox(width: 5)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(17, 4, 12, 4),
+              child: tile,
+            ),
           ],
         ),
       ),

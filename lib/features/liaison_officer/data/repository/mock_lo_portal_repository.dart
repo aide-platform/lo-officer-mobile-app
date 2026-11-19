@@ -284,7 +284,9 @@ class MockLoPortalRepository implements LoPortalRepository {
     final e = LoExperienceDto(
       id: 'exp-${_experiences.length + 1}',
       eventName: body['eventName']?.toString(),
-      year: (body['eventYear'] as num?)?.toInt() ?? (body['year'] as num?)?.toInt(),
+      year:
+          (body['eventYear'] as num?)?.toInt() ??
+          (body['year'] as num?)?.toInt(),
       roleResponsibilities:
           body['roleResp']?.toString() ??
           body['roleResponsibilities']?.toString(),
@@ -456,6 +458,29 @@ class MockLoPortalRepository implements LoPortalRepository {
       title: 'Reporting time',
       body: 'All LOs report at the LO desk by 07:30 tomorrow.',
       createdAt: '2026-11-03T09:00:00+05:30',
+    ),
+  ];
+
+  @override
+  Future<List<LoFaqDto>> getMyFaqs() async => const [
+    LoFaqDto(
+      id: 'faq-1',
+      question:
+          'How can a Liaison Officer (LO) be nominated and complete their profile?',
+      answer:
+          'The organisation representative nominates the Liaison Officer through the task-force input.',
+      category: 'Liaison Officer Management',
+      sortOrder: 1,
+      updatedAt: '2026-11-19T10:15:00+05:30',
+    ),
+    LoFaqDto(
+      id: 'faq-2',
+      question: 'How are Liaison Officers assigned to delegates?',
+      answer:
+          'Once the Liaison Officer is active, the admin sends a standing assignment.',
+      category: 'Delegate Management',
+      sortOrder: 2,
+      updatedAt: '2026-11-19T11:05:00+05:30',
     ),
   ];
 }

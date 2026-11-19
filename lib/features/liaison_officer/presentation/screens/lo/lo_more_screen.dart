@@ -48,14 +48,17 @@ class LoMoreBody extends StatelessWidget {
             IconButton(
               tooltip: 'Back',
               onPressed: onBack,
-              icon: Icon(Icons.chevron_left_rounded, color: colors.textPrimary),
+              icon: Icon(
+                Icons.chevron_left_rounded,
+                color: colors.textSecondary,
+              ),
             ),
             Text(
               'More',
               style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -83,7 +86,7 @@ class LoMoreBody extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: colors.textPrimary,
                           ),

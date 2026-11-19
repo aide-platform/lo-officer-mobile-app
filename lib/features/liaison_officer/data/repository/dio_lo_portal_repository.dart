@@ -471,6 +471,30 @@ class DioLoPortalRepository implements LoPortalRepository {
   }
 
   @override
+  Future<List<LoFaqDto>> getMyFaqs() async {
+    try {
+      final res = await _dio.get(ApiConfig.myLoFaqsPath);
+      final aide = AideResponse.unwrap(
+        res.data,
+        parseData: (raw) =>
+            AideResponse.asMapList(raw).map(LoFaqDto.fromJson).toList(),
+      );
+      return (aide.data ?? const <LoFaqDto>[])
+          .where((faq) => faq.id.isNotEmpty && faq.isActive)
+          .toList();
+    } on DioException catch (e) {
+      final wrapped = e.error;
+      final code = wrapped is ApiException
+          ? wrapped.statusCode
+          : e.response?.statusCode;
+      if (code == 404 || e.response?.statusCode == 404) {
+        return const [];
+      }
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<int>> downloadBadge(String passId) async {
     final bytes = await _downloadAuthedBytes(
       // Server resolves the pass from the session; passId only names the file.

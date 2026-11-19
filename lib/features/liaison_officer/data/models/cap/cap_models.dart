@@ -675,6 +675,44 @@ class LoBroadcastDto {
   );
 }
 
+/// Active FAQ from `GET /app/my-lo/me/faqs`. [category] is omitted when null.
+class LoFaqDto {
+  final String id;
+  final String question;
+  final String answer;
+  final String? category;
+  final int sortOrder;
+  final bool isActive;
+  final String? updatedAt;
+
+  const LoFaqDto({
+    required this.id,
+    required this.question,
+    required this.answer,
+    this.category,
+    this.sortOrder = 0,
+    this.isActive = true,
+    this.updatedAt,
+  });
+
+  factory LoFaqDto.fromJson(Map<String, dynamic> json) {
+    final activeRaw = json['isActive'];
+    final isActive = activeRaw is bool
+        ? activeRaw
+        : activeRaw == null || activeRaw.toString().toLowerCase() != 'false';
+    final category = json['category']?.toString().trim();
+    return LoFaqDto(
+      id: json['id']?.toString() ?? '',
+      question: json['question']?.toString() ?? '',
+      answer: json['answer']?.toString() ?? '',
+      category: category == null || category.isEmpty ? null : category,
+      sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      isActive: isActive,
+      updatedAt: json['updatedAt']?.toString(),
+    );
+  }
+}
+
 class LoHelplineDto {
   final String id;
   final String label;

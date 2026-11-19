@@ -56,7 +56,7 @@ class ApiConfig {
       ? _aideServiceOverride
       : '$apiGatewayUrl/aideservices';
 
-  /// event-services on the same gateway as aide-service. FAQ uses this.
+  /// event-services on the same gateway as aide-service.
   /// Override with `--dart-define=EVENT_SERVICE_URL=...` only when event
   /// services are not under [apiGatewayUrl].
   static const String _eventServiceOverride = String.fromEnvironment(
@@ -65,16 +65,6 @@ class ApiConfig {
   static String get eventServiceUrl => _eventServiceOverride.isNotEmpty
       ? _eventServiceOverride
       : '$apiGatewayUrl/eventservices';
-
-  /// Public FAQ guest list. Same path the Aero India website calls.
-  static const String faqGuestPath = '/eventContent/faq/guest/get';
-
-  /// Event whose FAQs are shown. Same id the website local/GCP env uses.
-  /// Override with `--dart-define=EVENT_ID=...`.
-  static const String eventId = String.fromEnvironment(
-    'EVENT_ID',
-    defaultValue: '6a33b3bd6d5c831733add5d5',
-  );
 
   static const Duration connectTimeout = Duration(seconds: 25);
   static const Duration receiveTimeout = Duration(seconds: 30);
@@ -130,6 +120,9 @@ class ApiConfig {
 
   /// LO Committee push broadcasts sent to me (also shown under Alerts).
   static const String myLoBroadcastsPath = '/app/my-lo/me/broadcasts';
+
+  /// Active FAQs for the signed-in liaison officer.
+  static const String myLoFaqsPath = '/app/my-lo/me/faqs';
 
   // ── Notifications (in-app feed) ──────────────────────────────
   static const String notificationsMinePath = '/app/notifications/mine';
