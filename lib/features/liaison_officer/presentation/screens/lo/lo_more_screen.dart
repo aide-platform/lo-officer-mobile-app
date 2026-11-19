@@ -19,6 +19,7 @@ class LoMoreBody extends StatelessWidget {
     required this.onHelp,
     required this.onFaq,
     required this.onHelpdesk,
+    required this.onTraining,
     required this.onLogout,
   });
 
@@ -31,6 +32,7 @@ class LoMoreBody extends StatelessWidget {
   final VoidCallback onHelp;
   final VoidCallback onFaq;
   final VoidCallback onHelpdesk;
+  final VoidCallback onTraining;
   final VoidCallback onLogout;
 
   @override
@@ -167,6 +169,14 @@ class LoMoreBody extends StatelessWidget {
                 title: 'Help Desk',
                 subtitle: 'Raise a query and track replies',
                 onTap: onHelpdesk,
+              ),
+              Divider(height: 1, indent: 72, color: colors.border),
+              _MoreRow(
+                icon: Icons.school_outlined,
+                iconColor: const Color(0xFF0EA5E9),
+                title: 'Training Document',
+                subtitle: 'Training videos and documents',
+                onTap: onTraining,
               ),
             ],
           ),

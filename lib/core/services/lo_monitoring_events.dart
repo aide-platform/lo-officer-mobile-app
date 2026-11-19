@@ -20,6 +20,7 @@ class LoMonitoringEvents {
   static const featureIssueReport = 'issue_report';
   static const featureTravelEditor = 'travel_editor';
   static const featureHelp = 'help';
+  static const featureTraining = 'training';
   static const featureInbox = 'inbox';
   static const featureProfileSave = 'profile_save';
   static const featureTaskStatus = 'task_status';
