@@ -7,6 +7,7 @@ import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/features/helpdesk/data/helpdesk_repository.dart';
+import 'package:liaison_officer/features/helpdesk/data/helpdesk_updates.dart';
 import 'package:liaison_officer/features/helpdesk/domain/helpdesk_models.dart';
 import 'package:liaison_officer/features/helpdesk/presentation/ask_help_screen.dart';
 import 'package:liaison_officer/features/helpdesk/presentation/helpdesk_widgets.dart';
@@ -63,14 +64,21 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    HelpdeskUpdates.instance.addListener(_onPush);
     _reload();
   }
 
   @override
   void dispose() {
+    HelpdeskUpdates.instance.removeListener(_onPush);
     _scroll.dispose();
     _search.dispose();
     super.dispose();
+  }
+
+  /// A help desk push arrived: refresh statuses quietly.
+  void _onPush() {
+    if (mounted && !_loading) _reload(showSpinner: false);
   }
 
   void _onScroll() {
@@ -416,7 +424,7 @@ class HelpdeskQueryCard extends StatelessWidget {
           ],
           if (query.attachments.isNotEmpty) ...[
             const SizedBox(height: 4),
-            HelpdeskAttachmentLinks(urls: query.attachments),
+            HelpdeskAttachmentLinks(attachments: query.attachments),
           ],
         ],
       ),

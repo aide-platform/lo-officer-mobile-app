@@ -67,13 +67,13 @@ class ApiConfig {
       : '$apiGatewayUrl/eventservices';
 
   // ── Help desk ──
-  /// Queries, query types and uploads are on aide-service (LO token); the
-  /// help desk is stored in aide-service, attachments on media-services.
+  /// Queries and query types are on aide-service (LO token). Files are sent
+  /// with the query / comment (multipart) and downloaded with the same token.
   /// See docs/helpdesk-flow.md.
   static const String myLoHelpdeskQueryTypesPath =
       '/app/my-lo/me/helpdesk/query-types';
-  static const String myLoHelpdeskAttachmentsPath =
-      '/app/my-lo/me/helpdesk/attachments';
+  static String myLoHelpdeskAttachmentPath(String id) =>
+      '/app/my-lo/me/helpdesk/attachments/$id';
   static const String myLoHelpdeskQueriesPath =
       '/app/my-lo/me/helpdesk/queries';
   static String myLoHelpdeskQueryPath(String id) =>

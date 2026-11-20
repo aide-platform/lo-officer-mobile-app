@@ -16,7 +16,9 @@ import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/core/widgets/mobile_ux_kit.dart';
 import 'package:liaison_officer/features/faq/presentation/faq_screen.dart';
+import 'package:liaison_officer/features/helpdesk/data/helpdesk_updates.dart';
 import 'package:liaison_officer/features/helpdesk/presentation/helpdesk_screen.dart';
+import 'package:liaison_officer/features/helpdesk/presentation/query_detail_screen.dart';
 import 'package:liaison_officer/features/training/presentation/training_documents_screen.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/screens/help_support_screen.dart';
@@ -59,8 +61,14 @@ class _LoPortalShellState extends State<LoPortalShell> {
 
   void _onForegroundPush(String? link) {
     if (!mounted) return;
-    if (link != null && link.toLowerCase().startsWith('broadcast:')) {
+    final lower = link?.toLowerCase() ?? '';
+    if (lower.startsWith('broadcast:')) {
       context.read<LoPortalBloc>().add(LoPortalAlertsRefreshRequested());
+    } else if (lower.startsWith('helpdesk:')) {
+      // The reply / close also added an in-app alert; refresh it, and any
+      // help desk screen that is open reloads.
+      context.read<LoPortalBloc>().add(LoPortalAlertsRefreshRequested());
+      HelpdeskUpdates.instance.notify(link!.substring('helpdesk:'.length).trim());
     }
   }
 
@@ -96,6 +104,12 @@ class _LoPortalShellState extends State<LoPortalShell> {
     if (lower.startsWith('broadcast:')) {
       _selectTab(3);
       context.read<LoPortalBloc>().add(LoPortalAlertsRefreshRequested());
+    } else if (lower.startsWith('helpdesk:')) {
+      // Help desk reply / close: open that query.
+      final id = link.substring('helpdesk:'.length).trim();
+      if (id.isNotEmpty) {
+        openHelpdeskQueryById(context, id: id, email: widget.email);
+      }
     } else if (lower.contains('task')) {
       setState(() => _index = 1);
     } else if (lower.contains('delegate')) {

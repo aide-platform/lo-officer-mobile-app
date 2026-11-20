@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/features/helpdesk/data/helpdesk_repository.dart';
 import 'package:liaison_officer/features/helpdesk/domain/helpdesk_models.dart';
@@ -41,7 +42,7 @@ class _AskHelpScreenState extends State<AskHelpScreen> {
 
   List<HelpdeskQueryType> _types = const [];
   HelpdeskQueryType? _type;
-  final List<String> _attachments = [];
+  final List<PickedFileBytes> _attachments = [];
   bool _loading = true;
   String? _error;
   bool _showErrors = false;
@@ -139,14 +140,11 @@ class _AskHelpScreenState extends State<AskHelpScreen> {
       );
       return;
     }
-    final url = await pickAndUploadHelpdeskAttachment(
+    final file = await pickHelpdeskAttachment(
       context,
-      repository: _repository,
-      accepted: HelpdeskRepository.acceptedTypes,
-      maxSizeMb: HelpdeskRepository.maxAttachmentMb,
       title: 'Attachments',
     );
-    if (url != null && mounted) setState(() => _attachments.add(url));
+    if (file != null && mounted) setState(() => _attachments.add(file));
   }
 
   Future<void> _submit() async {
@@ -164,7 +162,7 @@ class _AskHelpScreenState extends State<AskHelpScreen> {
         queryTypeId: _type!.id,
         title: title,
         description: description,
-        attachments: List.of(_attachments),
+        files: List.of(_attachments),
       );
       if (!mounted) return;
       showHelpdeskSnack(context, 'Your query was submitted.');
@@ -343,7 +341,7 @@ class _AskHelpScreenState extends State<AskHelpScreen> {
             children: [
               if (_attachments.isNotEmpty)
                 HelpdeskPendingAttachments(
-                  urls: _attachments,
+                  files: _attachments,
                   onRemove: (i) => setState(() => _attachments.removeAt(i)),
                 ),
               if (_attachments.length < HelpdeskRepository.maxAttachments)

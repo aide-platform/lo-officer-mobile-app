@@ -39,6 +39,39 @@ class HelpdeskQueryType {
       );
 }
 
+/// A file attached to a query or a message. Download it with
+/// [HelpdeskRepository.downloadAttachment] (needs the LO token).
+class HelpdeskAttachment {
+  const HelpdeskAttachment({
+    required this.id,
+    required this.fileName,
+    required this.mimeType,
+    required this.sizeBytes,
+  });
+
+  final String id;
+  final String fileName;
+  final String mimeType;
+  final int sizeBytes;
+
+  factory HelpdeskAttachment.fromJson(Map<String, dynamic> json) =>
+      HelpdeskAttachment(
+        id: json['id']?.toString() ?? '',
+        fileName: json['fileName']?.toString() ?? 'file',
+        mimeType: json['mimeType']?.toString() ?? 'application/octet-stream',
+        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+      );
+
+  static List<HelpdeskAttachment> listFrom(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((e) => HelpdeskAttachment.fromJson(Map<String, dynamic>.from(e)))
+        .where((a) => a.id.isNotEmpty)
+        .toList();
+  }
+}
+
 class HelpdeskQuery {
   const HelpdeskQuery({
     required this.id,
@@ -58,7 +91,7 @@ class HelpdeskQuery {
   final String queryTypeName;
   final String title;
   final String description;
-  final List<String> attachments;
+  final List<HelpdeskAttachment> attachments;
   final String? status;
 
   /// CHAT or CALL when closed.
@@ -76,7 +109,7 @@ class HelpdeskQuery {
     queryTypeName: json['queryTypeName']?.toString() ?? '',
     title: json['title']?.toString() ?? '',
     description: json['description']?.toString() ?? '',
-    attachments: _urls(json['attachments']),
+    attachments: HelpdeskAttachment.listFrom(json['attachments']),
     status: json['status']?.toString(),
     closedType: json['closedType']?.toString(),
     createdAt: parseHelpdeskDate(json['createdAt']),
@@ -98,7 +131,7 @@ class HelpdeskComment {
   final String senderType;
   final String senderName;
   final String body;
-  final List<String> attachments;
+  final List<HelpdeskAttachment> attachments;
   final DateTime? createdAt;
 
   bool get fromTeam => senderType == 'TEAM';
@@ -123,7 +156,7 @@ class HelpdeskComment {
         senderType: json['senderType']?.toString() ?? '',
         senderName: json['senderName']?.toString() ?? '',
         body: json['body']?.toString() ?? '',
-        attachments: _urls(json['attachments']),
+        attachments: HelpdeskAttachment.listFrom(json['attachments']),
         createdAt: parseHelpdeskDate(json['createdAt']),
       );
 }
@@ -188,13 +221,3 @@ String _formatDate(DateTime d) {
   return '${d.day}/${d.month}/${d.year}, $hour:$minute $ampm';
 }
 
-List<String> _urls(Object? value) {
-  if (value is List) {
-    return value
-        .map((e) => e?.toString() ?? '')
-        .where((e) => e.isNotEmpty)
-        .toList();
-  }
-  final s = value?.toString() ?? '';
-  return s.isEmpty ? const [] : [s];
-}
