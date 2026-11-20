@@ -70,4 +70,7 @@ abstract class LoPortalRepository {
 
   /// LO Committee broadcasts from `GET /app/my-lo/me/broadcasts`. Empty on 404.
   Future<List<LoBroadcastDto>> getMyBroadcasts();
+
+  /// Active FAQs from `GET /app/my-lo/me/faqs`, already sorted. Empty on 404.
+  Future<List<LoFaqDto>> getMyFaqs();
 }

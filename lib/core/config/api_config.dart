@@ -56,7 +56,7 @@ class ApiConfig {
       ? _aideServiceOverride
       : '$apiGatewayUrl/aideservices';
 
-  /// event-services on the same gateway as aide-service. FAQ uses this.
+  /// event-services on the same gateway as aide-service.
   /// Override with `--dart-define=EVENT_SERVICE_URL=...` only when event
   /// services are not under [apiGatewayUrl].
   static const String _eventServiceOverride = String.fromEnvironment(
@@ -66,9 +66,6 @@ class ApiConfig {
       ? _eventServiceOverride
       : '$apiGatewayUrl/eventservices';
 
-  /// Public FAQ guest list. Same path the Aero India website calls.
-  static const String faqGuestPath = '/eventContent/faq/guest/get';
-
   // ── Help desk ──
   /// Queries, query types and uploads are on aide-service (LO token); the
   /// help desk is stored in aide-service, attachments on media-services.
@@ -77,13 +74,14 @@ class ApiConfig {
       '/app/my-lo/me/helpdesk/query-types';
   static const String myLoHelpdeskAttachmentsPath =
       '/app/my-lo/me/helpdesk/attachments';
-  static const String myLoHelpdeskQueriesPath = '/app/my-lo/me/helpdesk/queries';
+  static const String myLoHelpdeskQueriesPath =
+      '/app/my-lo/me/helpdesk/queries';
   static String myLoHelpdeskQueryPath(String id) =>
       '/app/my-lo/me/helpdesk/queries/$id';
   static String myLoHelpdeskCommentsPath(String id) =>
       '/app/my-lo/me/helpdesk/queries/$id/comments';
 
-  /// Event whose FAQs are shown. Same id the website local/GCP env uses.
+  /// Event id used by the help desk. Same id the website local/GCP env uses.
   /// Override with `--dart-define=EVENT_ID=...`.
   static const String eventId = String.fromEnvironment(
     'EVENT_ID',
@@ -142,8 +140,19 @@ class ApiConfig {
   /// Sub-Nodal role, so an LO gets 403 there.
   static const String myLoBadgeDownloadPath = '/app/my-lo/me/badge/download';
 
+  /// Active LO training materials (videos and documents), `?type=VIDEO|DOCUMENT`.
+  static const String myLoTrainingPath = '/app/my-lo/me/training';
+
+  /// Streams one training file. Answers `Range` requests with 206, so video
+  /// downloads can resume.
+  static String myLoTrainingDownloadPath(String id) =>
+      '/app/my-lo/me/training/$id/download';
+
   /// LO Committee push broadcasts sent to me (also shown under Alerts).
   static const String myLoBroadcastsPath = '/app/my-lo/me/broadcasts';
+
+  /// Active FAQs for the signed-in liaison officer.
+  static const String myLoFaqsPath = '/app/my-lo/me/faqs';
 
   // ── Notifications (in-app feed) ──────────────────────────────
   static const String notificationsMinePath = '/app/notifications/mine';
