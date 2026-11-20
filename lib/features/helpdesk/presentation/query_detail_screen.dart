@@ -52,6 +52,8 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
       widget.repository ?? HelpdeskRepository();
   final _comment = TextEditingController();
 
+  /// Latest copy from the server (status changes while the screen is open).
+  late HelpdeskQuery _query = widget.query;
   List<HelpdeskComment> _conversation = const [];
   final List<String> _attachments = [];
   bool _loading = true;
@@ -77,10 +79,11 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
       _error = null;
     });
     try {
-      final items = await _repository.fetchConversation(widget.query.id);
+      final detail = await _repository.fetchQuery(widget.query.id);
       if (!mounted) return;
       setState(() {
-        _conversation = items;
+        _query = detail.query;
+        _conversation = detail.messages;
         _loading = false;
       });
     } catch (error) {
@@ -93,9 +96,18 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
   }
 
   Future<void> _addAttachment() async {
+    if (_attachments.length >= HelpdeskRepository.maxAttachments) {
+      showHelpdeskSnack(
+        context,
+        'You can attach up to ${HelpdeskRepository.maxAttachments} files.',
+      );
+      return;
+    }
     final url = await pickAndUploadHelpdeskAttachment(
       context,
       repository: _repository,
+      accepted: HelpdeskRepository.acceptedTypes,
+      maxSizeMb: HelpdeskRepository.maxAttachmentMb,
     );
     if (url != null && mounted) setState(() => _attachments.add(url));
   }
@@ -106,27 +118,17 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
       showHelpdeskSnack(context, 'Please write a comment.');
       return;
     }
-    final user = helpdeskUserOf(context, email: widget.email);
     setState(() => _sending = true);
     try {
-      await _repository.addComment(
+      final detail = await _repository.addComment(
         queryId: widget.query.id,
-        user: user,
         text: text,
         attachments: List.of(_attachments),
       );
       if (!mounted) return;
       setState(() {
-        _conversation = [
-          ..._conversation,
-          HelpdeskComment(
-            firstName: user.firstName ?? '',
-            lastName: user.lastName ?? '',
-            description: text,
-            attachments: List.of(_attachments),
-            createdAt: DateTime.now(),
-          ),
-        ];
+        _query = detail.query;
+        _conversation = detail.messages;
         _comment.clear();
         _attachments.clear();
         _sending = false;
@@ -175,10 +177,10 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
                         AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
                       ),
                       children: [
-                        HelpdeskQueryCard(query: widget.query),
+                        HelpdeskQueryCard(query: _query),
                         const SizedBox(height: AppSpacing.md),
                         _conversationSection(colors),
-                        if (!widget.query.isClosed) ...[
+                        if (!_query.isClosed) ...[
                           const SizedBox(height: AppSpacing.md),
                           _commentBox(colors),
                         ],
@@ -328,17 +330,20 @@ class _CommentTile extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: colors.accent.withValues(alpha: 0.12),
-            foregroundImage: comment.logo == null
-                ? null
-                : NetworkImage(comment.logo!),
-            child: Text(
-              comment.initials,
-              style: TextStyle(
-                color: colors.accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            child: comment.isSystem
+                ? Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: colors.accent,
+                  )
+                : Text(
+                    comment.initials,
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -346,7 +351,11 @@ class _CommentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  comment.name.isEmpty ? 'Help desk' : comment.name,
+                  comment.isSystem
+                      ? 'Help desk'
+                      : comment.fromTeam
+                      ? '${comment.name.isEmpty ? 'Help desk' : comment.name} · Help desk'
+                      : (comment.name.isEmpty ? 'You' : comment.name),
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w800,
@@ -354,7 +363,7 @@ class _CommentTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  comment.description,
+                  comment.body,
                   style: TextStyle(color: colors.textSecondary, height: 1.4),
                 ),
                 if (comment.attachments.isNotEmpty)

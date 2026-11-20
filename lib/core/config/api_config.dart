@@ -69,18 +69,12 @@ class ApiConfig {
   /// Public FAQ guest list. Same path the Aero India website calls.
   static const String faqGuestPath = '/eventContent/faq/guest/get';
 
-  // ── Help desk (same tickets as the attendees app) ──
-  /// Dashboard help desk form "Liaison Officer App" (formType 16,
-  /// subFormType 11). Query types are shown when their visibilitySpot
-  /// includes this number. (The attendees app uses 8, "Attendee App Support".)
-  static const int helpdeskSubFormType = 11;
-
-  /// Tickets, the form and uploads go to aide-service (LO token), which
-  /// forwards them to eventservices / survey-services / media-services as the
-  /// LO's own EventUser. Those services reject the LO token through the
-  /// gateway. See docs/helpdesk-flow.md.
-  static const String myLoHelpdeskContextPath = '/app/my-lo/me/helpdesk/context';
-  static const String myLoHelpdeskFormPath = '/app/my-lo/me/helpdesk/form';
+  // ── Help desk ──
+  /// Queries, query types and uploads are on aide-service (LO token); the
+  /// help desk is stored in aide-service, attachments on media-services.
+  /// See docs/helpdesk-flow.md.
+  static const String myLoHelpdeskQueryTypesPath =
+      '/app/my-lo/me/helpdesk/query-types';
   static const String myLoHelpdeskAttachmentsPath =
       '/app/my-lo/me/helpdesk/attachments';
   static const String myLoHelpdeskQueriesPath = '/app/my-lo/me/helpdesk/queries';

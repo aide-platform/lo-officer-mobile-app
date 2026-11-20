@@ -1,47 +1,12 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
-import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/features/helpdesk/data/helpdesk_repository.dart';
 import 'package:liaison_officer/features/helpdesk/domain/helpdesk_models.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-/// The LO as a help desk author, from the portal profile.
-HelpdeskUser helpdeskUserOf(BuildContext context, {String email = ''}) {
-  final profile = context.read<LoPortalBloc>().state.profile;
-  String? pick(List<String?> values) {
-    for (final v in values) {
-      if (v != null && v.trim().isNotEmpty) return v.trim();
-    }
-    return null;
-  }
-
-  var first = profile?.firstName;
-  var last = profile?.lastName;
-  if ((first == null || first.trim().isEmpty) && profile != null) {
-    final parts = profile.displayName.trim().split(RegExp(r'\s+'));
-    if (parts.isNotEmpty && parts.first.isNotEmpty) {
-      first = parts.first;
-      last = parts.length > 1 ? parts.sublist(1).join(' ') : last;
-    }
-  }
-  return HelpdeskUser(
-    firstName: first,
-    lastName: last,
-    email: pick([
-      profile?.officialEmail,
-      profile?.personalEmail,
-      email,
-      SessionStore.current?.email,
-    ]),
-    contactNo: pick([profile?.officialContact, profile?.personalContact]),
-  );
-}
 
 void showHelpdeskSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -206,15 +171,17 @@ String _mb(double v) => v == v.roundToDouble() ? v.toInt().toString() : '$v';
 class HelpdeskStatusPill extends StatelessWidget {
   const HelpdeskStatusPill({super.key, required this.status});
 
-  final int? status;
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
     final label = HelpdeskStatus.label(status);
     if (label == null) return const SizedBox.shrink();
-    final color = status == HelpdeskStatus.closed
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFD97706);
+    final color = switch (status) {
+      HelpdeskStatus.closed => const Color(0xFF16A34A),
+      HelpdeskStatus.inProgress => const Color(0xFF2563EB),
+      _ => const Color(0xFFD97706),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

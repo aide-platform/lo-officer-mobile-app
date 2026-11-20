@@ -85,13 +85,6 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
       _error = null;
     });
     try {
-      // Event id for the form's option lists. Optional: the app falls back to
-      // its configured event id if this call fails.
-      if (HelpdeskRepository.current == null) {
-        try {
-          await _repository.fetchContext();
-        } catch (_) {}
-      }
       final items = await _repository.fetchQueries(
         page: 0,
         search: _appliedSearch,
@@ -367,7 +360,7 @@ class HelpdeskQueryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  query.queryType.toUpperCase(),
+                  query.queryTypeName.toUpperCase(),
                   style: TextStyle(
                     color: colors.textSecondary,
                     fontSize: 12,
@@ -386,10 +379,10 @@ class HelpdeskQueryCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              if (query.trackingNo.isNotEmpty) ...[
+              if (query.ticketNo.isNotEmpty) ...[
                 Flexible(
                   child: Text(
-                    query.trackingNo,
+                    query.ticketNo,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: colors.textSecondary,
