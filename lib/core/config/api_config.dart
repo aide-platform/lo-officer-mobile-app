@@ -66,21 +66,14 @@ class ApiConfig {
       ? _eventServiceOverride
       : '$apiGatewayUrl/eventservices';
 
-  // ── Help desk (same tickets as the attendees app) ──
-  /// Dashboard help desk form "Liaison Officer App" (formType 16,
-  /// subFormType 11). Query types are shown when their visibilitySpot
-  /// includes this number. (The attendees app uses 8, "Attendee App Support".)
-  static const int helpdeskSubFormType = 11;
-
-  /// Tickets, the form and uploads go to aide-service (LO token), which
-  /// forwards them to eventservices / survey-services / media-services as the
-  /// LO's own EventUser. Those services reject the LO token through the
-  /// gateway. See docs/helpdesk-flow.md.
-  static const String myLoHelpdeskContextPath =
-      '/app/my-lo/me/helpdesk/context';
-  static const String myLoHelpdeskFormPath = '/app/my-lo/me/helpdesk/form';
-  static const String myLoHelpdeskAttachmentsPath =
-      '/app/my-lo/me/helpdesk/attachments';
+  // ── Help desk ──
+  /// Queries and query types are on aide-service (LO token). Files are sent
+  /// with the query / comment (multipart) and downloaded with the same token.
+  /// See docs/helpdesk-flow.md.
+  static const String myLoHelpdeskQueryTypesPath =
+      '/app/my-lo/me/helpdesk/query-types';
+  static String myLoHelpdeskAttachmentPath(String id) =>
+      '/app/my-lo/me/helpdesk/attachments/$id';
   static const String myLoHelpdeskQueriesPath =
       '/app/my-lo/me/helpdesk/queries';
   static String myLoHelpdeskQueryPath(String id) =>

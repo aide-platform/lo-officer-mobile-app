@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/pick_services.dart';
 import 'package:liaison_officer/core/widgets/app_motion.dart';
 import 'package:liaison_officer/core/widgets/app_ui_kit.dart';
 import 'package:liaison_officer/features/helpdesk/data/helpdesk_repository.dart';
+import 'package:liaison_officer/features/helpdesk/data/helpdesk_updates.dart';
 import 'package:liaison_officer/features/helpdesk/domain/helpdesk_models.dart';
 import 'package:liaison_officer/features/helpdesk/presentation/helpdesk_screen.dart';
 import 'package:liaison_officer/features/helpdesk/presentation/helpdesk_widgets.dart';
@@ -25,6 +27,27 @@ Future<bool?> openQueryDetailScreen(
         child: QueryDetailScreen(query: query, email: email),
       ),
     ),
+  );
+}
+
+/// Opens a query by id (help desk push `helpdesk:<id>`). The screen loads the
+/// query itself.
+Future<bool?> openHelpdeskQueryById(
+  BuildContext context, {
+  required String id,
+  String email = '',
+}) {
+  return openQueryDetailScreen(
+    context,
+    query: HelpdeskQuery(
+      id: id,
+      ticketNo: '',
+      queryTypeName: '',
+      title: '',
+      description: '',
+      attachments: const [],
+    ),
+    email: email,
   );
 }
 
@@ -52,8 +75,10 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
       widget.repository ?? HelpdeskRepository();
   final _comment = TextEditingController();
 
+  /// Latest copy from the server (status changes while the screen is open).
+  late HelpdeskQuery _query = widget.query;
   List<HelpdeskComment> _conversation = const [];
-  final List<String> _attachments = [];
+  final List<PickedFileBytes> _attachments = [];
   bool _loading = true;
   bool _sending = false;
   bool _changed = false;
@@ -62,13 +87,22 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
   @override
   void initState() {
     super.initState();
+    HelpdeskUpdates.instance.addListener(_onPush);
     _load();
   }
 
   @override
   void dispose() {
+    HelpdeskUpdates.instance.removeListener(_onPush);
     _comment.dispose();
     super.dispose();
+  }
+
+  /// A help desk push for this query arrived: reload the conversation.
+  void _onPush() {
+    if (mounted && !_loading && HelpdeskUpdates.instance.lastQueryId == widget.query.id) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -77,10 +111,11 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
       _error = null;
     });
     try {
-      final items = await _repository.fetchConversation(widget.query.id);
+      final detail = await _repository.fetchQuery(widget.query.id);
       if (!mounted) return;
       setState(() {
-        _conversation = items;
+        _query = detail.query;
+        _conversation = detail.messages;
         _loading = false;
       });
     } catch (error) {
@@ -93,11 +128,17 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
   }
 
   Future<void> _addAttachment() async {
-    final url = await pickAndUploadHelpdeskAttachment(
+    if (_attachments.length >= HelpdeskRepository.maxAttachments) {
+      showHelpdeskSnack(
+        context,
+        'You can attach up to ${HelpdeskRepository.maxAttachments} files.',
+      );
+      return;
+    }
+    final file = await pickHelpdeskAttachment(
       context,
-      repository: _repository,
     );
-    if (url != null && mounted) setState(() => _attachments.add(url));
+    if (file != null && mounted) setState(() => _attachments.add(file));
   }
 
   Future<void> _send() async {
@@ -106,27 +147,17 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
       showHelpdeskSnack(context, 'Please write a comment.');
       return;
     }
-    final user = helpdeskUserOf(context, email: widget.email);
     setState(() => _sending = true);
     try {
-      await _repository.addComment(
+      final detail = await _repository.addComment(
         queryId: widget.query.id,
-        user: user,
         text: text,
-        attachments: List.of(_attachments),
+        files: List.of(_attachments),
       );
       if (!mounted) return;
       setState(() {
-        _conversation = [
-          ..._conversation,
-          HelpdeskComment(
-            firstName: user.firstName ?? '',
-            lastName: user.lastName ?? '',
-            description: text,
-            attachments: List.of(_attachments),
-            createdAt: DateTime.now(),
-          ),
-        ];
+        _query = detail.query;
+        _conversation = detail.messages;
         _comment.clear();
         _attachments.clear();
         _sending = false;
@@ -175,10 +206,10 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
                         AppSpacing.xl + MediaQuery.paddingOf(context).bottom,
                       ),
                       children: [
-                        HelpdeskQueryCard(query: widget.query),
+                        HelpdeskQueryCard(query: _query),
                         const SizedBox(height: AppSpacing.md),
                         _conversationSection(colors),
-                        if (!widget.query.isClosed) ...[
+                        if (!_query.isClosed) ...[
                           const SizedBox(height: AppSpacing.md),
                           _commentBox(colors),
                         ],
@@ -282,7 +313,7 @@ class _QueryDetailScreenState extends State<QueryDetailScreen> {
           const SizedBox(height: 10),
           if (_attachments.isNotEmpty) ...[
             HelpdeskPendingAttachments(
-              urls: _attachments,
+              files: _attachments,
               onRemove: (i) => setState(() => _attachments.removeAt(i)),
             ),
             const SizedBox(height: 6),
@@ -328,17 +359,20 @@ class _CommentTile extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: colors.accent.withValues(alpha: 0.12),
-            foregroundImage: comment.logo == null
-                ? null
-                : NetworkImage(comment.logo!),
-            child: Text(
-              comment.initials,
-              style: TextStyle(
-                color: colors.accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            child: comment.isSystem
+                ? Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: colors.accent,
+                  )
+                : Text(
+                    comment.initials,
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -346,7 +380,11 @@ class _CommentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  comment.name.isEmpty ? 'Help desk' : comment.name,
+                  comment.isSystem
+                      ? 'Help desk'
+                      : comment.fromTeam
+                      ? '${comment.name.isEmpty ? 'Help desk' : comment.name} · Help desk'
+                      : (comment.name.isEmpty ? 'You' : comment.name),
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w800,
@@ -354,11 +392,11 @@ class _CommentTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  comment.description,
+                  comment.body,
                   style: TextStyle(color: colors.textSecondary, height: 1.4),
                 ),
                 if (comment.attachments.isNotEmpty)
-                  HelpdeskAttachmentLinks(urls: comment.attachments),
+                  HelpdeskAttachmentLinks(attachments: comment.attachments),
                 if (comment.createdAt != null)
                   Align(
                     alignment: Alignment.centerRight,

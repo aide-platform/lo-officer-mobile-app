@@ -1,47 +1,14 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/design/app_semantic_colors.dart';
 import 'package:liaison_officer/core/design/app_spacing.dart';
 import 'package:liaison_officer/core/network/api_error_message.dart';
+import 'package:liaison_officer/core/services/device_downloads.dart';
 import 'package:liaison_officer/core/services/pick_services.dart';
-import 'package:liaison_officer/core/session/session_store.dart';
 import 'package:liaison_officer/features/helpdesk/data/helpdesk_repository.dart';
 import 'package:liaison_officer/features/helpdesk/domain/helpdesk_models.dart';
-import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-/// The LO as a help desk author, from the portal profile.
-HelpdeskUser helpdeskUserOf(BuildContext context, {String email = ''}) {
-  final profile = context.read<LoPortalBloc>().state.profile;
-  String? pick(List<String?> values) {
-    for (final v in values) {
-      if (v != null && v.trim().isNotEmpty) return v.trim();
-    }
-    return null;
-  }
-
-  var first = profile?.firstName;
-  var last = profile?.lastName;
-  if ((first == null || first.trim().isEmpty) && profile != null) {
-    final parts = profile.displayName.trim().split(RegExp(r'\s+'));
-    if (parts.isNotEmpty && parts.first.isNotEmpty) {
-      first = parts.first;
-      last = parts.length > 1 ? parts.sublist(1).join(' ') : last;
-    }
-  }
-  return HelpdeskUser(
-    firstName: first,
-    lastName: last,
-    email: pick([
-      profile?.officialEmail,
-      profile?.personalEmail,
-      email,
-      SessionStore.current?.email,
-    ]),
-    contactNo: pick([profile?.officialContact, profile?.personalContact]),
-  );
-}
 
 void showHelpdeskSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -51,46 +18,74 @@ void showHelpdeskSnack(BuildContext context, String message) {
     );
 }
 
-Future<void> openHelpdeskAttachment(BuildContext context, String url) async {
-  final uri = Uri.tryParse(url);
-  var opened = false;
-  if (uri != null) {
-    try {
-      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {}
-  }
-  if (!opened && context.mounted) {
-    showHelpdeskSnack(context, 'Could not open this attachment.');
+/// Downloads a stored attachment with the LO's token (the file is not public),
+/// saves it like other downloads in the app (Downloads folder on Android, the
+/// share sheet on iOS) and opens it.
+Future<void> openHelpdeskAttachment(
+  BuildContext context,
+  HelpdeskAttachment attachment, {
+  HelpdeskRepository? repository,
+}) async {
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text('Opening file…')),
+          ],
+        ),
+      ),
+    ),
+  );
+  try {
+    final bytes = await (repository ?? HelpdeskRepository()).downloadAttachment(
+      attachment.id,
+    );
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    final handle = await DeviceDownloads.save(
+      bytes: bytes,
+      filename: attachment.fileName,
+      mimeType: attachment.mimeType,
+    );
+    if (handle == null || !Platform.isAndroid) return;
+    final opened = await DeviceDownloads.open(
+      handle,
+      mimeType: attachment.mimeType,
+    );
+    if (!opened && context.mounted) {
+      showHelpdeskSnack(
+        context,
+        'Saved to Downloads. No app on this phone can open it.',
+      );
+    }
+  } catch (error) {
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    showHelpdeskSnack(
+      context,
+      apiErrorMessage(error, fallback: 'Could not open this attachment.'),
+    );
   }
 }
 
-/// Lets the user choose an image or a document (limited to [accepted]
-/// extensions), checks the size, and uploads it. Returns the CDN URL.
-Future<String?> pickAndUploadHelpdeskAttachment(
+/// Lets the user choose an image or a PDF and checks its type and size. The
+/// file is not uploaded here: it is sent with the query or comment.
+Future<PickedFileBytes?> pickHelpdeskAttachment(
   BuildContext context, {
-  required HelpdeskRepository repository,
-  List<String> accepted = const ['jpeg', 'jpg', 'png', 'pdf'],
-  double maxSizeMb = 5,
+  List<String> accepted = HelpdeskRepository.acceptedTypes,
+  double maxSizeMb = HelpdeskRepository.maxAttachmentMb,
   String? title,
 }) async {
-  const images = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'};
-  const documents = {
-    'pdf',
-    'txt',
-    'doc',
-    'docx',
-    'xls',
-    'xlsb',
-    'xlsm',
-    'xlsx',
-    'csv',
-    'cdr',
-  };
-  const videos = {'mp4', 'webm', '3gp'};
-  final allowsImage = accepted.any(images.contains);
-  final allowsDocument = accepted.any(documents.contains);
-  final allowsVideo = accepted.any(videos.contains);
-
   final kind = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
@@ -106,23 +101,16 @@ Future<String?> pickAndUploadHelpdeskAttachment(
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
-          if (allowsImage)
-            ListTile(
-              leading: const Icon(Icons.image_outlined),
-              title: const Text('Upload image'),
-              onTap: () => Navigator.pop(ctx, 'image'),
-            ),
-          if (allowsDocument)
+          ListTile(
+            leading: const Icon(Icons.image_outlined),
+            title: const Text('Upload image'),
+            onTap: () => Navigator.pop(ctx, 'image'),
+          ),
+          if (accepted.contains('pdf'))
             ListTile(
               leading: const Icon(Icons.description_outlined),
               title: const Text('Upload document'),
               onTap: () => Navigator.pop(ctx, 'document'),
-            ),
-          if (allowsVideo)
-            ListTile(
-              leading: const Icon(Icons.videocam_outlined),
-              title: const Text('Upload video'),
-              onTap: () => Navigator.pop(ctx, 'video'),
             ),
         ],
       ),
@@ -134,12 +122,9 @@ Future<String?> pickAndUploadHelpdeskAttachment(
   if (kind == 'image') {
     file = await ImagePickService.pickImageWithChooser(context);
   } else {
-    final extensions = accepted
-        .where((e) => (kind == 'video' ? videos : documents).contains(e))
-        .toList();
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: extensions,
+      allowedExtensions: const ['pdf'],
       withData: true,
     );
     final f = result?.files.firstOrNull;
@@ -149,6 +134,13 @@ Future<String?> pickAndUploadHelpdeskAttachment(
   }
   if (file == null || !context.mounted) return null;
 
+  final ext = file.filename.contains('.')
+      ? file.filename.split('.').last.toLowerCase()
+      : '';
+  if (!accepted.contains(ext)) {
+    showHelpdeskSnack(context, 'Only JPEG, JPG, PNG and PDF files can be attached.');
+    return null;
+  }
   final sizeMb = file.bytes.lengthInBytes / (1024 * 1024);
   if (sizeMb > maxSizeMb) {
     showHelpdeskSnack(
@@ -157,48 +149,7 @@ Future<String?> pickAndUploadHelpdeskAttachment(
     );
     return null;
   }
-
-  final progress = ValueNotifier<double>(0);
-  showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) => PopScope(
-      canPop: false,
-      child: AlertDialog(
-        content: ValueListenableBuilder<double>(
-          valueListenable: progress,
-          builder: (context, value, _) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Uploading attachment…'),
-              const SizedBox(height: 16),
-              LinearProgressIndicator(value: value == 0 ? null : value),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-  try {
-    final url = await repository.uploadAttachment(
-      bytes: file.bytes,
-      filename: file.filename,
-      onProgress: (p) => progress.value = p,
-    );
-    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-    return url;
-  } catch (error) {
-    if (context.mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
-      showHelpdeskSnack(
-        context,
-        apiErrorMessage(error, fallback: 'Could not upload the file.'),
-      );
-    }
-    return null;
-  }
-  // `progress` is not disposed: the dialog may still be animating out and
-  // listening to it. It is garbage-collected with the dialog.
+  return file;
 }
 
 String _mb(double v) => v == v.roundToDouble() ? v.toInt().toString() : '$v';
@@ -206,15 +157,17 @@ String _mb(double v) => v == v.roundToDouble() ? v.toInt().toString() : '$v';
 class HelpdeskStatusPill extends StatelessWidget {
   const HelpdeskStatusPill({super.key, required this.status});
 
-  final int? status;
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
     final label = HelpdeskStatus.label(status);
     if (label == null) return const SizedBox.shrink();
-    final color = status == HelpdeskStatus.closed
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFD97706);
+    final color = switch (status) {
+      HelpdeskStatus.closed => const Color(0xFF16A34A),
+      HelpdeskStatus.inProgress => const Color(0xFF2563EB),
+      _ => const Color(0xFFD97706),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -233,47 +186,51 @@ class HelpdeskStatusPill extends StatelessWidget {
   }
 }
 
-/// "Attachment 1", "Attachment 2"… links that open in the browser.
+/// Stored attachments, by file name. Tapping one downloads it with the token.
 class HelpdeskAttachmentLinks extends StatelessWidget {
-  const HelpdeskAttachmentLinks({super.key, required this.urls});
+  const HelpdeskAttachmentLinks({
+    super.key,
+    required this.attachments,
+    this.repository,
+  });
 
-  final List<String> urls;
+  final List<HelpdeskAttachment> attachments;
+  final HelpdeskRepository? repository;
 
   @override
   Widget build(BuildContext context) {
-    if (urls.isEmpty) return const SizedBox.shrink();
+    if (attachments.isEmpty) return const SizedBox.shrink();
     final colors = context.semantic;
     return Wrap(
       spacing: 4,
       runSpacing: 0,
       children: [
-        for (var i = 0; i < urls.length; i++)
+        for (final a in attachments)
           TextButton.icon(
             style: TextButton.styleFrom(
               foregroundColor: colors.accent,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               visualDensity: VisualDensity.compact,
             ),
-            onPressed: () => openHelpdeskAttachment(context, urls[i]),
+            onPressed: () =>
+                openHelpdeskAttachment(context, a, repository: repository),
             icon: const Icon(Icons.attach_file_rounded, size: 16),
-            label: Text(
-              urls.length == 1 ? 'Attachment' : 'Attachment ${i + 1}',
-            ),
+            label: Text(a.fileName, overflow: TextOverflow.ellipsis),
           ),
       ],
     );
   }
 }
 
-/// Uploaded-but-not-sent attachments, each with a remove button.
+/// Picked files not sent yet, each with a remove button.
 class HelpdeskPendingAttachments extends StatelessWidget {
   const HelpdeskPendingAttachments({
     super.key,
-    required this.urls,
+    required this.files,
     required this.onRemove,
   });
 
-  final List<String> urls;
+  final List<PickedFileBytes> files;
   final ValueChanged<int> onRemove;
 
   @override
@@ -283,15 +240,14 @@ class HelpdeskPendingAttachments extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (var i = 0; i < urls.length; i++)
+        for (var i = 0; i < files.length; i++)
           InputChip(
             avatar: Icon(
               Icons.attach_file_rounded,
               size: 16,
               color: colors.accent,
             ),
-            label: Text('Attachment ${i + 1}'),
-            onPressed: () => openHelpdeskAttachment(context, urls[i]),
+            label: Text(files[i].filename, overflow: TextOverflow.ellipsis),
             onDeleted: () => onRemove(i),
             deleteButtonTooltipMessage: 'Remove',
           ),
