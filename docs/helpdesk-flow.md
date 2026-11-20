@@ -95,9 +95,17 @@ Sidebar ▸ **Help Desk** (`/lo-nodal/helpdesk`):
   **close** (resolved by chat / call, optional closing message), **transfer** to another query type,
   **Export to Excel** (ticket no., title, type, status, closed by, raiser name / email / phone, source, description, dates).
 
-Access: Admin and LO Nodal: everything. Sub Nodal Officers per permission chip:
-`LO_HELPDESK_VIEW`, `LO_HELPDESK_REPLY`, `LO_HELPDESK_EDIT` (query types, close, transfer),
-`LO_HELPDESK_EXPORT`. Buttons the user may not use are hidden.
+Access: Admin and LO Nodal: everything. Sub Nodal Officers per permission chip (tab-wise):
+
+| Chip | Allows |
+|---|---|
+| `LO_HELPDESK_QUERY_TYPES_TAB` | see the Create Query Type tab |
+| `LO_HELPDESK_QUERY_TYPES_MANAGE` | add / edit / activate query types (includes the tab) |
+| `LO_HELPDESK_RAISED_QUERIES_TAB` | see the Raised Queries tab and open queries |
+| `LO_HELPDESK_RAISED_QUERIES_MANAGE` | reply, close, transfer (includes the tab) |
+| `LO_HELPDESK_EXPORT` | Export to Excel (includes the Raised Queries tab) |
+
+Tabs and buttons the user may not use are hidden; with no chip the page says so.
 
 ---
 
@@ -133,18 +141,18 @@ Alerts use aide-service `NotificationService` (shown in the LO app's Alerts and 
 
 | Method | Path | Body / params | Access |
 |---|---|---|---|
-| GET | `/query-types` | — (active) | read |
-| GET | `/query-types/all` | — | read |
-| POST | `/query-types` | `{name}` | EDIT |
-| PUT | `/query-types/{id}` | `{name}` | EDIT |
-| PUT | `/query-types/{id}/active` | `?active=true/false` | EDIT |
-| GET | `/tickets` | `search, status, queryTypeId, source, closedType, page, size` | read |
-| GET | `/tickets/unread-count` | — | read |
-| GET | `/tickets/{id}` | — (marks read) | read |
-| POST | `/tickets/{id}/reply` | `{body, attachments}` | REPLY |
-| PUT | `/tickets/{id}/close` | `{closedType: CHAT/CALL, message?}` | EDIT |
-| PUT | `/tickets/{id}/transfer` | `{queryTypeId}` | EDIT |
-| POST | `/attachments` | multipart `file` | REPLY |
+| GET | `/query-types` | — (active) | any chip |
+| GET | `/query-types/all` | — | QUERY_TYPES_TAB |
+| POST | `/query-types` | `{name}` | QUERY_TYPES_MANAGE |
+| PUT | `/query-types/{id}` | `{name}` | QUERY_TYPES_MANAGE |
+| PUT | `/query-types/{id}/active` | `?active=true/false` | QUERY_TYPES_MANAGE |
+| GET | `/tickets` | `search, status, queryTypeId, source, closedType, page, size` | RAISED_QUERIES_TAB |
+| GET | `/tickets/unread-count` | — | RAISED_QUERIES_TAB |
+| GET | `/tickets/{id}` | — (marks read) | RAISED_QUERIES_TAB |
+| POST | `/tickets/{id}/reply` | `{body, attachments}` | RAISED_QUERIES_MANAGE |
+| PUT | `/tickets/{id}/close` | `{closedType: CHAT/CALL, message?}` | RAISED_QUERIES_MANAGE |
+| PUT | `/tickets/{id}/transfer` | `{queryTypeId}` | RAISED_QUERIES_MANAGE |
+| POST | `/attachments` | multipart `file` | RAISED_QUERIES_MANAGE |
 | GET | `/export` | same filters as `/tickets` → `.xlsx` | EXPORT |
 
 **Ticket:** `id, ticketNo, queryTypeId, queryTypeName, title, description, attachments[], status,
