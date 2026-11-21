@@ -14,6 +14,7 @@ import 'package:liaison_officer/core/widgets/liaison_brand_header.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/theme/app_theme.dart';
 import 'package:liaison_officer/features/liaison_officer/presentation/bloc/lo_portal_bloc.dart';
+// ignore: unused_import (used by the hidden helpline card below)
 import 'package:liaison_officer/features/liaison_officer/presentation/widgets/helpline_numbers_card.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -69,6 +70,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   late final Map<String, GlobalKey> _sectionKeys = {
     for (final s in _sections) s.id: GlobalKey(),
   };
+  // ignore: unused_field (used by the hidden helpline card)
   final _helplinesKey = GlobalKey();
   final _gettingStartedKey = GlobalKey();
   final _searchController = TextEditingController();
@@ -735,7 +737,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                             child: _QuickTile(
                               icon: Icons.phone_in_talk_outlined,
                               label: 'Helplines',
-                              onTap: () => _scrollTo(_helplinesKey),
+                              // Opens the Helplines tab (Help Line Numbers).
+                              onTap: () => Navigator.pop(context, 'helplines'),
                             ),
                           ),
                         Expanded(
@@ -755,10 +758,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       ],
                     ),
                   ),
-                  KeyedSubtree(
-                    key: _helplinesKey,
-                    child: const HelplineNumbersSection(),
-                  ),
+                  // Helpline numbers card hidden: the Helplines tile opens the
+                  // Helplines tab instead. Kept for later use.
+                  // KeyedSubtree(
+                  //   key: _helplinesKey,
+                  //   child: const HelplineNumbersSection(),
+                  // ),
                   KeyedSubtree(
                     key: _gettingStartedKey,
                     child: const _SectionHeading(
