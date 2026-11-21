@@ -319,6 +319,8 @@ class _LoPortalShellState extends State<LoPortalShell> {
                   if (!context.mounted || action == null) return;
                   if (action == 'alerts') {
                     _selectTab(3);
+                  } else if (action == 'helplines') {
+                    _selectTab(2);
                   } else if (action == 'more') {
                     setState(() => _showMore = true);
                   }
