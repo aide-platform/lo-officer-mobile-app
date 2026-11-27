@@ -32,9 +32,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Pinned to the version the team builds and tests with. Newer stable
+      # releases need Gradle 9.3.1+, but android/ uses Gradle 9.1.0.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.8
           cache: true
 
       - name: Check inputs
