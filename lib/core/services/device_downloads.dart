@@ -21,21 +21,35 @@ class DeviceDownloads {
     required String filename,
     String mimeType = 'application/pdf',
   }) async {
+    final name = safeFileName(filename);
     if (Platform.isAndroid) {
       return _channel.invokeMethod<String>('saveToDownloads', {
         'bytes': Uint8List.fromList(bytes),
-        'name': filename,
+        'name': name,
         'mime': mimeType,
       });
     }
     final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/$filename');
+    final file = File('${dir.path}/$name');
     await file.writeAsBytes(bytes);
     await Share.shareXFiles(
       [XFile(file.path, mimeType: mimeType)],
       sharePositionOrigin: shareOrigin(),
     );
     return null;
+  }
+
+  /// File names can come from the server (help desk attachments), so keep
+  /// only the last path segment and drop characters that are unsafe in file
+  /// names. A name with nothing usable left becomes "download".
+  static String safeFileName(String raw) {
+    final last = raw.replaceAll('\\', '/').split('/').last;
+    final cleaned = last
+        .replaceAll(RegExp(r'[\x00-\x1F:*?"<>|]'), '_')
+        .trim()
+        .replaceFirst(RegExp(r'^\.+'), '');
+    final short = cleaned.length > 150 ? cleaned.substring(0, 150) : cleaned;
+    return short.trim().isEmpty ? 'download' : short;
   }
 
   /// Anchor for the iOS / iPad share sheet. iOS 26+ rejects a zero rect

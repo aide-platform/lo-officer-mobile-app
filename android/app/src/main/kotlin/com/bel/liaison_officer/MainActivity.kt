@@ -63,12 +63,15 @@ class MainActivity : FlutterActivity() {
 
     private fun save(call: MethodCall, result: MethodChannel.Result) {
         val bytes = call.argument<ByteArray>("bytes")
-        val name = call.argument<String>("name")
+        val rawName = call.argument<String>("name")
         val mime = call.argument<String>("mime") ?: "application/octet-stream"
-        if (bytes == null || name.isNullOrBlank()) {
+        if (bytes == null || rawName.isNullOrBlank()) {
             result.error("BAD_ARGS", "File name and bytes are required.", null)
             return
         }
+        // Names can come from the server (help desk attachments), so never
+        // let one carry a folder path out of Downloads.
+        val name = safeFileName(rawName)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
@@ -121,16 +124,40 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun uniqueFile(dir: File, name: String): File {
-        var file = File(dir, name)
+        var file = insideDir(dir, name)
         if (!file.exists()) return file
         val base = name.substringBeforeLast('.')
         val ext = name.substringAfterLast('.', "")
         var i = 1
         while (file.exists()) {
-            file = File(dir, if (ext.isEmpty()) "$base ($i)" else "$base ($i).$ext")
+            file = insideDir(dir, if (ext.isEmpty()) "$base ($i)" else "$base ($i).$ext")
             i++
         }
         return file
+    }
+
+    /** [name] resolved in [dir]; refuses anything that lands outside it. */
+    private fun insideDir(dir: File, name: String): File {
+        val file = File(dir, name)
+        val root = dir.canonicalPath + File.separator
+        if (!file.canonicalPath.startsWith(root)) {
+            throw SecurityException("Invalid file name.")
+        }
+        return file
+    }
+
+    /**
+     * Last path segment only, with characters that are unsafe in file names
+     * replaced. Falls back to "download" when nothing usable is left.
+     */
+    private fun safeFileName(raw: String): String {
+        val last = raw.replace('\\', '/').substringAfterLast('/')
+        val cleaned = last
+            .replace(Regex("[\\u0000-\\u001F:*?\"<>|]"), "_")
+            .trim()
+            .trimStart('.')
+            .take(150)
+        return cleaned.ifBlank { "download" }
     }
 
     private companion object {

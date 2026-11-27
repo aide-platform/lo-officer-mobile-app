@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:liaison_officer/core/storage/secure_cache.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_portal_cache.dart';
 import 'package:liaison_officer/features/liaison_officer/domain/models/lo_issue_report.dart';
@@ -17,11 +19,76 @@ class LoOfflineStore {
   static const _tasksKey = 'tasks_json';
   static const _helplinesKey = 'helplines_json';
 
+  /// Secure-storage key holding the box's AES key (base64).
+  static const _keyName = 'hive.lo_offline.key';
+
+  /// Secure-storage flag: the box on disk is the encrypted one. Hive does not
+  /// throw on a wrong key (it drops frames it cannot read), so the flag, not
+  /// an exception, decides whether a plain box needs migrating.
+  static const _encryptedFlag = 'hive.lo_offline.encrypted';
+
   static Box<dynamic>? _box;
 
+  /// Opens the box AES-encrypted (VAPT: the plain box was readable from
+  /// backups and rooted phones). A plain box from an older app version is
+  /// copied into the encrypted one, so queued offline writes survive.
   static Future<void> init() async {
     await Hive.initFlutter();
-    _box = await Hive.openBox(_boxName);
+    await _openEncrypted();
+  }
+
+  /// [init] against a plain directory, for tests (no path_provider there).
+  @visibleForTesting
+  static Future<void> initAt(String directory) async {
+    Hive.init(directory);
+    await _openEncrypted();
+  }
+
+  @visibleForTesting
+  static Future<void> close() async {
+    await _box?.close();
+    _box = null;
+  }
+
+  static Future<void> _openEncrypted() async {
+    final cipher = HiveAesCipher(await _encryptionKey());
+    final migrated =
+        await SecureCache.storage.read(key: _encryptedFlag) == 'true';
+    if (!migrated && await Hive.boxExists(_boxName)) {
+      final legacy = await _readLegacyBox();
+      await Hive.deleteBoxFromDisk(_boxName);
+      _box = await Hive.openBox(_boxName, encryptionCipher: cipher);
+      if (legacy.isNotEmpty) await _box!.putAll(legacy);
+    } else {
+      _box = await Hive.openBox(_boxName, encryptionCipher: cipher);
+    }
+    await SecureCache.storage.write(key: _encryptedFlag, value: 'true');
+  }
+
+  static Future<List<int>> _encryptionKey() async {
+    final stored = await SecureCache.storage.read(key: _keyName);
+    if (stored != null) {
+      try {
+        final key = base64Decode(stored);
+        if (key.length == 32) return key;
+      } catch (_) {}
+    }
+    final key = Hive.generateSecureKey();
+    await SecureCache.storage.write(key: _keyName, value: base64Encode(key));
+    return key;
+  }
+
+  /// Contents of the box opened without encryption; empty when it is not a
+  /// readable plain box.
+  static Future<Map<dynamic, dynamic>> _readLegacyBox() async {
+    try {
+      final plain = await Hive.openBox(_boxName);
+      final copy = Map<dynamic, dynamic>.from(plain.toMap());
+      await plain.close();
+      return copy;
+    } catch (_) {
+      return {};
+    }
   }
 
   static Box<dynamic> get box {

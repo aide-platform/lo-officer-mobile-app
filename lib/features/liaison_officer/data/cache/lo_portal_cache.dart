@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:liaison_officer/core/storage/secure_cache.dart';
 import 'package:liaison_officer/features/liaison_officer/data/models/cap/cap_models.dart';
 
 /// Light local cache for LO portal payloads (offline-friendly last snapshot).
@@ -13,13 +14,16 @@ class LoPortalCache {
   static const _alertsKey = 'cap_lo_alerts';
   static const _helplinesKey = 'cap_lo_helplines';
 
+  // Profile (Aadhaar, DOB, contacts), delegates (contacts, passports) and
+  // tasks are personal data: they live in [SecureCache], not plain prefs.
+  // Alerts and helplines stay in SharedPreferences.
+
   static Future<void> saveProfile(LiaisonOfficerDto? profile) async {
-    final prefs = await SharedPreferences.getInstance();
     if (profile == null) {
-      await prefs.remove(_profileKey);
+      await SecureCache.delete(_profileKey);
       return;
     }
-    await prefs.setString(
+    await SecureCache.write(
       _profileKey,
       jsonEncode({
         'id': profile.id,
@@ -49,8 +53,7 @@ class LoPortalCache {
   }
 
   static Future<LiaisonOfficerDto?> loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_profileKey);
+    final raw = await SecureCache.read(_profileKey);
     if (raw == null) return null;
     return LiaisonOfficerDto.fromJson(
       Map<String, dynamic>.from(jsonDecode(raw) as Map),
@@ -58,16 +61,14 @@ class LoPortalCache {
   }
 
   static Future<void> saveDelegates(List<MyLoAssignmentDto> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await SecureCache.write(
       _delegatesKey,
       jsonEncode(items.map(_delegateToMap).toList()),
     );
   }
 
   static Future<List<MyLoAssignmentDto>> loadDelegates() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_delegatesKey);
+    final raw = await SecureCache.read(_delegatesKey);
     if (raw == null) return const [];
     final list = jsonDecode(raw) as List;
     return list
@@ -77,16 +78,14 @@ class LoPortalCache {
   }
 
   static Future<void> saveTasks(List<LoTaskDto> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await SecureCache.write(
       _tasksKey,
       jsonEncode(items.map(_taskToMap).toList()),
     );
   }
 
   static Future<List<LoTaskDto>> loadTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_tasksKey);
+    final raw = await SecureCache.read(_tasksKey);
     if (raw == null) return const [];
     final list = jsonDecode(raw) as List;
     return list
@@ -166,10 +165,10 @@ class LoPortalCache {
 
   /// Drops the signed-in officer's snapshot. Theme and alert lead time stay.
   static Future<void> clearOfficerData() async {
+    await SecureCache.delete(_profileKey);
+    await SecureCache.delete(_delegatesKey);
+    await SecureCache.delete(_tasksKey);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_profileKey);
-    await prefs.remove(_delegatesKey);
-    await prefs.remove(_tasksKey);
     await prefs.remove(_alertsKey);
     await prefs.remove(_helplinesKey);
   }
