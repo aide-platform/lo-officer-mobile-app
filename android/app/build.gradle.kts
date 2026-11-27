@@ -1,5 +1,7 @@
 import java.util.Properties
 import java.io.FileInputStream
+import java.security.KeyStore
+import java.security.MessageDigest
 
 plugins {
     id("com.android.application")
@@ -15,6 +17,20 @@ val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+// SHA-256 of the release signing certificate, built into the app so it can
+// spot a re-signed (repackaged) APK at runtime (VAPT HIGH-05).
+val releaseCertSha256: String = if (keystorePropertiesFile.exists()) {
+    val store = KeyStore.getInstance(
+        rootProject.file(keystoreProperties["storeFile"] as String),
+        (keystoreProperties["storePassword"] as String).toCharArray(),
+    )
+    val cert = store.getCertificate(keystoreProperties["keyAlias"] as String)
+    MessageDigest.getInstance("SHA-256").digest(cert.encoded)
+        .joinToString("") { byte -> "%02X".format(byte) }
+} else {
+    ""
 }
 
 android {
@@ -35,10 +51,17 @@ android {
         applicationId = "com.bel.liaison_officer"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Android 10+. Android 7-9 get no security updates (VAPT LOA-03).
+        minSdk = maxOf(flutter.minSdkVersion, 29)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Empty = no signature check (debug / profile builds).
+        buildConfigField("String", "RELEASE_CERT_SHA256", "\"\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     signingConfigs {
@@ -60,13 +83,26 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                // Local/CI fallback when key.properties is absent.
-                signingConfigs.getByName("debug")
+            // Release builds must use the real release key (VAPT LOA-01):
+            // no fallback to the shared Android Debug key. The check that
+            // key.properties exists runs only when a release task is built
+            // (see taskGraph below), so debug builds work without it.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
+            buildConfigField("String", "RELEASE_CERT_SHA256", "\"$releaseCertSha256\"")
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val buildsRelease = allTasks.any { it.project == project && it.name.contains("Release") }
+    if (buildsRelease && !keystorePropertiesFile.exists()) {
+        throw GradleException(
+            "android/key.properties is missing. Release builds must be signed with " +
+                "the release keystore (VAPT LOA-01); they no longer fall back to the " +
+                "Android Debug key.",
+        )
     }
 }
 

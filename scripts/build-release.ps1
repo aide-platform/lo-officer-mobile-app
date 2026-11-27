@@ -26,7 +26,8 @@ $suffix = if ($Target -eq "nic") { "-nic" } else { "" }
 $symbols = "build/symbols/$Version$suffix"
 
 if (-not (Test-Path "android/key.properties")) {
-    Write-Warning "android/key.properties is missing: this APK will be signed with the Android Debug key (VAPT LOA-01)."
+    Write-Error "android/key.properties is missing. Release builds must be signed with the release keystore (VAPT LOA-01); ask the key holder for it."
+    exit 1
 }
 
 & flutter build apk --release `

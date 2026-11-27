@@ -5,10 +5,6 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <!-- Only Android 9 and older need this to save the badge PDF into Downloads; newer versions use MediaStore. -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28"/>
 
     <application
         android:label="Aero India LO"
@@ -96,5 +92,17 @@
             <data android:scheme="mailto"/>
         </intent>
         <package android:name="com.whatsapp"/>
+        <!-- Root / hooking manager apps checked by DeviceIntegrity (VAPT HIGH-05). -->
+        <package android:name="com.topjohnwu.magisk"/>
+        <package android:name="io.github.huskydg.magisk"/>
+        <package android:name="io.github.vvb2060.magisk"/>
+        <package android:name="eu.chainfire.supersu"/>
+        <package android:name="com.noshufou.android.su"/>
+        <package android:name="com.koushikdutta.superuser"/>
+        <package android:name="com.thirdparty.superuser"/>
+        <package android:name="com.yellowes.su"/>
+        <package android:name="me.weishu.kernelsu"/>
+        <package android:name="de.robv.android.xposed.installer"/>
+        <package android:name="org.lsposed.manager"/>
     </queries>
 </manifest>

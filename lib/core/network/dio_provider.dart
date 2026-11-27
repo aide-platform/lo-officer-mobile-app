@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:liaison_officer/core/config/api_config.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/network/api_exception.dart';
+import 'package:liaison_officer/core/network/certificate_pinning.dart';
 import 'package:liaison_officer/core/session/session_store.dart';
 
 /// Shared Dio client for CAP.
@@ -28,6 +29,7 @@ Dio createDio({
     ),
   );
 
+  applyCertificatePinning(dio);
   dio.interceptors.add(LoHttpPerformanceInterceptor());
   dio.interceptors.add(
     InterceptorsWrapper(

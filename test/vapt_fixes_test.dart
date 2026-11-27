@@ -1,7 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liaison_officer/core/network/certificate_pinning_io.dart';
+import 'package:liaison_officer/core/network/pinned_roots.dart';
+import 'package:liaison_officer/core/security/device_integrity.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:liaison_officer/features/liaison_officer/data/cache/lo_offline_store.dart';
 import 'package:liaison_officer/core/services/device_downloads.dart';
@@ -104,9 +108,61 @@ void main() {
     });
   });
 
+  group('DeviceIntegrityGate', () {
+    Widget app(DeviceIntegrityResult r) => MaterialApp(
+      home: DeviceIntegrityGate(result: r, child: const Text('home')),
+    );
+
+    testWidgets('no warning on an emulator alone', (tester) async {
+      await tester.pumpWidget(app(const DeviceIntegrityResult(emulator: true)));
+      expect(find.text('Device security warning'), findsNothing);
+    });
+
+    testWidgets('warns on a rooted phone and can be dismissed', (tester) async {
+      await tester.pumpWidget(app(const DeviceIntegrityResult(rooted: true)));
+      expect(find.text('Device security warning'), findsOneWidget);
+      await tester.tap(find.text('I understand'));
+      await tester.pump();
+      expect(find.text('Device security warning'), findsNothing);
+      expect(find.text('home'), findsOneWidget);
+    });
+
+    testWidgets('repackaged app gets the official-source message', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        app(const DeviceIntegrityResult(signatureValid: false)),
+      );
+      expect(find.textContaining('not the official'), findsOneWidget);
+    });
+
+    test('fromMap reads the native result', () {
+      final r = DeviceIntegrityResult.fromMap({
+        'rooted': true,
+        'hooked': false,
+        'signatureValid': null,
+        'reasons': ['su binary'],
+      });
+      expect(r.rooted, isTrue);
+      expect(r.signatureValid, isNull);
+      expect(r.reasons, ['su binary']);
+      expect(r.atRisk, isTrue);
+    });
+  });
+
+  group('Certificate pinning', () {
+    test('pinned roots parse and build a TLS context', () {
+      expect(pinnedRootCertificates, hasLength(10));
+      expect(pinnedSecurityContext, returnsNormally);
+    });
+  });
+
   group('DeviceDownloads.safeFileName', () {
     test('keeps a normal name', () {
-      expect(DeviceDownloads.safeFileName('LO Badge (1).pdf'), 'LO Badge (1).pdf');
+      expect(
+        DeviceDownloads.safeFileName('LO Badge (1).pdf'),
+        'LO Badge (1).pdf',
+      );
     });
 
     test('strips folder parts', () {

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:liaison_officer/core/di/app_dependencies.dart';
 import 'package:liaison_officer/core/routing/role_home_router.dart';
+import 'package:liaison_officer/core/security/device_integrity.dart';
 import 'package:liaison_officer/core/services/fcm_device_registrar.dart';
 import 'package:liaison_officer/core/services/lo_firebase_monitor.dart';
 import 'package:liaison_officer/core/services/push_notification_service.dart';
@@ -56,10 +57,14 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('FCM register skipped: $e');
   }
-  runApp(LiaisonOfficerApp(
-    themeCubit: themeCubit,
-    initialSession: session,
-  ));
+  final integrity = await DeviceIntegrity.check();
+  runApp(
+    LiaisonOfficerApp(
+      themeCubit: themeCubit,
+      initialSession: session,
+      integrity: integrity,
+    ),
+  );
 }
 
 class LiaisonOfficerApp extends StatelessWidget {
@@ -67,10 +72,12 @@ class LiaisonOfficerApp extends StatelessWidget {
     super.key,
     required this.themeCubit,
     this.initialSession,
+    this.integrity = const DeviceIntegrityResult(),
   });
 
   final ThemeCubit themeCubit;
   final AuthSession? initialSession;
+  final DeviceIntegrityResult integrity;
 
   @override
   Widget build(BuildContext context) {
@@ -100,29 +107,30 @@ class LiaisonOfficerApp extends StatelessWidget {
               // bottom buttons ended up under the system navigation buttons.
               // Keep the whole app above them; the strip below is painted in
               // the page colour so it does not look like a gap.
-              return ColoredBox(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                child: SafeArea(
-                  top: false,
-                  left: false,
-                  right: false,
-                  // Builder: read the MediaQuery SafeArea already trimmed,
-                  // or the bottom inset would be added back.
-                  child: Builder(
-                    builder: (inner) => MediaQuery(
-                      data: MediaQuery.of(inner).copyWith(
-                        textScaler: TextScaler.linear(settings.font.scale),
+              return DeviceIntegrityGate(
+                result: integrity,
+                child: ColoredBox(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: SafeArea(
+                    top: false,
+                    left: false,
+                    right: false,
+                    // Builder: read the MediaQuery SafeArea already trimmed,
+                    // or the bottom inset would be added back.
+                    child: Builder(
+                      builder: (inner) => MediaQuery(
+                        data: MediaQuery.of(inner).copyWith(
+                          textScaler: TextScaler.linear(settings.font.scale),
+                        ),
+                        child: child ?? const SizedBox.shrink(),
                       ),
-                      child: child ?? const SizedBox.shrink(),
                     ),
                   ),
                 ),
               );
             },
             home: SplashGate(initialSession: initialSession),
-            routes: {
-              '/login': (_) => const LoginScreen(),
-            },
+            routes: {'/login': (_) => const LoginScreen()},
           );
         },
       ),

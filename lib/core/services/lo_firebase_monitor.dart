@@ -73,6 +73,34 @@ class LoFirebaseMonitor {
     _log(LoMonitoringEvents.notificationOpen, {'target': target});
   }
 
+  /// Device integrity flags (VAPT HIGH-05): Crashlytics keys on every report
+  /// plus one Analytics event when something is wrong. Flags only, no
+  /// device identifiers.
+  void logDeviceIntegrity({
+    required bool rooted,
+    required bool emulator,
+    required bool hooked,
+    required bool debuggerAttached,
+    required bool? signatureValid,
+  }) {
+    if (!_ready) return;
+    final crashlytics = FirebaseCrashlytics.instance;
+    crashlytics.setCustomKey('device_rooted', rooted);
+    crashlytics.setCustomKey('device_emulator', emulator);
+    crashlytics.setCustomKey('device_hooked', hooked);
+    crashlytics.setCustomKey('debugger_attached', debuggerAttached);
+    crashlytics.setCustomKey('signature', '${signatureValid ?? 'unchecked'}');
+    if (rooted || hooked || debuggerAttached || signatureValid == false) {
+      _log('device_integrity_risk', {
+        'rooted': '$rooted',
+        'emulator': '$emulator',
+        'hooked': '$hooked',
+        'debugger': '$debuggerAttached',
+        'signature': '${signatureValid ?? 'unchecked'}',
+      });
+    }
+  }
+
   void _log(String name, Map<String, String> parameters) {
     if (!_ready) return;
     FirebaseAnalytics.instance.logEvent(name: name, parameters: parameters);
